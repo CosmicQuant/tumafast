@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import ChatAssistant from './ChatAssistant';
-import BottomNav from './BottomNav';
 
 interface LayoutProps {
     onOpenProfile: () => void;
@@ -15,7 +14,7 @@ const Layout: React.FC<LayoutProps> = ({ onOpenProfile, onLogin }) => {
 
     // Determine if we should show standard layout or map-first layout
     const isDashboard = location.pathname.includes('/dashboard');
-    const isMapPage = ['/booking', '/tracking'].some(path => location.pathname.startsWith(path)) && location.pathname !== '/business';
+    const isMapPage = ['/book', '/tracking'].some(path => location.pathname.startsWith(path)) && location.pathname !== '/business';
     const isHome = location.pathname === '/' || location.pathname === '/business';
 
     return (

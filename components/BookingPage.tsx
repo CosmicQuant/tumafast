@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import BookingForm from './BookingForm';
 import HeroOverlay from './HeroOverlay';
 import MapLayer from './MapLayer';
@@ -16,13 +16,17 @@ interface BookingPageProps {
     onClearPrefill?: () => void;
 }
 
-const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData, onRequireAuth, onClearPrefill }) => {
+const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData: propPrefill, onRequireAuth, onClearPrefill }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const createOrderMutation = useCreateOrder();
     const { refetch: refetchOrders } = useUserOrders(user?.id || '');
     const { setOrderState, setPickupCoords, setDropoffCoords, setWaypointCoords, setRoutePolyline } = useMapState();
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(true);
+
+    // Combine prop prefill with router state prefill
+    const prefillData = propPrefill || location.state?.prefill;
 
     useEffect(() => {
         setOrderState('DRAFTING');
@@ -54,7 +58,7 @@ const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData, onRequire
             if (user?.role === 'business') {
                 toast.success('Order created successfully!');
                 onClearPrefill?.();
-                navigate('/business/dashboard');
+                navigate('/business-dashboard');
             } else {
                 if (user) await refetchOrders();
                 toast.success('Order created successfully!');
@@ -74,7 +78,6 @@ const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData, onRequire
             </div>
 
             {/* The form will be the drawer at the bottom */}
-            {/* The form acts as the overlay/drawer */}
             <div className="relative z-10 flex-grow flex flex-col pointer-events-none">
                 <BookingForm
                     prefillData={prefillData}

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Tracking from './Tracking';
 import MapLayer from './MapLayer';
 import { useAuth } from '../context/AuthContext';
@@ -13,7 +13,11 @@ import { MapProvider, useMapState } from '@/context/MapContext';
 import { mapService } from '@/services/mapService';
 
 const TrackingPageContent: React.FC = () => {
-    const { orderId } = useParams<{ orderId: string }>();
+    const { orderId: paramId } = useParams<{ orderId: string }>();
+    const location = useLocation();
+    const queryId = new URLSearchParams(location.search).get('id');
+    const orderId = paramId || queryId;
+
     const navigate = useNavigate();
     const { user } = useAuth();
     const { showAlert } = usePrompt();
@@ -246,7 +250,7 @@ const TrackingPageContent: React.FC = () => {
                             Track Again
                         </button>
                         <button
-                            onClick={() => navigate(user?.role === 'business' ? '/business/dashboard' : (user ? '/customer/dashboard' : '/'))}
+                            onClick={() => navigate(user?.role === 'business' ? '/business-dashboard' : (user ? '/customer-dashboard' : '/'))}
                             className="w-full bg-gray-100 text-gray-600 py-4 rounded-2xl font-bold hover:bg-gray-200 transition-all"
                         >
                             Back to Dashboard
@@ -267,7 +271,7 @@ const TrackingPageContent: React.FC = () => {
                     <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Order Cancelled</h2>
                     <p className="text-gray-500 font-bold text-sm mb-6">This delivery has been cancelled. If this was a mistake, please place a new order.</p>
                     <button
-                        onClick={() => navigate(user?.role === 'business' ? '/business/dashboard' : (user ? '/customer/dashboard' : '/'))}
+                        onClick={() => navigate(user?.role === 'business' ? '/business-dashboard' : (user ? '/customer-dashboard' : '/'))}
                         className="w-full bg-brand-600 text-white py-4 rounded-2xl font-bold shadow-lg hover:bg-brand-700 transition-all"
                     >
                         Back to Dashboard
@@ -298,9 +302,9 @@ const TrackingPageContent: React.FC = () => {
                     onUpdateStatus={handleUpdateStatus}
                     onUpdateOrder={handleUpdateOrder}
                     onBack={() => {
-                        if (user?.role === 'business') navigate('/business/dashboard');
-                        else if (user?.role === 'driver') navigate('/driver/dashboard');
-                        else if (user) navigate('/customer/dashboard');
+                        if (user?.role === 'business') navigate('/business-dashboard');
+                        else if (user?.role === 'driver') navigate('/driver');
+                        else if (user) navigate('/customer-dashboard');
                         else navigate('/');
                     }}
                 />

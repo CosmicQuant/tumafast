@@ -5,9 +5,10 @@ import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
     allowedRoles?: ('customer' | 'driver' | 'business')[];
+    children?: React.ReactNode;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children }) => {
     const { user, isLoading } = useAuth();
     const location = useLocation();
 
@@ -27,12 +28,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
 
     if (allowedRoles && !allowedRoles.includes(user.role)) {
         // Redirect to their appropriate dashboard or home
-        if (user.role === 'driver') return <Navigate to="/driver/dashboard" replace />;
-        if (user.role === 'business') return <Navigate to="/business/dashboard" replace />;
-        return <Navigate to="/" replace />;
+        if (user.role === 'driver') return <Navigate to="/driver" replace />;
+        if (user.role === 'business') return <Navigate to="/business-dashboard" replace />;
+        return <Navigate to="/customer-dashboard" replace />;
     }
 
-    return <Outlet />;
+    return <>{children || <Outlet />}</>;
 };
 
 export default ProtectedRoute;
