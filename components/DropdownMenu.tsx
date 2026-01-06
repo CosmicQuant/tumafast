@@ -46,11 +46,11 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({ isOpen, onClose, user }) =>
     const handleDashboard = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (user?.role === 'business') {
-            navigate('/business/dashboard');
+            navigate('/business-dashboard');
         } else if (user?.role === 'driver') {
-            navigate('/driver/dashboard');
+            navigate('/driver');
         } else {
-            navigate('/customer/dashboard');
+            navigate('/customer-dashboard');
         }
         onClose();
     };

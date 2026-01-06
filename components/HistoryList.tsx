@@ -176,7 +176,16 @@ const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) =>
             };
 
             return (
-              <div key={order.id} className={`rounded-[2rem] shadow-sm border overflow-hidden transition-all group ${getStatusStyles()}`}>
+              <div
+                key={order.id}
+                onClick={(e) => {
+                  // Don't trigger if common interactive elements are clicked
+                  const target = e.target as HTMLElement;
+                  if (target.closest('button') || target.closest('a')) return;
+                  onTrackOrder(order.id);
+                }}
+                className={`rounded-[2rem] shadow-sm border overflow-hidden transition-all group cursor-pointer ${getStatusStyles()}`}
+              >
                 <div className="p-4 md:p-6">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <div className="flex-1 min-w-0">

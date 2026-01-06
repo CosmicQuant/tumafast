@@ -258,9 +258,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                 }));
             setWaypoints(waypointList);
         }
+        // Expand drawer if we have any prefill data (e.g. from Hero search)
+        if (prefillData.pickup || prefillData.itemDescription || prefillData.dropoff) {
+            setIsCollapsed(false);
+        }
         // If we have both pickup and dropoff, we should probably show the vehicle selection step
         if (prefillData.pickup && prefillData.dropoff) {
-            setIsCollapsed(false);
             if (prefillData.recipient?.name || prefillData.paymentMethod) {
                 setStep(3);
             } else {
@@ -1055,7 +1058,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
     return (
         <div className="w-full h-full flex flex-col pointer-events-none">
-            <div className="mt-auto pointer-events-auto w-full max-w-2xl mx-auto px-4 pb-8">
+            <div className="mt-auto pointer-events-auto w-full max-w-2xl mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
 
                 {/* Step Indicator - Removed for One-Click Flow */}
                 {/* {!isCollapsed && (

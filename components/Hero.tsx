@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Box, ShieldCheck, Zap, MapPin, Truck, Clock, Smartphone, ChevronRight, CheckCircle2, Building2, Star, Navigation, Package, Users, Map, Bike, Car, Search, Home, Rocket, Shield, Briefcase } from 'lucide-react';
 import { parseNaturalLanguageOrder } from '../services/geminiService';
 import { mapService } from '../services/mapService';
@@ -8,7 +9,7 @@ import { orderService } from '../services/orderService';
 import { ServiceType, VehicleType } from '../types';
 
 interface HeroProps {
-   onStartBooking: (prefill?: any) => void;
+   onStartBooking?: (prefill?: any) => void;
    onBusinessClick?: () => void;
 }
 
@@ -22,6 +23,7 @@ const PLACEHOLDERS = [
 
 const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
    const { user } = useAuth();
+   const navigate = useNavigate();
    const [quickInput, setQuickInput] = useState('');
    const [isAnalyzing, setIsAnalyzing] = useState(false);
    const [historyDestinations, setHistoryDestinations] = useState<any[]>([]);
@@ -122,7 +124,11 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
 
    const performSearch = async (input: string) => {
       if (!input.trim()) {
-         onStartBooking();
+         if (onStartBooking) {
+            onStartBooking();
+         } else {
+            navigate('/book');
+         }
          return;
       }
 
@@ -151,7 +157,11 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
          }
 
          setIsAnalyzing(false);
-         onStartBooking(prefill);
+         if (onStartBooking) {
+            onStartBooking(prefill);
+         } else {
+            navigate('/book', { state: { prefill } });
+         }
       } else {
          setIsAnalyzing(false);
          // Fallback if AI fails or returns empty: Use the raw input as the item description
@@ -162,7 +172,13 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
             const address = await mapService.reverseGeocode(coords.lat, coords.lng);
             if (address) pickup = address;
          }
-         onStartBooking({ itemDescription: input, pickup });
+
+         const fallbackPrefill = { itemDescription: input, pickup };
+         if (onStartBooking) {
+            onStartBooking(fallbackPrefill);
+         } else {
+            navigate('/book', { state: { prefill: fallbackPrefill } });
+         }
       }
    };
 
@@ -192,11 +208,25 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
       }
 
       setIsAnalyzing(false);
-      onStartBooking({
+      const prefill = {
          pickup: pickup,
          pickupCoords: coords,
          itemDescription: 'Package'
-      });
+      };
+
+      if (onStartBooking) {
+         onStartBooking(prefill);
+      } else {
+         navigate('/book', { state: { prefill } });
+      }
+   };
+
+   const handleBusinessClick = () => {
+      if (onBusinessClick) {
+         onBusinessClick();
+      } else {
+         navigate('/business');
+      }
    };
 
    return (
@@ -335,7 +365,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                <div className="max-w-2xl mx-auto w-full mb-4 sm:mb-6 flex justify-center gap-2 sm:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
                   {[
                      { id: 'send', icon: Package, label: 'Send Anything', color: 'text-brand-600', bg: 'bg-brand-50', border: 'border-brand-600', desc: 'Personal & Errands', action: handleSendAnything },
-                     { id: 'business', icon: Briefcase, label: 'Business', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-600', desc: 'Bulk & Corporate', action: () => onBusinessClick?.() },
+                     { id: 'business', icon: Briefcase, label: 'Business', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-600', desc: 'Bulk & Corporate', action: handleBusinessClick },
                   ].map((s) => (
                      <button
                         key={s.id}
@@ -402,7 +432,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                            <button
                               key={dest.label}
                               onClick={() => {
-                                 const query = `Send package to ${dest.label}`;
+                                 const query = `Send package from my current location to ${dest.label}`;
                                  setQuickInput(query);
                                  performSearch(query);
                               }}
@@ -447,7 +477,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
 
                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   {/* Service 1 */}
-                  <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer" onClick={() => onStartBooking()}>
+                  <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer" onClick={() => { if (onStartBooking) onStartBooking({ vehicle: 'BODA' }); else navigate('/book', { state: { prefill: { vehicle: 'BODA' } } }); }}>
                      <div className="w-14 h-14 bg-brand-50 rounded-2xl flex items-center justify-center text-brand-600 mb-6 group-hover:scale-110 transition-transform duration-300">
                         <Zap className="w-7 h-7 animate-icon-hover" />
                      </div>
@@ -472,7 +502,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                   </div>
 
                   {/* Service 2 */}
-                  <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer" onClick={onBusinessClick}>
+                  <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer" onClick={handleBusinessClick}>
                      <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6 group-hover:scale-110 transition-transform duration-300">
                         <Building2 className="w-7 h-7 animate-icon-hover" />
                      </div>
@@ -497,7 +527,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                   </div>
 
                   {/* Service 3 */}
-                  <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer" onClick={() => onStartBooking()}>
+                  <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer" onClick={() => { if (onStartBooking) onStartBooking({ vehicle: 'TRUCK' }); else navigate('/book', { state: { prefill: { vehicle: 'TRUCK' } } }); }}>
                      <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 mb-6 group-hover:scale-110 transition-transform duration-300">
                         <Truck className="w-7 h-7 animate-icon-hover" />
                      </div>
@@ -561,7 +591,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                      </div>
 
                      <div className="mt-12">
-                        <button onClick={() => onStartBooking()} className="bg-brand-600 text-white px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-brand-700 transition-all flex items-center text-lg">
+                        <button onClick={() => { if (onStartBooking) onStartBooking(); else navigate('/book'); }} className="bg-brand-600 text-white px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-brand-700 transition-all flex items-center text-lg">
                            Get Started Now <ChevronRight className="w-5 h-5 ml-2" />
                         </button>
                      </div>
@@ -720,10 +750,10 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                   Fast, reliable, and affordable.
                </p>
                <div className="flex flex-col sm:flex-row justify-center gap-4">
-                  <button onClick={() => onStartBooking()} className="px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-brand-500/25">
+                  <button onClick={() => { if (onStartBooking) onStartBooking(); else navigate('/book'); }} className="px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-brand-500/25">
                      Book a Delivery
                   </button>
-                  <button onClick={onBusinessClick} className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-lg transition-all backdrop-blur-sm">
+                  <button onClick={handleBusinessClick} className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-lg transition-all backdrop-blur-sm">
                      Business Account
                   </button>
                </div>
