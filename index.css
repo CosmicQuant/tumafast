@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Styles moved from index.html */
+
+@media (min-width: 768px) {
+  html {
+    font-size: 90%;
+    /* Naturally scales the UI to 90% on desktop without breaking the map */
+  }
+}
+
+body {
+  background-color: #f8fafc;
+  /* slate-50 */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+/* Leaflet Z-Index fix for sticky nav */
+.leaflet-pane {
+  z-index: 10 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 20 !important;
+}
+
+/* Print Styles */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  /* Hide the main app root */
+  #root {
+    display: none !important;
+  }
+
+  /* Ensure body is visible but reset margins */
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Show the receipt portal */
+  .receipt-portal-root {
+    display: flex !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    z-index: 9999 !important;
+    background: white !important;
+    padding: 0 !important;
+  }
+
+  /* Ensure content inside portal is visible */
+  .receipt-portal-root * {
+    visibility: visible !important;
+  }
+
+  /* Reset receipt container styles for print */
+  #receipt-content {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 20px !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Hide UI elements */
+  .print\:hidden,
+  button,
+  .backdrop-blur-sm {
+    display: none !important;
+  }
+
+  /* Ensure colors print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* Ensure background colors print */
+* {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}

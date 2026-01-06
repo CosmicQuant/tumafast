@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isDriver() {
+       return getUserData().role == 'driver';
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    match /drivers/{driverId} {
+      // SECURED: Only authenticated users can read driver data.
+      allow read: if isAuthenticated();
+      // Only driver can write to their own profile
+      allow write: if isOwner(driverId);
+    }
+
+    match /businesses/{businessId} {
+      allow read, write: if isOwner(businessId);
+    }
+
+    match /fleets/{fleetId} {
+      allow create: if isAuthenticated();
+      allow read, write: if isAuthenticated() && (resource.data.ownerId == request.auth.uid);
+    }
+
+    match /orders/{orderId} {
+      // Create: Any authenticated user
+      allow create: if request.auth != null;
+      
+      // Read access:
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid || 
+        (resource.data.driver != null && resource.data.driver.id == request.auth.uid) ||
+        (resource.data.status == 'pending' && isDriver())
+      );
+
+      // Update access:
+      allow update: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.driver != null && resource.data.driver.id == request.auth.uid) ||
+        (
+          resource.data.status == 'pending' && 
+          isDriver() && 
+          get(/databases/$(database)/documents/drivers/$(request.auth.uid)).data.vehicleType == resource.data.vehicle
+        )
+      );
+
+      // Delete: REMOVED for audit trail preservation.
+    }
+  }
+}
