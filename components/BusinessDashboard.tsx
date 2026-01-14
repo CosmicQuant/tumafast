@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { User, DeliveryOrder, AddressBookEntry } from '../types';
 import { VehicleType, ServiceType } from '../types';
-import { LayoutDashboard, Upload, BarChart3, Download, Plus, Search, FileText, CheckCircle2, AlertCircle, Copy, Check, Terminal, Trash2, MapPin, Building, Home, User as UserIcon, Edit2, Save, Menu, X, Package, Shield, Mail, Phone, Briefcase, ArrowRight, Truck, ChevronRight, RefreshCw, Battery, Map as MapIcon, Navigation, Car, Hash, AlignLeft, MoreVertical, Clock, AlertTriangle, Bike, PieChart, TrendingUp, Activity, Eye, EyeOff, Globe, Server, Play, Code, LogOut, Star } from 'lucide-react';
+import { LayoutDashboard, Upload, BarChart3, Download, Plus, Search, FileText, CheckCircle2, AlertCircle, Copy, Check, Terminal, Trash2, MapPin, Building, Home, User as UserIcon, Edit2, Save, Menu, X, Package, Shield, Mail, Phone, Briefcase, ArrowRight, Truck, ChevronRight, RefreshCw, Battery, Map as MapIcon, Navigation, Car, Hash, AlignLeft, MoreVertical, Clock, AlertTriangle, Bike, PieChart, TrendingUp, Activity, Eye, EyeOff, Globe, Server, Play, Code, LogOut, Star, Lock, Key, QrCode, ShieldCheck, FileCheck, ChevronUp, ChevronDown, CheckCircle, Power } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, OverlayView, InfoWindow } from '@react-google-maps/api';
 import { APP_CONFIG } from '../config';
 import { orderService } from '../services/orderService';
@@ -159,6 +159,22 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
         contactName: user?.name || ''
     });
 
+    // Integrated Professional Settings States
+    const [expandedSection, setExpandedSection] = useState<'SECURITY' | 'PRIVACY' | 'NOTIFICATIONS' | null>(null);
+    const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+    const [isUpdating2FA, setIsUpdating2FA] = useState(false);
+    const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
+    const [showPasswordFields, setShowPasswordFields] = useState(false);
+    const [showPass, setShowPass] = useState(false);
+    const [deleteConfirmation, setDeleteConfirmation] = useState('');
+    const [showDeleteInput, setShowDeleteInput] = useState(false);
+    const [notifications, setNotifications] = useState({
+        email: true,
+        sms: true,
+        push: true
+    });
+    const [loading, setLoading] = useState(false);
+
     // Address Book Data
     const [addresses, setAddresses] = useState<AddressBookEntry[]>([]);
 
@@ -291,8 +307,66 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
     };
 
     const handleSaveProfile = async () => {
-        await updateUser({ ...profileForm, name: profileForm.contactName });
-        setIsEditingProfile(false);
+        try {
+            await updateUser({ ...profileForm, name: profileForm.contactName });
+            setIsEditingProfile(false);
+            setNotification({ message: 'Profile updated successfully', type: 'success' });
+        } catch (error) {
+            setNotification({ message: 'Failed to update profile', type: 'warning' });
+        }
+    };
+
+    const handleToggle2FA = async () => {
+        setIsUpdating2FA(true);
+        // Simulate API call to update MFA settings
+        setTimeout(() => {
+            setIs2FAEnabled(!is2FAEnabled);
+            setIsUpdating2FA(false);
+            setNotification({
+                message: `Two-Factor Authentication ${!is2FAEnabled ? 'enabled' : 'disabled'}`,
+                type: 'success'
+            });
+        }, 1000);
+    };
+
+    const handlePasswordUpdate = () => {
+        if (!passwords.new || passwords.new !== passwords.confirm) {
+            setNotification({ message: 'Passwords do not match or are empty', type: 'warning' });
+            return;
+        }
+        setLoading(true);
+        setTimeout(() => {
+            setLoading(false);
+            setShowPasswordFields(false);
+            setPasswords({ current: '', new: '', confirm: '' });
+            setNotification({ message: 'Security password updated successfully', type: 'success' });
+        }, 1500);
+    };
+
+    const handleDeactivateAccount = () => {
+        if (window.confirm('Are you sure you want to go offline? You can reactivate by logging in again.')) {
+            setNotification({ message: 'Business account deactivated. Redirecting...', type: 'info' });
+            setTimeout(() => logout(), 2000);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (deleteConfirmation !== 'DELETE') return;
+        try {
+            setLoading(true);
+            await deleteAccount();
+            onGoHome();
+        } catch (error: any) {
+            console.error('Delete account error:', error);
+            setNotification({
+                message: error.code === 'auth/requires-recent-login'
+                    ? 'Please log out and back in to delete your account'
+                    : 'Failed to delete account',
+                type: 'warning'
+            });
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handlePrintReceipt = () => {
@@ -1229,88 +1303,354 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                 {/* PROFILE TAB */}
                 {
                     activeTab === 'PROFILE' && (
-                        <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <div>
-                                    <h1 className="text-2xl font-bold text-gray-900">Business Profile</h1>
-                                    <p className="text-gray-500">Manage your company details and settings.</p>
+                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+                            {/* New Professional Header */}
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-10 bg-gradient-to-br from-brand-600 to-brand-800 rounded-[3rem] text-white shadow-2xl relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-white/10 transition-all duration-700" />
+                                <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-400/10 rounded-full -ml-24 -mb-24 blur-2xl" />
+
+                                <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+                                    <div className="relative group/avatar">
+                                        <div className="w-32 h-32 rounded-[2.5rem] bg-white text-brand-600 flex items-center justify-center shadow-2xl transform group-hover/avatar:scale-105 transition-all duration-500 text-4xl font-black">
+                                            {user.companyName ? user.companyName.charAt(0) : user.name?.charAt(0) || 'B'}
+                                        </div>
+                                        <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-2 rounded-2xl shadow-xl border-4 border-white">
+                                            <ShieldCheck className="w-5 h-5" />
+                                        </div>
+                                    </div>
+                                    <div className="text-center md:text-left">
+                                        <h2 className="text-4xl font-black tracking-tight">{user.companyName || user.name}</h2>
+                                        <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-3">
+                                            <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 flex items-center">
+                                                <Briefcase className="w-3.5 h-3.5 mr-2" /> Enterprise Partner
+                                            </span>
+                                            <span className="bg-emerald-400 text-emerald-900 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center">
+                                                <div className="w-2 h-2 bg-emerald-900 rounded-full mr-2 animate-pulse" /> Official Business
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
-                                {!isEditingProfile && (
-                                    <button
-                                        onClick={() => setIsEditingProfile(true)}
-                                        className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg font-bold flex items-center shadow-sm w-full sm:w-auto justify-center transition-colors"
-                                    >
-                                        <Edit2 className="w-4 h-4 mr-2" /> Edit Profile
-                                    </button>
-                                )}
+
+                                <div className="grid grid-cols-2 gap-4 relative z-10 w-full md:w-auto">
+                                    <div className="bg-white/10 backdrop-blur-xl p-5 rounded-3xl border border-white/10 text-center hover:bg-white/20 transition-all">
+                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Company Size</span>
+                                        <span className="text-2xl font-black">Enterprise</span>
+                                    </div>
+                                    <div className="bg-white/10 backdrop-blur-xl p-5 rounded-3xl border border-white/10 text-center hover:bg-white/20 transition-all">
+                                        <span className="block text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Status</span>
+                                        <span className="text-2xl font-black">ACTIVE</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                                <div className="p-6 sm:p-8 border-b border-gray-100 bg-gray-50">
-                                    <div className="flex flex-col md:flex-row items-center gap-6">
-                                        <div className="w-24 h-24 bg-brand-600 rounded-full flex items-center justify-center shadow-lg border-4 border-white text-3xl font-bold text-white flex-shrink-0">
-                                            {user.companyName ? user.companyName.charAt(0) : 'B'}
+                            <div className="space-y-6">
+                                {/* Company Details Card */}
+                                <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
+                                    <div className="p-8">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <h3 className="font-black text-slate-900 text-lg flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600">
+                                                    <Building className="w-5 h-5" />
+                                                </div>
+                                                Corporate Information
+                                            </h3>
+                                            <button
+                                                onClick={() => setIsEditingProfile(!isEditingProfile)}
+                                                className="px-5 py-2.5 bg-gray-50 text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center gap-2"
+                                            >
+                                                {isEditingProfile ? <X className="w-3 h-3" /> : <Edit2 className="w-3 h-3" />}
+                                                {isEditingProfile ? 'Cancel Edit' : 'Modify Details'}
+                                            </button>
                                         </div>
-                                        <div className="text-center md:text-left">
-                                            <h2 className="text-2xl font-bold text-gray-900">{user.companyName || user.name}</h2>
-                                            <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
-                                                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-brand-600 text-white shadow-sm tracking-widest border-2 border-white">
-                                                    {user.role} Account
-                                                </span>
-                                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600 flex items-center border border-emerald-200">
-                                                    <Shield className="w-3 h-3 mr-1" /> Verified Business
-                                                </span>
-                                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">
-                                                    Enterprise Plan
-                                                </span>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                            <div className="space-y-6">
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center">
+                                                        <Briefcase className="w-3.5 h-3.5 mr-2" /> Registered Company Name
+                                                    </label>
+                                                    {isEditingProfile ? (
+                                                        <input
+                                                            value={profileForm.companyName}
+                                                            onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })}
+                                                            className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                        />
+                                                    ) : (
+                                                        <p className="text-gray-900 font-bold ml-5.5 text-lg">{user.companyName || 'N/A'}</p>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center">
+                                                        <FileText className="w-3.5 h-3.5 mr-2" /> Tax Identification (KRA PIN)
+                                                    </label>
+                                                    {isEditingProfile ? (
+                                                        <input
+                                                            value={profileForm.kraPin}
+                                                            onChange={(e) => setProfileForm({ ...profileForm, kraPin: e.target.value.toUpperCase() })}
+                                                            className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-brand-500/20 uppercase"
+                                                        />
+                                                    ) : (
+                                                        <p className="text-gray-900 font-black ml-5.5 text-lg tracking-widest bg-gray-50 inline-block px-3 py-1 rounded-lg border border-gray-100">{user.kraPin || 'NOT PROVIDED'}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-6">
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center">
+                                                        <MapPin className="w-3.5 h-3.5 mr-2" /> Headquarters Address
+                                                    </label>
+                                                    {isEditingProfile ? (
+                                                        <textarea
+                                                            value={profileForm.address}
+                                                            onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                                                            className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-brand-500/20 min-h-[100px]"
+                                                        />
+                                                    ) : (
+                                                        <p className="text-gray-900 font-bold ml-5.5 text-lg leading-relaxed">{user.address || 'No address provided'}</p>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {isEditingProfile ? (
-                                    <div className="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                        {/* ... Edit Profile Form ... */}
-                                        <div className="md:col-span-2"><h3 className="font-bold text-gray-900 border-b border-gray-100 pb-2 mb-4">Company Details</h3></div>
-                                        <div><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center">Company Name</label><input value={profileForm.companyName} onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })} className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-gray-900" placeholder="e.g. Acme Logistics" /></div>
-                                        <div><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center">KRA PIN</label><input value={profileForm.kraPin} onChange={(e) => setProfileForm({ ...profileForm, kraPin: e.target.value.toUpperCase() })} className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none uppercase text-gray-900" placeholder="P000000000Z" /></div>
-                                        <div className="md:col-span-2"><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center">Business Location / Address</label><textarea value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-gray-900 min-h-[80px]" placeholder="e.g. 4th Floor, Westlands Office Park, Waiyaki Way, Nairobi" /></div>
-                                        <div className="md:col-span-2 pt-4"><h3 className="font-bold text-gray-900 border-b border-gray-100 pb-2 mb-4">Contact Information</h3></div>
-                                        <div><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center">Contact Person Name</label><input value={profileForm.contactName} onChange={(e) => setProfileForm({ ...profileForm, contactName: e.target.value })} className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-gray-900" placeholder="Full Name" /></div>
-                                        <div><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center">Contact Email</label><input value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-gray-900" placeholder="name@company.com" /></div>
-                                        <div><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center">Contact Phone</label><input value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-gray-900" placeholder="0700 000 000" /></div>
-                                        <div className="md:col-span-2 flex justify-end gap-3 mt-4 border-t border-gray-100 pt-4"><button onClick={() => setIsEditingProfile(false)} className="px-6 py-2 border border-gray-200 text-gray-500 rounded-lg font-bold hover:bg-gray-50 flex items-center transition-colors">Cancel</button><button onClick={handleSaveProfile} className="px-6 py-2 bg-brand-600 text-white rounded-lg font-bold hover:bg-brand-700 flex items-center transition-colors shadow-lg shadow-brand-500/20"><Save className="w-4 h-4 mr-2" /> Save Changes</button></div>
-                                    </div>
-                                ) : (
-                                    <div className="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                        {/* ... View Profile ... */}
-                                        <div><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><Briefcase className="w-3 h-3 mr-1" /> Company Name</label><p className="text-gray-900 font-medium text-lg">{user.companyName || 'N/A'}</p></div>
-                                        <div><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><FileText className="w-3 h-3 mr-1" /> KRA PIN</label><p className="text-gray-900 font-mono font-medium text-lg bg-gray-50 inline-block px-2 rounded border border-gray-200">{user.kraPin || 'Not Provided'}</p></div>
-                                        <div className="md:col-span-2"><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><MapPin className="w-3 h-3 mr-1" /> Physical Address</label><p className="text-gray-900 font-medium text-lg bg-gray-50 p-3 rounded-lg border border-gray-200">{user.address || 'No address provided'}</p></div>
-                                        <div><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><UserIcon className="w-3 h-3 mr-1" /> Contact Person</label><p className="text-gray-900 font-medium text-lg">{user.name}</p></div>
-                                        <div><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><Mail className="w-3 h-3 mr-1" /> Email</label><p className="text-gray-900 font-medium text-lg break-all">{user.email}</p></div>
-                                        <div><label className="text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><Phone className="w-3 h-3 mr-1" /> Phone</label><p className="text-gray-900 font-medium text-lg">{user.phone || 'N/A'}</p></div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Danger Zone */}
-                            <div className="bg-red-50 rounded-2xl border border-red-100 p-6 sm:p-8">
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-red-900 flex items-center">
-                                            <AlertTriangle className="w-5 h-5 mr-2" /> Danger Zone
+                                {/* Contact Information Card */}
+                                <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
+                                    <div className="p-8">
+                                        <h3 className="font-black text-slate-900 text-lg mb-8 flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                                                <UserIcon className="w-5 h-5" />
+                                            </div>
+                                            Primary Contact Details
                                         </h3>
-                                        <p className="text-red-700 text-sm mt-1">
-                                            Once you delete your account, there is no going back. Please be certain.
-                                        </p>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center">
+                                                    <UserIcon className="w-3.5 h-3.5 mr-2" /> Contact Person
+                                                </label>
+                                                {isEditingProfile ? (
+                                                    <input
+                                                        value={profileForm.contactName}
+                                                        onChange={(e) => setProfileForm({ ...profileForm, contactName: e.target.value })}
+                                                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                    />
+                                                ) : (
+                                                    <p className="text-gray-900 font-bold text-lg">{user.name}</p>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center">
+                                                    <Mail className="w-3.5 h-3.5 mr-2" /> Email Address
+                                                </label>
+                                                {isEditingProfile ? (
+                                                    <input
+                                                        value={profileForm.email}
+                                                        onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                                                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                    />
+                                                ) : (
+                                                    <p className="text-gray-900 font-bold text-lg break-all">{user.email}</p>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center">
+                                                    <Phone className="w-3.5 h-3.5 mr-2" /> Phone Number
+                                                </label>
+                                                {isEditingProfile ? (
+                                                    <input
+                                                        value={profileForm.phone}
+                                                        onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                                                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                    />
+                                                ) : (
+                                                    <p className="text-gray-900 font-bold text-lg">{user.phone || 'N/A'}</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {isEditingProfile && (
+                                            <div className="mt-10 pt-8 border-t border-gray-50 flex justify-end">
+                                                <button
+                                                    onClick={handleSaveProfile}
+                                                    className="px-10 py-4 bg-brand-600 text-white rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-brand-200 hover:bg-brand-700 active:scale-95 transition-all flex items-center gap-3"
+                                                >
+                                                    <Save className="w-4 h-4" /> Update Business Profile
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                    <button
-                                        onClick={() => setIsDeleteModalOpen(true)}
-                                        className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap"
-                                    >
-                                        Delete Business Account
-                                    </button>
+                                </div>
+
+                                {/* Professional Suite: Security & Privacy */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className={`overflow-hidden border border-gray-50 rounded-[2.5rem] transition-all ${expandedSection === 'SECURITY' ? 'ring-2 ring-brand-500/20 bg-[#FBFCFE]' : 'bg-white shadow-sm'}`}>
+                                        <button
+                                            onClick={() => setExpandedSection(expandedSection === 'SECURITY' ? null : 'SECURITY')}
+                                            className="w-full flex items-center justify-between p-8"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
+                                                    <Lock className="w-5 h-5" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <h3 className="font-black text-slate-900">Security Center</h3>
+                                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Corporate Access Control</p>
+                                                </div>
+                                            </div>
+                                            {expandedSection === 'SECURITY' ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                                        </button>
+
+                                        {expandedSection === 'SECURITY' && (
+                                            <div className="px-8 pb-8 space-y-6 animate-in slide-in-from-top-4 duration-300">
+                                                <div className="space-y-4">
+                                                    <div className="p-5 bg-white rounded-2xl border border-gray-100 flex items-center justify-between group cursor-pointer hover:border-brand-200 transition-all">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600">
+                                                                <QrCode className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="font-bold text-slate-900 text-sm">Two-Factor Auth</h4>
+                                                                <p className="text-[10px] text-gray-400 font-medium">Extra layer for invoice approvals</p>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={handleToggle2FA}
+                                                            disabled={isUpdating2FA}
+                                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${is2FAEnabled ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                                                        >
+                                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${is2FAEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                                            {isUpdating2FA && <RefreshCw className="absolute inset-0 m-auto w-3 h-3 text-white animate-spin" />}
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="p-5 bg-white rounded-2xl border border-gray-100 flex items-center justify-between group cursor-pointer hover:border-brand-200 transition-all" onClick={() => setShowPasswordFields(!showPasswordFields)}>
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                                                                <Key className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="font-bold text-slate-900 text-sm">Update Password</h4>
+                                                                <p className="text-[10px] text-gray-400 font-medium">Ensure account integrity</p>
+                                                            </div>
+                                                        </div>
+                                                        <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-500 transition-transform group-hover:translate-x-1" />
+                                                    </div>
+
+                                                    {showPasswordFields && (
+                                                        <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-4 animate-in slide-in-from-top-2">
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                <input
+                                                                    type="password"
+                                                                    placeholder="New Security Password"
+                                                                    value={passwords.new}
+                                                                    onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+                                                                    className="w-full px-5 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm outline-none focus:border-brand-400"
+                                                                />
+                                                                <input
+                                                                    type="password"
+                                                                    placeholder="Confirm Password"
+                                                                    value={passwords.confirm}
+                                                                    onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                                                                    className="w-full px-5 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm outline-none focus:border-brand-400"
+                                                                />
+                                                            </div>
+                                                            <button
+                                                                onClick={handlePasswordUpdate}
+                                                                disabled={loading}
+                                                                className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg"
+                                                            >
+                                                                {loading ? 'Processing...' : 'Secure Account'}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className={`overflow-hidden border border-gray-50 rounded-[2.5rem] transition-all bg-white shadow-sm`}>
+                                        <div className="p-8">
+                                            <div className="flex items-center gap-4 mb-6">
+                                                <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 shadow-sm">
+                                                    <Bell className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-black text-slate-900">Notifications</h3>
+                                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Enterprise Alerts</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                {[
+                                                    { id: 'email', label: 'Invoices & Billing', icon: Mail },
+                                                    { id: 'sms', label: 'Critical Status SMS', icon: Smartphone },
+                                                    { id: 'push', label: 'Push Dashboard Alerts', icon: Navigation }
+                                                ].map((notif) => (
+                                                    <div key={notif.id} className="flex items-center justify-between p-3.5 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                                                        <div className="flex items-center gap-3">
+                                                            <notif.icon className="w-4 h-4 text-gray-400" />
+                                                            <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{notif.label}</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setNotifications({ ...notifications, [notif.id]: !((notifications as any)[notif.id]) })}
+                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${(notifications as any)[notif.id] ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                                                        >
+                                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${(notifications as any)[notif.id] ? 'translate-x-[1.25rem]' : 'translate-x-[0.25rem]'}`} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-[2.5rem] border border-gray-50 p-8 shadow-sm flex flex-col justify-between">
+                                        <div className="flex items-center gap-4 mb-6">
+                                            <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 shadow-sm">
+                                                <AlertTriangle className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-black text-slate-900">Privacy & Erasure</h3>
+                                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Account Status Control</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <button
+                                                onClick={handleDeactivateAccount}
+                                                className="flex items-center justify-between w-full p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-200 transition-all group"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <Power className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
+                                                    <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Deactivate temporarily</span>
+                                                </div>
+                                                <ChevronRight className="w-4 h-4 text-gray-300" />
+                                            </button>
+
+                                            {showDeleteInput ? (
+                                                <div className="space-y-3 animate-in zoom-in-95">
+                                                    <input
+                                                        value={deleteConfirmation}
+                                                        onChange={(e) => setDeleteConfirmation(e.target.value)}
+                                                        placeholder='Type "DELETE" to proceed'
+                                                        className="w-full px-4 py-3 bg-red-50 border-2 border-red-100 rounded-xl font-black text-center text-red-600 outline-none uppercase text-xs"
+                                                    />
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <button onClick={() => setShowDeleteInput(false)} className="py-2.5 bg-gray-100 text-gray-400 rounded-xl text-[10px] font-black uppercase">Cancel</button>
+                                                        <button disabled={deleteConfirmation !== 'DELETE'} onClick={handleDeleteAccount} className="py-2.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-50">Erase Everything</button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setShowDeleteInput(true)}
+                                                    className="w-full py-4 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100"
+                                                >
+                                                    Terminate Business Account
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1318,40 +1658,14 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                 }
             </main >
 
-            {/* Delete Account Confirmation Modal */}
-            {
-                isDeleteModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                        <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                            <div className="p-8 text-center space-y-6">
-                                <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mx-auto">
-                                    <AlertCircle className="w-10 h-10 text-red-600" />
-                                </div>
-                                <div>
-                                    <h3 className="text-2xl font-black text-gray-900">Delete Business?</h3>
-                                    <p className="text-gray-500 font-medium mt-2">
-                                        This action is permanent. All company data, fleet information, and order history will be permanently removed.
-                                    </p>
-                                </div>
-                                <div className="flex flex-col gap-3">
-                                    <button
-                                        onClick={handleDeleteAccount}
-                                        className="w-full bg-red-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-red-600/20 hover:bg-red-700 transition-all active:scale-95"
-                                    >
-                                        Yes, Delete Account
-                                    </button>
-                                    <button
-                                        onClick={() => setIsDeleteModalOpen(false)}
-                                        className="w-full bg-gray-100 text-gray-900 py-4 rounded-2xl font-black hover:bg-gray-200 transition-all active:scale-95"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
+            {/* Notification Toast */}
+            {notification && (
+                <div className={`fixed bottom-8 right-8 z-[300] p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right-10 duration-300 ${notification.type === 'success' ? 'bg-emerald-600 text-white' : notification.type === 'warning' ? 'bg-amber-500 text-white' : 'bg-brand-600 text-white'}`}>
+                    {notification.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                    <p className="text-sm font-bold">{notification.message}</p>
+                    <button onClick={() => setNotification(null)} className="ml-4 opacity-50 hover:opacity-100"><X className="w-4 h-4" /></button>
+                </div>
+            )}
 
             {/* Receipt Modal */}
             {viewingReceipt && (

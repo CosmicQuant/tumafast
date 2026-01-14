@@ -4,9 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
     X, User, Truck, Briefcase, FileText, Phone, MapPin,
-    ArrowRight, Loader, CheckCircle, Shield, Building2, LogOut, AlertTriangle
+    ArrowRight, Loader, CheckCircle, Shield, Building2, LogOut, AlertTriangle,
+    Camera, Upload, Image as ImageIcon
 } from 'lucide-react';
 import { VehicleType } from '../types';
+import { storageService } from '../services/storageService';
 
 const OnboardingModal: React.FC = () => {
     const { user, updateUser, logout } = useAuth();
@@ -27,6 +29,30 @@ const OnboardingModal: React.FC = () => {
     const [idNumber, setIdNumber] = useState('');
     const [licenseNumber, setLicenseNumber] = useState('');
 
+    // Image Upload State
+    const [profileFile, setProfileFile] = useState<File | null>(null);
+    const [profilePreview, setProfilePreview] = useState<string>('');
+    const [licenseFile, setLicenseFile] = useState<File | null>(null);
+    const [licensePreview, setLicensePreview] = useState<string>('');
+    const [idFile, setIdFile] = useState<File | null>(null);
+    const [idPreview, setIdPreview] = useState<string>('');
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'license' | 'id') => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (type === 'profile') {
+                setProfileFile(file);
+                setProfilePreview(URL.createObjectURL(file));
+            } else if (type === 'license') {
+                setLicenseFile(file);
+                setLicensePreview(URL.createObjectURL(file));
+            } else if (type === 'id') {
+                setIdFile(file);
+                setIdPreview(URL.createObjectURL(file));
+            }
+        }
+    };
+
     useEffect(() => {
         if (user) {
             const isDriver = user.role === 'driver';
@@ -38,13 +64,22 @@ const OnboardingModal: React.FC = () => {
                 return;
             }
 
-            // Check for core requirements: Name, Phone, ID Number
+            // Core requirements: Name, Phone, ID Number
             const hasCoreInfo = user.name && user.phone && user.idNumber;
 
             const needsOnboarding =
                 !user.onboarded ||
                 !hasCoreInfo ||
-                (isDriver && (!user.licenseNumber || !user.plateNumber || !user.kraPin || !user.address || !user.vehicleType)) ||
+                (isDriver && (
+                    !user.licenseNumber ||
+                    !user.plateNumber ||
+                    !user.kraPin ||
+                    !user.address ||
+                    !user.vehicleType ||
+                    !user.licenseImage ||
+                    !user.idImage ||
+                    !user.profileImage
+                )) ||
                 (isBusiness && (!user.kraPin || !user.address));
 
             if (needsOnboarding) {
@@ -81,6 +116,9 @@ const OnboardingModal: React.FC = () => {
         if (user.role === 'driver') {
             if (!licenseNumber) return "Driving License number is required";
             if (!plateNumber) return "Vehicle Plate Number is required";
+            if (!licenseFile && !user.licenseImage) return "Please upload your Driving License photo";
+            if (!idFile && !user.idImage) return "Please upload your National ID photo";
+            if (!profileFile && !user.profileImage) return "Please upload your profile photo (Clear headshot)";
         }
 
         return null;
@@ -104,6 +142,23 @@ const OnboardingModal: React.FC = () => {
                 idNumber,
                 onboarded: true
             };
+
+            // Handle File Uploads
+            if (profileFile) {
+                const profileUrl = await storageService.uploadFile(profileFile, `users/${user.id}/profile_${Date.now()}`);
+                updates.profileImage = profileUrl;
+                updates.avatar = profileUrl; // Sync avatar
+            }
+
+            if (licenseFile) {
+                const licenseUrl = await storageService.uploadFile(licenseFile, `users/${user.id}/license_${Date.now()}`);
+                updates.licenseImage = licenseUrl;
+            }
+
+            if (idFile) {
+                const idUrl = await storageService.uploadFile(idFile, `users/${user.id}/id_${Date.now()}`);
+                updates.idImage = idUrl;
+            }
 
             if (user.role !== 'customer') {
                 updates.address = address;
@@ -162,6 +217,26 @@ const OnboardingModal: React.FC = () => {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Profile Image Section */}
+                        <div className="flex flex-col items-center justify-center space-y-2 pb-2">
+                            <div className="relative group">
+                                <div className={`w-20 h-20 rounded-full border-4 border-gray-100 overflow-hidden bg-gray-50 flex items-center justify-center transition-all ${!profilePreview ? 'group-hover:border-brand-200 group-hover:bg-brand-50' : ''}`}>
+                                    {profilePreview ? (
+                                        <img src={profilePreview} alt="Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <Camera className="w-6 h-6 text-gray-400 group-hover:text-brand-500 transition-colors" />
+                                    )}
+                                </div>
+                                <label className="absolute -bottom-1 -right-1 w-7 h-7 bg-brand-600 rounded-full border-2 border-white flex items-center justify-center cursor-pointer hover:bg-brand-700 shadow-sm transition-all text-white">
+                                    <Upload className="w-3 h-3" />
+                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'profile')} />
+                                </label>
+                            </div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                                Official Profile Photo {user.role === 'driver' && <span className="text-red-500">* Required</span>}
+                            </p>
+                        </div>
+
                         {/* Common Section */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
@@ -303,6 +378,44 @@ const OnboardingModal: React.FC = () => {
                                         className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 bg-gray-50 text-gray-900 focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all outline-none font-medium text-sm uppercase placeholder:text-gray-400"
                                         placeholder="KDA 001A"
                                     />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">National ID (Front)</label>
+                                        <div
+                                            onClick={() => document.getElementById('id-upload')?.click()}
+                                            className={`relative h-28 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${idPreview ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-brand-400 hover:bg-gray-50'}`}
+                                        >
+                                            {idPreview ? (
+                                                <img src={idPreview} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <>
+                                                    <FileText className="w-8 h-8 text-gray-300 mb-2" />
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Upload ID Photo</span>
+                                                </>
+                                            )}
+                                            <input id="id-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'id')} />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Driving License (Front)</label>
+                                        <div
+                                            onClick={() => document.getElementById('license-upload')?.click()}
+                                            className={`relative h-28 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${licensePreview ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-brand-400 hover:bg-gray-50'}`}
+                                        >
+                                            {licensePreview ? (
+                                                <img src={licensePreview} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <>
+                                                    <ImageIcon className="w-8 h-8 text-gray-300 mb-2" />
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Upload DL Photo</span>
+                                                </>
+                                            )}
+                                            <input id="license-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'license')} />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}

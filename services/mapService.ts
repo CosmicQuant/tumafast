@@ -120,7 +120,14 @@ export const mapService = {
             const geocoder = new google.maps.Geocoder();
             geocoder.geocode({ location: { lat, lng } }, (results, status) => {
                 if (status === google.maps.GeocoderStatus.OK && results && results.length > 0) {
-                    resolve(results[0].formatted_address);
+                    // Filter out results that are primarily plus codes
+                    // Prefer results with 'establishment', 'point_of_interest' or 'premise'
+                    const bestResult = results.find(r =>
+                        !r.types.includes('plus_code') &&
+                        (r.types.includes('establishment') || r.types.includes('point_of_interest') || r.types.includes('premise'))
+                    ) || results.find(r => !r.types.includes('plus_code')) || results[0];
+
+                    resolve(bestResult.formatted_address);
                 } else {
                     console.error("Reverse geocoding failed due to " + status);
                     resolve(null);

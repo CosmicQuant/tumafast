@@ -265,13 +265,18 @@ export const authService = {
     if (role === 'driver') {
       const driverRef = doc(db, 'drivers', userId);
       const driverUpdates: any = {};
+      if (updates.name !== undefined) driverUpdates.name = updates.name;
       if (updates.phone !== undefined) driverUpdates.phone = updates.phone;
+      if (updates.avatar !== undefined) driverUpdates.avatar = updates.avatar;
       if (updates.idNumber !== undefined) driverUpdates.idNumber = updates.idNumber;
       if (updates.licenseNumber !== undefined) driverUpdates.licenseNumber = updates.licenseNumber;
       if (updates.plateNumber !== undefined) driverUpdates.plateNumber = updates.plateNumber;
       if (updates.vehicleType !== undefined) driverUpdates.vehicleType = updates.vehicleType;
       if (updates.kraPin !== undefined) driverUpdates.kraPin = updates.kraPin;
       if (updates.address !== undefined) driverUpdates.address = updates.address;
+      if (updates.profileImage !== undefined) driverUpdates.profileImage = updates.profileImage;
+      if (updates.licenseImage !== undefined) driverUpdates.licenseImage = updates.licenseImage;
+      if (updates.idImage !== undefined) driverUpdates.idImage = updates.idImage;
 
       // Check if driver doc exists before updating
       const dSnap = await getDoc(driverRef);

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { X, Mail, Lock, User, ArrowRight, Loader, Truck, ArrowLeft, CheckCircle, Briefcase, FileText, Phone, CreditCard, MapPin, Globe, Upload, Camera, Shield } from 'lucide-react';
 import { VehicleType } from '../types';
 import { authService } from '../services/authService';
@@ -14,6 +15,7 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'LOGIN', preselectedRole }) => {
   const { login, signup, loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
   const [view, setView] = useState<'LOGIN' | 'SIGNUP' | 'FORGOT_PASSWORD' | 'ROLE_SELECT'>(defaultView);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -64,9 +66,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
     console.log("Modal: Google Auth Clicked. Role Selected:", role);
     setLoading(true);
     try {
-      await loginWithGoogle(role);
+      const gUser = await loginWithGoogle(role);
       console.log("Modal: Google Login Success");
       onClose(); // Close modal on success
+      if (gUser?.role === 'driver') navigate('/driver');
+      if (gUser?.role === 'business') navigate('/business-dashboard');
     } catch (err: any) {
       console.error("Google Auth Error:", err);
       setError(err.message || 'Google authentication failed');
@@ -122,8 +126,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
 
     try {
       if (view === 'LOGIN') {
-        await login(email, password);
+        const loggedUser = await login(email, password);
         onClose();
+        // Immediate redirection
+        if (loggedUser?.role === 'driver') navigate('/driver');
+        if (loggedUser?.role === 'business') navigate('/business-dashboard');
       } else if (view === 'SIGNUP') {
         const profileDetails = {
           phone,

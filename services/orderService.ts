@@ -104,28 +104,77 @@ export const orderService = {
       const querySnapshot = await getDocs(q);
       const orders = querySnapshot.docs.map(doc => ({ ...doc.data() as any, id: doc.id } as DeliveryOrder));
 
-      const deliveredOrders = orders.filter(o => o.status === 'delivered');
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const deliveredOrders = orders.filter(o => o.status === 'delivered')
+        .sort((a, b) => new Date(b.deliveredAt || b.date).getTime() - new Date(a.deliveredAt || a.date).getTime());
+
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
+      const calculatePayout = (o: DeliveryOrder) => {
+        const rate = o.driverRate || (o.price ? Math.floor(Number(o.price) * 0.8) : 0);
+        return isNaN(rate) ? 0 : rate;
+      };
 
       const earningsToday = deliveredOrders
-        .filter(o => new Date(o.date) >= today)
-        .reduce((sum, o) => sum + (o.price || 0), 0);
+        .filter(o => (o.deliveredAt || o.date) >= todayStart)
+        .reduce((sum, o) => sum + calculatePayout(o), 0);
 
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
+      // This Week (Since Monday)
+      const now_week = new Date();
+      const currentDay = now_week.getDay();
+      const diff = now_week.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+      const weekStart = new Date(now_week.setDate(diff));
+      weekStart.setHours(0, 0, 0, 0);
+      const weekStartStr = weekStart.toISOString();
+
       const earningsWeek = deliveredOrders
-        .filter(o => new Date(o.date) >= weekAgo)
-        .reduce((sum, o) => sum + (o.price || 0), 0);
+        .filter(o => (o.deliveredAt || o.date) >= weekStartStr)
+        .reduce((sum, o) => sum + calculatePayout(o), 0);
 
-      const monthAgo = new Date();
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      // This Month (Since 1st)
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
       const earningsMonth = deliveredOrders
-        .filter(o => new Date(o.date) >= monthAgo)
-        .reduce((sum, o) => sum + (o.price || 0), 0);
+        .filter(o => (o.deliveredAt || o.date) >= monthStart)
+        .reduce((sum, o) => sum + calculatePayout(o), 0);
 
-      // For now, balance is just total earnings (in a real app, this would be minus withdrawals)
-      const totalEarnings = deliveredOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+      const totalDistanceMeters = deliveredOrders.reduce((sum, o) => sum + (o.distance || 0), 0);
+      const totalDistanceKm = Math.round((totalDistanceMeters / 1000) * 10) / 10;
+
+      // Calculate total earnings (using stored driverRate with fallback)
+      const totalEarnings = deliveredOrders.reduce((sum, o) => sum + calculatePayout(o), 0);
+
+      // Populate Weekly Chart with actual data
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const weeklyData = [1, 2, 3, 4, 5, 6, 0].map(dayIdx => {
+        const dayName = days[dayIdx];
+        // Find orders delivered on this specific day of the CURRENT week
+        const dayOrders = deliveredOrders.filter(o => {
+          const d = new Date(o.deliveredAt || o.date);
+          return d >= weekStart && d.getDay() === dayIdx;
+        });
+
+        const dayEarnings = dayOrders.reduce((sum, o) => sum + calculatePayout(o), 0);
+
+        return {
+          day: dayName,
+          value: dayEarnings,
+          trips: dayOrders.length,
+          amount: `KES ${dayEarnings.toLocaleString()}`
+        };
+      });
+
+      // Fetch Driver Document to get hours online (if tracked there)
+      let hoursOnline = 0;
+      try {
+        const driverDoc = await getDoc(doc(db, 'drivers', driverId));
+        if (driverDoc.exists()) {
+          const driverData = driverDoc.data();
+          hoursOnline = Math.round((driverData.totalOnlineMinutes || 0) / 60 * 10) / 10;
+        }
+      } catch (e) {
+        console.error("Error fetching driver doc for metrics:", e);
+      }
 
       const ratings = deliveredOrders
         .filter(o => o.reviewForDriver)
@@ -136,7 +185,6 @@ export const orderService = {
 
       const recentReviews = deliveredOrders
         .filter(o => o.reviewForDriver)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 5)
         .map(o => ({
           id: o.id,
@@ -157,23 +205,15 @@ export const orderService = {
           tripsCompleted: deliveredOrders.length,
           acceptanceRate: 100, // Placeholder
           rating: Math.round(avgRating * 10) / 10,
-          hoursOnline: 0, // Placeholder
-          totalDistanceKm: 0 // Placeholder
+          hoursOnline: hoursOnline,
+          totalDistanceKm: totalDistanceKm
         },
         recentReviews,
-        weeklyChart: [
-          { day: 'Mon', value: 0, amount: 'KES 0' },
-          { day: 'Tue', value: 0, amount: 'KES 0' },
-          { day: 'Wed', value: 0, amount: 'KES 0' },
-          { day: 'Thu', value: 0, amount: 'KES 0' },
-          { day: 'Fri', value: 0, amount: 'KES 0' },
-          { day: 'Sat', value: 0, amount: 'KES 0' },
-          { day: 'Sun', value: 0, amount: 'KES 0' },
-        ],
-        recentTransactions: deliveredOrders.slice(0, 5).map(o => ({
+        weeklyChart: weeklyData,
+        recentTransactions: deliveredOrders.slice(0, 10).map(o => ({
           id: o.id,
-          amount: o.price,
-          date: new Date(o.date).toLocaleDateString(),
+          amount: calculatePayout(o),
+          date: new Date(o.deliveredAt || o.date).toLocaleDateString(),
           type: 'trip'
         }))
       };
@@ -269,7 +309,8 @@ export const orderService = {
         createdAt: now,
         updatedAt: now,
         status: 'pending',
-        verificationCode: verificationCode
+        verificationCode: verificationCode,
+        driverRate: Math.floor(Number(order.price || 0) * 0.8)
       }));
 
       const docRef = await addDoc(collection(db, ORDERS_COLLECTION), cleanOrder);
@@ -332,7 +373,20 @@ export const orderService = {
    * Update Order Status (Wrapper for updateOrder)
    */
   updateOrderStatus: async (orderId: string, status: DeliveryOrder['status'], extraData?: Partial<DeliveryOrder>): Promise<void> => {
-    const updates: Partial<DeliveryOrder> = { status, ...extraData };
+    const updates: Partial<DeliveryOrder> = {
+      status,
+      ...extraData,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (status === 'in_transit') {
+      updates.startedAt = new Date().toISOString();
+      updates.startTime = updates.startedAt;
+    } else if (status === 'delivered') {
+      updates.deliveredAt = new Date().toISOString();
+      updates.endTime = updates.deliveredAt;
+    }
+
     await orderService.updateOrder(orderId, updates);
   },
 
@@ -522,6 +576,40 @@ export const orderService = {
     } catch (error) {
       console.error("Error updating stop status:", error);
       throw error;
+    }
+  },
+
+  /**
+   * Update driver online status in Firestore.
+   */
+  updateDriverStatus: async (driverId: string, status: 'online' | 'offline'): Promise<void> => {
+    try {
+      const driverRef = doc(db, 'drivers', driverId);
+      await updateDoc(driverRef, {
+        status,
+        lastStatusUpdate: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error updating driver status:", error);
+    }
+  },
+
+  /**
+   * Increment driver's total online time.
+   */
+  incrementDriverOnlineTime: async (driverId: string, minutes: number): Promise<void> => {
+    try {
+      const driverRef = doc(db, 'drivers', driverId);
+      const driverSnap = await getDoc(driverRef);
+      if (driverSnap.exists()) {
+        const currentMins = driverSnap.data().totalOnlineMinutes || 0;
+        await updateDoc(driverRef, {
+          totalOnlineMinutes: currentMins + minutes,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error("Error incrementing online time:", error);
     }
   }
 };

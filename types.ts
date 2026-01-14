@@ -51,6 +51,7 @@ export interface Driver {
   phone: string;
   plate: string;
   rating: number;
+  avatar?: string;
 }
 
 export interface ContactInfo {
@@ -75,6 +76,9 @@ export interface User {
   idNumber?: string;
   licenseNumber?: string;
   address?: string;
+  profileImage?: string;
+  licenseImage?: string;
+  idImage?: string;
   // Business Fields
   companyName?: string;
   businessDescription?: string;
@@ -152,7 +156,8 @@ export interface DeliveryOrder {
   pickupTime?: string; // ISO string or 'ASAP'
   vehicle: VehicleType;
   items: OrderItem;
-  price: number;
+  price: number; // Total customer price
+  driverRate: number; // Amount driver earns
   status: 'pending' | 'driver_assigned' | 'in_transit' | 'delivered' | 'cancelled';
   estimatedDuration: string;
   date: string;
@@ -174,6 +179,10 @@ export interface DeliveryOrder {
   reviewForDriver?: Review;
   reviewForCustomer?: Review;
   assignedAt?: string;
+  startedAt?: string;
+  deliveredAt?: string;
+  startTime?: string;
+  endTime?: string;
   serviceType: ServiceType;
   stops?: RouteStop[]; // Optional: for multi-stop orders
 }

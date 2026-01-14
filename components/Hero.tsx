@@ -5,6 +5,7 @@ import { ArrowRight, Box, ShieldCheck, Zap, MapPin, Truck, Clock, Smartphone, Ch
 import { parseNaturalLanguageOrder } from '../services/geminiService';
 import { mapService } from '../services/mapService';
 import { useAuth } from '../context/AuthContext';
+import { usePrompt } from '../context/PromptContext';
 import { orderService } from '../services/orderService';
 import { ServiceType, VehicleType } from '../types';
 
@@ -22,7 +23,8 @@ const PLACEHOLDERS = [
 ];
 
 const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
-   const { user } = useAuth();
+   const { user, logout } = useAuth();
+   const { showConfirm } = usePrompt();
    const navigate = useNavigate();
    const [quickInput, setQuickInput] = useState('');
    const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -184,6 +186,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
 
    const handleQuickSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (checkDriverRole()) return;
       performSearch(quickInput);
    };
 
@@ -191,7 +194,25 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
       setQuickInput(e.target.value);
    };
 
+   // Helper to check if user is a driver and block booking
+   const checkDriverRole = (): boolean => {
+      if (user?.role === 'driver') {
+         showConfirm(
+            "Booking Restricted",
+            "Driver accounts cannot place orders. Please log out and sign in with a Customer or Business account to book a delivery.",
+            async () => {
+               await logout();
+               navigate('/');
+            },
+            'confirm'
+         );
+         return true; // Is a driver
+      }
+      return false; // Not a driver
+   };
+
    const handleSendAnything = async () => {
+      if (checkDriverRole()) return;
       // Populate the search bar immediately for instant feedback
       setQuickInput('Send a package from my current location');
 
@@ -432,6 +453,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                            <button
                               key={dest.label}
                               onClick={() => {
+                                 if (checkDriverRole()) return;
                                  const query = `Send package from my current location to ${dest.label}`;
                                  setQuickInput(query);
                                  performSearch(query);
@@ -477,7 +499,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
 
                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   {/* Service 1 */}
-                  <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer" onClick={() => { if (onStartBooking) onStartBooking({ vehicle: 'BODA' }); else navigate('/book', { state: { prefill: { vehicle: 'BODA' } } }); }}>
+                  <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer" onClick={() => { if (checkDriverRole()) return; if (onStartBooking) onStartBooking({ vehicle: 'BODA' }); else navigate('/book', { state: { prefill: { vehicle: 'BODA' } } }); }}>
                      <div className="w-14 h-14 bg-brand-50 rounded-2xl flex items-center justify-center text-brand-600 mb-6 group-hover:scale-110 transition-transform duration-300">
                         <Zap className="w-7 h-7 animate-icon-hover" />
                      </div>
@@ -527,7 +549,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                   </div>
 
                   {/* Service 3 */}
-                  <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer" onClick={() => { if (onStartBooking) onStartBooking({ vehicle: 'TRUCK' }); else navigate('/book', { state: { prefill: { vehicle: 'TRUCK' } } }); }}>
+                  <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer" onClick={() => { if (checkDriverRole()) return; if (onStartBooking) onStartBooking({ vehicle: 'TRUCK' }); else navigate('/book', { state: { prefill: { vehicle: 'TRUCK' } } }); }}>
                      <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 mb-6 group-hover:scale-110 transition-transform duration-300">
                         <Truck className="w-7 h-7 animate-icon-hover" />
                      </div>
@@ -591,7 +613,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                      </div>
 
                      <div className="mt-12">
-                        <button onClick={() => { if (onStartBooking) onStartBooking(); else navigate('/book'); }} className="bg-brand-600 text-white px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-brand-700 transition-all flex items-center text-lg">
+                        <button onClick={() => { if (checkDriverRole()) return; if (onStartBooking) onStartBooking(); else navigate('/book'); }} className="bg-brand-600 text-white px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-brand-700 transition-all flex items-center text-lg">
                            Get Started Now <ChevronRight className="w-5 h-5 ml-2" />
                         </button>
                      </div>
@@ -750,7 +772,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                   Fast, reliable, and affordable.
                </p>
                <div className="flex flex-col sm:flex-row justify-center gap-4">
-                  <button onClick={() => { if (onStartBooking) onStartBooking(); else navigate('/book'); }} className="px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-brand-500/25">
+                  <button onClick={() => { if (checkDriverRole()) return; if (onStartBooking) onStartBooking(); else navigate('/book'); }} className="px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-brand-500/25">
                      Book a Delivery
                   </button>
                   <button onClick={handleBusinessClick} className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-lg transition-all backdrop-blur-sm">

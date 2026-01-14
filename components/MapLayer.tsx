@@ -193,13 +193,8 @@ const MapLayer: React.FC<MapLayerProps> = ({ driverLabel }) => {
                 onDragEnd={() => setIsPanning(false)}
                 options={{
                     disableDefaultUI: true,
-                    styles: [
-                        {
-                            "featureType": "poi",
-                            "elementType": "labels",
-                            "stylers": [{ "visibility": "off" }]
-                        }
-                    ]
+                    // Show points of interest labels by default to help with navigation
+                    styles: []
                 }}
             >
                 {userLocation && (

@@ -19,8 +19,17 @@ interface BookingPageProps {
 const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData: propPrefill, onRequireAuth, onClearPrefill }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const createOrderMutation = useCreateOrder();
+
+    // Redirect drivers away from booking page
+    useEffect(() => {
+        if (user?.role === 'driver') {
+            toast.error("Driver accounts cannot place orders.");
+            navigate('/driver');
+        }
+    }, [user, navigate]);
+
     const { refetch: refetchOrders } = useUserOrders(user?.id || '');
     const { setOrderState, setPickupCoords, setDropoffCoords, setWaypointCoords, setRoutePolyline } = useMapState();
     const [isCollapsed, setIsCollapsed] = useState(true);

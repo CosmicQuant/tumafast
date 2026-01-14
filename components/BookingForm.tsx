@@ -948,6 +948,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         const newOrder: any = {
             ...orderData,
             price: priceQuote,
+            distance: distance, // Store distance in meters
             status: 'pending',
             serviceType: serviceType,
             estimatedDuration: estArrival ? `${estArrival.arrivalTime}, ${estArrival.arrivalDate}` : (aiResult?.estimatedDuration || '1 hour'),
