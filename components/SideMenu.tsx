@@ -88,7 +88,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onOpenProfile }) =
                         icon={LayoutDashboard}
                         label="Dashboard"
                         onClick={() => {
-                            navigate('/customer-dashboard');
+                            if (user?.role === 'business') navigate('/business-dashboard');
+                            else if (user?.role === 'driver') navigate('/driver');
+                            else navigate('/customer-dashboard');
                             onClose();
                         }}
                     />

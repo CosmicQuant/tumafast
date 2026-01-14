@@ -28,6 +28,7 @@ const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) =>
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState<DeliveryOrder | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [promptedOrderIds, setPromptedOrderIds] = useState<Set<string>>(new Set());
 
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id);
@@ -36,6 +37,20 @@ const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) =>
   };
 
   const driverTags = ["Punctual", "Great Service", "Professional", "Safe Driving", "Friendly"];
+
+  // Auto-prompt review for recently delivered orders
+  React.useEffect(() => {
+    if (!orders || isLoading || reviewingOrder) return;
+
+    const unreviewedDelivered = orders.find(
+      (o) => o.status === 'delivered' && !o.reviewForDriver && !promptedOrderIds.has(o.id)
+    );
+
+    if (unreviewedDelivered) {
+      setReviewingOrder(unreviewedDelivered);
+      setPromptedOrderIds(prev => new Set(prev).add(unreviewedDelivered.id));
+    }
+  }, [orders, isLoading, promptedOrderIds]);
 
   if (isLoading) {
     return (
@@ -67,14 +82,17 @@ const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) =>
         ? `[${selectedTags.join(', ')}] ${reviewComment}`.trim()
         : reviewComment;
 
-      await orderService.submitReview(reviewingOrder.id, 'driver', {
+      const target = user.role === 'driver' ? 'customer' : 'driver';
+      const targetLabel = user.role === 'driver' ? 'customer' : 'driver';
+
+      await orderService.submitReview(reviewingOrder.id, target, {
         rating: reviewRating,
         comment: finalComment,
         date: new Date().toISOString()
       });
       setReviewingOrder(null);
       setSelectedTags([]);
-      showAlert("Review Submitted", "Thank you for rating your driver!", "success");
+      showAlert("Review Submitted", `Thank you for rating your ${targetLabel}!`, "success");
       refetch();
     } catch (e) {
       showAlert("Error", "Failed to submit review.", "error");
@@ -397,19 +415,22 @@ const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) =>
                         </>
                       )}
 
-                      {order.status === 'delivered' && !order.reviewForDriver && (
-                        <button
-                          onClick={() => {
-                            setReviewingOrder(order);
-                            setReviewRating(5);
-                            setReviewComment('');
-                            setSelectedTags([]);
-                          }}
-                          className="flex items-center text-[10px] font-black uppercase tracking-widest text-brand-600 hover:text-white hover:bg-brand-600 border border-brand-100 px-4 py-2 rounded-xl transition-all"
-                        >
-                          <Star className="w-3 h-3 mr-2 fill-current" /> Rate Driver
-                        </button>
-                      )}
+                      {order.status === 'delivered' && (
+                        (user.role === 'driver' && !order.reviewForCustomer) ||
+                        (user.role !== 'driver' && !order.reviewForDriver)
+                      ) && (
+                          <button
+                            onClick={() => {
+                              setReviewingOrder(order);
+                              setReviewRating(5);
+                              setReviewComment('');
+                              setSelectedTags([]);
+                            }}
+                            className="flex items-center text-[10px] font-black uppercase tracking-widest text-brand-600 hover:text-white hover:bg-brand-600 border border-brand-100 px-4 py-2 rounded-xl transition-all"
+                          >
+                            <Star className="w-3 h-3 mr-2 fill-current" /> {user.role === 'driver' ? 'Rate Customer' : 'Rate Driver'}
+                          </button>
+                        )}
 
                       {isOngoing && (
                         <button
@@ -437,8 +458,10 @@ const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) =>
               <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Star className="w-8 h-8 text-brand-600 fill-current" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900">Rate your Driver</h3>
-              <p className="text-gray-500 text-sm mt-2">How was your experience with {reviewingOrder.driver?.name || 'your driver'}?</p>
+              <h3 className="text-xl font-bold text-gray-900">{user.role === 'driver' ? 'Rate Customer' : 'Rate Driver'}</h3>
+              <p className="text-gray-500 text-sm mt-2">
+                How was your experience with {user.role === 'driver' ? (reviewingOrder.sender.name || 'the customer') : (reviewingOrder.driver?.name || 'your driver')}?
+              </p>
             </div>
             <div className="p-8">
               <div className="flex flex-col items-center">

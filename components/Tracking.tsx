@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { DeliveryOrder, Driver } from '../types';
 import { VehicleType, ServiceType } from '../types';
-import { Phone, MessageSquare, Star, CheckCircle, Circle, Truck, Package, User, CreditCard, ArrowLeft, ArrowRight, Bike, Car, Shield, Navigation, Loader, XCircle, AlertTriangle, Map, MapPin, Building2 as Building, Clock, Box, Plus, X, Calendar, Zap, Rocket, Scale, ChevronUp, ChevronDown, Copy, Check } from 'lucide-react';
+import { Phone, MessageSquare, Star, CheckCircle, Circle, Truck, Package, User, CreditCard, ArrowLeft, ArrowRight, Bike, Car, Shield, Navigation, Loader, XCircle, AlertTriangle, Map, MapPin, Building2 as Building, Clock, Box, Plus, X, Calendar, Zap, Rocket, Scale, ChevronUp, ChevronDown, Copy, Check, RefreshCw } from 'lucide-react';
 import { useMapState } from '@/context/MapContext';
 import { mapService } from '@/services/mapService';
 import { orderService } from '@/services/orderService';
@@ -1448,7 +1448,13 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
                     </div>
                     {order?.driver ? (
                       <div className="relative z-10 flex items-center space-x-4">
-                        <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">👤</div>
+                        <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl overflow-hidden">
+                          {order.driver.avatar ? (
+                            <img src={order.driver.avatar} alt={order.driver.name} className="w-full h-full object-cover" />
+                          ) : (
+                            '👤'
+                          )}
+                        </div>
                         <div>
                           <p className="text-brand-200 text-[10px] font-bold uppercase tracking-wider">Courier</p>
                           <h4 className="text-lg font-extrabold">{order.driver.name}</h4>

@@ -25,6 +25,7 @@ interface AuthContextType {
   loginWithGoogle: (role?: 'customer' | 'driver' | 'business') => Promise<void>;
   signup: (name: string, email: string, password: string, role?: 'customer' | 'driver' | 'business', profileDetails?: ProfileDetails) => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
 }
@@ -135,6 +136,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(updatedUser);
     } catch (error) {
       console.error("Failed to update profile", error);
+      throw error;
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      await authService.updatePassword(newPassword);
+    } catch (error) {
+      console.error("Failed to update password", error);
       throw error;
     }
   };

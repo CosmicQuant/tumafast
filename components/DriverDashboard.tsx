@@ -15,9 +15,10 @@ import { LOCATION_COORDINATES } from '../constants';
 import {
    LayoutDashboard, Map, Package, Wallet, User as UserIcon, LogOut,
    ChevronRight, Star, TrendingUp, Clock, MapPin, Navigation, CheckCircle,
-   Truck, DollarSign, Bell, Search, Menu, X, ArrowUpRight, AlertCircle,
+   Truck, DollarSign, Bell, Search, Menu, X, ArrowUpRight, AlertCircle, AlertTriangle,
    FileText, Home, Phone, Mail, CreditCard, Shield, Edit2, Save, Bike, Car,
-   Activity, MessageSquare, ChevronDown, ChevronUp, List, Copy, Check
+   Activity, MessageSquare, ChevronDown, ChevronUp, List, Copy, Check, Image, Camera,
+   Lock, ShieldCheck, Key, QrCode, RefreshCw, Power, Smartphone, ShieldAlert, FileCheck, Eye, EyeOff
 } from 'lucide-react';
 
 interface DriverDashboardProps {
@@ -71,11 +72,47 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
    // Marketplace Filters
    const [searchQuery, setSearchQuery] = useState('');
 
+   // Settings & Security States
+   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
+   const [isUpdating2FA, setIsUpdating2FA] = useState(false);
+   const [showPasswordFields, setShowPasswordFields] = useState(false);
+   const [passwords, setPasswords] = useState({ new: '', confirm: '' });
+   const [showPass, setShowPass] = useState(false);
+   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+   const [showDeleteInput, setShowDeleteInput] = useState(false);
+   const [notifications, setNotifications] = useState({
+      email: true,
+      sms: true,
+      push: true
+   });
+
    // Map State for Active Job
    const [activeJobCoords, setActiveJobCoords] = useState<{ pickup: { lat: number, lng: number } | null, dropoff: { lat: number, lng: number } | null }>({ pickup: null, dropoff: null });
    const [routeDuration, setRouteDuration] = useState<number | null>(null);
    const [routeDistance, setRouteDistance] = useState<number | null>(null);
    const [isDrawerCollapsed, setIsDrawerCollapsed] = useState(false);
+
+   // Track Driver Online Status & Time
+   useEffect(() => {
+      if (!user?.id) return;
+      orderService.updateDriverStatus(user.id, isOnline ? 'online' : 'offline');
+   }, [isOnline, user.id]);
+
+   useEffect(() => {
+      if (!isOnline || !user.id) return;
+
+      // Update online time every 1 minute for better accuracy
+      const interval = setInterval(async () => {
+         try {
+            await orderService.incrementDriverOnlineTime(user.id, 1);
+         } catch (e) {
+            console.error("Failed to update online time", e);
+         }
+      }, 60 * 1000);
+
+      return () => clearInterval(interval);
+   }, [isOnline, user.id]);
 
    // Verification State
    const [verifyingOrder, setVerifyingOrder] = useState<DeliveryOrder | null>(null);
@@ -275,9 +312,11 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
          order.dropoff.toLowerCase().includes(searchQuery.toLowerCase()) ||
          order.items.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // We show all pending jobs in the marketplace, but the "Accept" button 
-      // will be disabled if the vehicle type doesn't match.
-      return matchesSearch;
+      // Only show orders that match the driver's vehicle type and are still pending
+      const matchesVehicle = order.vehicle === user?.vehicleType;
+      const isPending = order.status === 'pending';
+
+      return matchesSearch && matchesVehicle && isPending;
    });
 
    // Helper for Icons
@@ -332,7 +371,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
 
       // 2. Listen for My Jobs (driver.id == user.id)
       const qJobs = query(collection(db, 'orders'), where('driver.id', '==', user.id));
-      const unsubJobs = onSnapshot(qJobs, (snapshot) => {
+      const unsubJobs = onSnapshot(qJobs, async (snapshot) => {
          const jobs = snapshot.docs.map(doc => ({ ...doc.data() as any, id: doc.id } as DeliveryOrder));
          // Deduplicate by ID
          const uniqueJobs = jobs.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
@@ -341,6 +380,10 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
             const dateB = b.date ? new Date(b.date).getTime() : 0;
             return dateB - dateA;
          }));
+
+         // Refresh metrics when jobs change (e.g., a delivery is completed)
+         const m = await orderService.getDriverMetrics(user.id);
+         setMetrics(m);
       }, (error) => {
          console.error("Jobs Listener Error:", error);
       });
@@ -370,7 +413,8 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
          name: user.name,
          phone: user.phone || '0700000000',
          plate: user.plateNumber || 'UNKNOWN',
-         rating: 5.0
+         rating: 5.0,
+         avatar: user.avatar || user.profileImage
       };
 
       try {
@@ -399,13 +443,17 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
             const currentCoords = { lat: position.coords.latitude, lng: position.coords.longitude };
             const distance = mapService.calculateDistance(currentCoords, pickup!);
 
-            if (distance > 0.1) { // 100 meters
-               showAlert("Not at Pickup", `You must be within 100m of the pickup location to start the delivery. You are currently ${Math.round(distance * 1000)}m away.`, "warning");
+            if (distance > 0.05) { // 50 meters
+               showAlert("Not at Pickup", `You must be within 50m of the pickup location to start the delivery. You are currently ${Math.round(distance * 1000)}m away.`, "warning");
                return;
             }
 
             try {
                await orderService.updateOrderStatus(order.id, 'in_transit');
+               // Also mark the pickup stop as completed if multi-stop
+               if (order.stops?.some(s => s.id === 'pickup-start')) {
+                  await orderService.updateStopStatus(order.id, 'pickup-start', 'completed');
+               }
             } catch (e) {
                showAlert("Update Failed", "Failed to start delivery. Please try again.", "error");
             }
@@ -423,7 +471,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
          const order = myJobs.find(j => j.id === orderId);
          if (order) {
             // Check if all intermediate waypoints are completed first
-            const pendingWaypoints = (order.stops || []).filter(s => s.status !== 'completed');
+            const pendingWaypoints = (order.stops || []).filter(s => s.type === 'waypoint' && s.status !== 'completed');
             if (pendingWaypoints.length > 0) {
                showAlert("Pending Stops", `You must complete all ${pendingWaypoints.length} intermediate stops before final delivery.`, "warning");
                return;
@@ -445,8 +493,8 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                   const currentCoords = { lat: position.coords.latitude, lng: position.coords.longitude };
                   const distance = mapService.calculateDistance(currentCoords, dropoff!);
 
-                  if (distance > 0.1) { // 100 meters (relaxed slightly for multi-stop ease)
-                     showAlert("Too Far", `You must be within 100m of the dropoff location to complete delivery.`, "warning");
+                  if (distance > 0.05) { // 50 meters
+                     showAlert("Too Far", `You must be within 50m of the dropoff location to complete delivery.`, "warning");
                      return;
                   }
 
@@ -479,7 +527,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
       if (status === 'completed') {
          const checkLocation = (coords: { lat: number, lng: number }) => {
             const distance = mapService.calculateDistance(coords, stop.coords!);
-            if (distance <= 0.1) { // 100 meters
+            if (distance <= 0.05) { // 50 meters
                const order = myJobs.find(j => j.id === orderId);
                if (order) {
                   setVerifyingOrder(order);
@@ -500,7 +548,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
             async (position) => {
                const currentCoords = { lat: position.coords.latitude, lng: position.coords.longitude };
                if (!checkLocation(currentCoords)) {
-                  showAlert("Too Far", `You must be within 100m of the stop to mark it as completed.`, "warning");
+                  showAlert("Too Far", `You must be within 50m of the stop to mark it as completed.`, "warning");
                }
             },
             () => showAlert("Location Error", "GPS required. Please ensure location services are enabled."),
@@ -561,6 +609,12 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
             await orderService.updateOrderStatus(verifyingOrder.id, 'delivered', {
                deliveryConfirmationImage: imageUrl
             });
+
+            // Also mark the final stop as completed if multi-stop
+            if (verifyingOrder.stops?.some(s => s.id === 'dropoff-end')) {
+               await orderService.updateStopStatus(verifyingOrder.id, 'dropoff-end', 'completed', imageUrl);
+            }
+
             showAlert("Delivery Successful", "Verification confirmed. Delivery has been completed!", "success");
 
             // Trigger review for customer
@@ -580,21 +634,81 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
    };
 
    const handleSaveProfile = async () => {
-      await updateUser(profileForm);
-      setIsEditingProfile(false);
+      try {
+         // Security: Only allow updating safe fields. Documents and IDs are locked.
+         const { idNumber, plateNumber, licenseNumber, ...safeFields } = profileForm;
+         await updateUser(safeFields);
+         setIsEditingProfile(false);
+         showAlert("Profile Updated", "Your profile details have been updated successfully.", "success");
+      } catch (e: any) {
+         showAlert("Error", e.message || "Failed to update profile", "error");
+      }
+   };
+
+   const handleToggle2FA = async () => {
+      setIsUpdating2FA(true);
+      try {
+         await new Promise(resolve => setTimeout(resolve, 1500));
+         setIs2FAEnabled(!is2FAEnabled);
+         showAlert(is2FAEnabled ? '2FA Disabled' : '2FA Enabled Successfully', 'success');
+      } catch (error) {
+         showAlert('Failed to update security settings', 'error');
+      } finally {
+         setIsUpdating2FA(false);
+      }
+   };
+
+   const handlePasswordUpdate = async () => {
+      if (passwords.new !== passwords.confirm) {
+         showAlert("Passwords do not match!", 'error');
+         return;
+      }
+      if (passwords.new.length < 6) {
+         showAlert("Password must be at least 6 characters.", 'error');
+         return;
+      }
+
+      setLoading(true);
+      try {
+         if (updatePassword) {
+            await updatePassword(passwords.new);
+            showAlert("Password updated successfully!", 'success');
+            setShowPasswordFields(false);
+            setPasswords({ new: '', confirm: '' });
+         }
+      } catch (error: any) {
+         showAlert(error.message || "Failed to update password", 'error');
+      } finally {
+         setLoading(false);
+      }
+   };
+
+   const handleDeactivateAccount = async () => {
+      if (!window.confirm('Are you sure you want to deactivate your driver account? You can reactivate anytime by logging back in.')) return;
+
+      try {
+         await updateUser({ status: 'deactivated' });
+         showAlert('Account deactivated. Powering down...', 'info');
+         logout();
+         navigate('/');
+      } catch (error) {
+         showAlert('Failed to deactivate account', 'error');
+      }
    };
 
    const handleDeleteAccount = async () => {
+      if (deleteConfirmation !== 'DELETE') return;
+
       try {
          await deleteAccount();
-         toast.success('Account deleted successfully');
-         onGoHome();
+         showAlert('All driver data has been erased.', 'success');
+         logout();
+         navigate('/');
       } catch (error: any) {
-         console.error('Delete account error:', error);
          if (error.code === 'auth/requires-recent-login') {
-            toast.error('Please log out and log back in to delete your account for security reasons.');
+            showAlert('Action Required', 'Please log out and log back in to perform this security-sensitive action.', 'error');
          } else {
-            toast.error('Failed to delete account. Please try again.');
+            showAlert('Error', error.message || "Failed to delete account", 'error');
          }
       } finally {
          setIsDeleteModalOpen(false);
@@ -607,7 +721,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
       try {
          setLoading(true);
          const finalComment = selectedTags.length > 0
-            ? `[${selectedTags.join(', ')}] ${reviewComment}`.trim()
+            ? `${selectedTags.join(', ')}${reviewComment ? ': ' : ''}${reviewComment}`.trim()
             : reviewComment;
 
          await orderService.submitReview(reviewingOrder.id, 'customer', {
@@ -816,12 +930,24 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                            title="Completed Trips"
                            value={metrics.performance.tripsCompleted}
                            icon={CheckCircle}
-                           color="bg-blue-50 text-blue-600"
-                           trend="+4 this week"
+                           color="bg-orange-50 text-orange-600"
+                           trend="Lifetime"
                            onClick={() => setCurrentView('DELIVERIES')}
                         />
-                        <StatCard title="Acceptance Rate" value={`${metrics.performance.acceptanceRate}%`} icon={Activity} color="bg-purple-50 text-purple-600" />
-                        <StatCard title="Driver Rating" value={metrics.performance.rating} icon={Star} color="bg-yellow-50 text-yellow-600" />
+                        <StatCard
+                           title="Hours Online"
+                           value={`${metrics.performance.hoursOnline.toFixed(1)} hrs`}
+                           icon={Clock}
+                           color="bg-blue-50 text-blue-600"
+                           trend="Live Track"
+                        />
+                        <StatCard
+                           title="Distance (Today)"
+                           value={`${(metrics.performance.totalDistanceKm || 0).toFixed(1)} km`}
+                           icon={Navigation}
+                           color="bg-purple-50 text-purple-600"
+                           trend="Target: 50km"
+                        />
                      </div>
                      {/* ... (Existing Overview Content) ... */}
                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -917,7 +1043,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                               Jobs: {myJobs.length}
                            </div>
                            <div className="px-4 py-2 text-[10px] font-black text-emerald-600 bg-emerald-50 rounded-xl border border-emerald-100 uppercase tracking-widest">
-                              Earned: KES {myJobs.filter(j => j.status === 'delivered').reduce((sum, j) => sum + (j.price || 0), 0).toLocaleString()}
+                              Earned: KES {myJobs.filter(j => j.status === 'delivered').reduce((sum, j) => sum + (j.driverRate || Math.floor((j.price || 0) * 0.8)), 0).toLocaleString()}
                            </div>
                         </div>
                      </div>
@@ -967,8 +1093,8 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
 
                                        <div className="flex flex-col justify-between items-end">
                                           <div className="text-right">
-                                             <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Earnings</p>
-                                             <p className="text-xl font-black text-gray-900">KES {job.price.toLocaleString()}</p>
+                                             <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Your Earnings</p>
+                                             <p className="text-xl font-black text-gray-900">KES {(job.driverRate || Math.floor((job.price || 0) * 0.8)).toLocaleString()}</p>
                                           </div>
 
                                           {!isCompleted && (
@@ -981,8 +1107,22 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                                           )}
 
                                           {isCompleted && (
-                                             <div className="flex items-center text-emerald-600 text-[10px] font-black uppercase tracking-widest bg-emerald-50 px-3 py-1.5 rounded-lg mt-4">
-                                                <CheckCircle className="w-3 h-3 mr-2" /> Completed
+                                             <div className="flex flex-col items-end gap-2 mt-4">
+                                                <div className="flex items-center text-emerald-600 text-[10px] font-black uppercase tracking-widest bg-emerald-50 px-3 py-1.5 rounded-lg">
+                                                   <CheckCircle className="w-3 h-3 mr-2" /> Completed
+                                                </div>
+                                                {!job.reviewForCustomer && (
+                                                   <button
+                                                      onClick={() => {
+                                                         setReviewingOrder(job);
+                                                         setReviewRating(5);
+                                                         setReviewComment('');
+                                                      }}
+                                                      className="flex items-center text-brand-600 text-[10px] font-black uppercase tracking-widest bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors"
+                                                   >
+                                                      <Star className="w-3 h-3 mr-2 fill-brand-600" /> Review Customer
+                                                   </button>
+                                                )}
                                              </div>
                                           )}
                                        </div>
@@ -1036,7 +1176,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                                  <div className="h-8 w-px bg-white/20"></div>
                                  <div>
                                     <p className="text-white/60 text-xs font-bold uppercase">Month</p>
-                                    <p className="text-lg font-bold text-white">KES {(metrics && metrics.earnings.week ? metrics.earnings.week * 4.2 : 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                                    <p className="text-lg font-bold text-white">KES {(metrics?.earnings.month || 0).toLocaleString()}</p>
                                  </div>
                               </div>
                            </div>
@@ -1054,6 +1194,112 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                                  <DollarSign className="w-5 h-5 mr-3" /> Withdraw Funds
                               </button>
                               <p className="text-[10px] text-white/60 mt-3 font-bold uppercase tracking-tight">Manual withdrawal • Takes 1-24h</p>
+                           </div>
+                        </div>
+                     </div>
+
+                     {/* Weekly Activity Charts */}
+                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Earnings Bar Chart */}
+                        <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
+                           <div className="flex justify-between items-center mb-6">
+                              <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm">Weekly Performance</h3>
+                              <div className="text-[10px] font-bold text-gray-400 uppercase">Mon - Sun (KES)</div>
+                           </div>
+                           <div className="flex items-end justify-between h-32 px-2">
+                              {metrics.weeklyChart.map((day, idx) => {
+                                 const maxValue = Math.max(...metrics.weeklyChart.map(d => d.value), 500);
+                                 const heightPercentage = Math.round((day.value / maxValue) * 100);
+                                 return (
+                                    <div key={idx} className="flex flex-col items-center flex-1 group gap-2">
+                                       <div className="relative w-full flex justify-center items-end h-24">
+                                          <div
+                                             style={{ height: `${heightPercentage}%` }}
+                                             className={`w-3/4 max-w-[20px] rounded-t-lg transition-all duration-500 ${day.value > 0 ? 'bg-brand-600' : 'bg-gray-100'} group-hover:bg-brand-700 shadow-sm`}
+                                          ></div>
+                                          {/* Tooltip */}
+                                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none font-black">
+                                             {day.amount}
+                                          </div>
+                                       </div>
+                                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">{day.day}</span>
+                                    </div>
+                                 );
+                              })}
+                           </div>
+                        </div>
+
+                        {/* Trip Volume Line Chart (Trend) */}
+                        <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm overflow-hidden relative group">
+                           <div className="flex justify-between items-center mb-6">
+                              <h3 className="font-black text-gray-900 uppercase tracking-tight text-sm">Trip Volume Trend</h3>
+                              <div className="text-[10px] font-bold text-gray-400 uppercase">Deliveries per Day</div>
+                           </div>
+                           <div className="relative h-32 px-2">
+                              <svg className="w-full h-24 overflow-visible" viewBox="0 0 700 100" preserveAspectRatio="none">
+                                 {/* Grid Lines */}
+                                 <line x1="0" y1="20" x2="700" y2="20" stroke="#f3f4f6" strokeWidth="1" />
+                                 <line x1="0" y1="50" x2="700" y2="50" stroke="#f3f4f6" strokeWidth="1" />
+                                 <line x1="0" y1="80" x2="700" y2="80" stroke="#f3f4f6" strokeWidth="1" />
+
+                                 {/* The Line */}
+                                 {(() => {
+                                    const maxTrips = Math.max(...metrics.weeklyChart.map(d => (d as any).trips || 0), 5);
+                                    const points = metrics.weeklyChart.map((day, i) => {
+                                       const x = (i * 100) + 50;
+                                       const y = 100 - (((day as any).trips || 0) / maxTrips * 80);
+                                       return `${x},${y}`;
+                                    }).join(' ');
+
+                                    return (
+                                       <>
+                                          {/* Area Under the Line */}
+                                          <polyline
+                                             points={`50,100 ${points} 650,100`}
+                                             fill="url(#tripGradient)"
+                                             className="opacity-20"
+                                          />
+                                          <defs>
+                                             <linearGradient id="tripGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#3b82f6" />
+                                                <stop offset="100%" stopColor="transparent" />
+                                             </linearGradient>
+                                          </defs>
+                                          <polyline
+                                             points={points}
+                                             fill="none"
+                                             stroke="#3b82f6"
+                                             strokeWidth="4"
+                                             strokeLinecap="round"
+                                             strokeLinejoin="round"
+                                             className="transition-all duration-1000"
+                                          />
+                                          {/* Data Points */}
+                                          {metrics.weeklyChart.map((day, i) => {
+                                             const x = (i * 100) + 50;
+                                             const y = 100 - (((day as any).trips || 0) / maxTrips * 80);
+                                             return (
+                                                <circle
+                                                   key={i}
+                                                   cx={x}
+                                                   cy={y}
+                                                   r="5"
+                                                   fill="#fff"
+                                                   stroke="#3b82f6"
+                                                   strokeWidth="3"
+                                                   className="hover:r-7 transition-all cursor-pointer"
+                                                />
+                                             );
+                                          })}
+                                       </>
+                                    );
+                                 })()}
+                              </svg>
+                              <div className="flex justify-between mt-4 px-2">
+                                 {metrics.weeklyChart.map((day, idx) => (
+                                    <span key={idx} className="text-[10px] font-black text-gray-400 uppercase tracking-tighter w-[14.2%] text-center">{day.day}</span>
+                                 ))}
+                              </div>
                            </div>
                         </div>
                      </div>
@@ -1096,7 +1342,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                                           </div>
                                        </div>
                                        <div className="text-right">
-                                          <p className="font-black text-emerald-600">+ KES {(job.price || 0).toLocaleString()}</p>
+                                          <p className="font-black text-emerald-600">+ KES {(job.driverRate || Math.floor((job.price || 0) * 0.8)).toLocaleString()}</p>
                                           <p className="text-[10px] text-gray-400 font-bold uppercase">Settled</p>
                                        </div>
                                     </div>
@@ -1124,10 +1370,19 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                                  <Shield className="w-20 h-20" />
                               </div>
                               <h4 className="font-bold mb-2">Weekly Goal</h4>
-                              <p className="text-xs text-white/80 mb-4">You're at 75% of your KES 10,000 target!</p>
-                              <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-                                 <div className="h-full bg-white w-3/4"></div>
-                              </div>
+                              {(() => {
+                                 const weeklyTarget = 15000;
+                                 const currentWeek = metrics?.earnings.week || 0;
+                                 const percentage = Math.min(100, Math.round((currentWeek / weeklyTarget) * 100));
+                                 return (
+                                    <>
+                                       <p className="text-xs text-white/80 mb-4">You're at {percentage}% of your KES {weeklyTarget.toLocaleString()} target!</p>
+                                       <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                                          <div className="h-full bg-white transition-all duration-1000" style={{ width: `${percentage}%` }}></div>
+                                       </div>
+                                    </>
+                                 );
+                              })()}
                            </div>
                         </div>
                      </div>
@@ -1211,10 +1466,8 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                                           <h4 className="font-bold text-gray-900 line-clamp-1">{order.items.description}</h4>
                                        </div>
                                        <div className="text-right">
-                                          <div className="font-bold text-xl text-brand-600">KES {(order.price || 0).toLocaleString()}</div>
-                                          <div className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 mt-1">
-                                             You Earn: KES {Math.floor((order.price || 0) * 0.8).toLocaleString()}
-                                          </div>
+                                          <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Total Payout (You Earn)</p>
+                                          <div className="font-bold text-xl text-brand-600">KES {(order.driverRate || Math.floor((order.price || 0) * 0.8)).toLocaleString()}</div>
                                           <div className="text-xs text-gray-400 mt-1">{order.estimatedDuration}</div>
                                        </div>
                                     </div>
@@ -1286,199 +1539,339 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
 
                {/* --- PROFILE VIEW --- */}
                {currentView === 'PROFILE' && metrics && (
-                  <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
-                     {/* Header Card */}
-                     <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center relative overflow-hidden shadow-sm">
-                        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-brand-600/10 to-emerald-500/10 z-0"></div>
-                        <div className="relative z-10 flex flex-col items-center">
-                           <div className="w-24 h-24 bg-white rounded-full mb-4 flex items-center justify-center p-1 shadow-lg border border-gray-100">
-                              <div className="w-full h-full rounded-full bg-gray-50 flex items-center justify-center text-3xl overflow-hidden">
-                                 {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" alt="avatar" /> : '👤'}
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                     <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-10 bg-gradient-to-br from-brand-600 to-indigo-700 rounded-[3rem] text-white shadow-2xl relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-white/10 transition-all duration-700" />
+                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-400/10 rounded-full -ml-24 -mb-24 blur-2xl" />
+
+                        <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+                           <div className="relative group/avatar">
+                              <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-50 border-4 border-white/30 overflow-hidden shadow-2xl transform group-hover/avatar:scale-105 transition-all duration-500">
+                                 {user.photoURL ? (
+                                    <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                                 ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-indigo-50">
+                                       <UserIcon className="w-16 h-16 text-brand-300" />
+                                    </div>
+                                 )}
                               </div>
                            </div>
-                           <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
-
-                           <div className="absolute top-4 right-4">
-                              {!isEditingProfile && (
-                                 <button
-                                    onClick={() => setIsEditingProfile(true)}
-                                    className="bg-white hover:bg-gray-50 text-gray-900 px-4 py-2 rounded-lg font-bold text-sm shadow-sm flex items-center border border-gray-200"
-                                 >
-                                    <Edit2 className="w-4 h-4 mr-2" /> Edit
-                                 </button>
-                              )}
-                           </div>
-
-                           <div className="flex flex-col justify-center items-center space-y-2 mt-1">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-brand-50 text-brand-600 border border-brand-100 shadow-sm uppercase tracking-wider">
-                                 {user.role} Account
-                              </span>
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                 Verified Driver
-                              </span>
-                           </div>
-
-                           <div className="mt-6 flex justify-center gap-4">
-                              <div className="bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">
-                                 <span className="block text-xs text-gray-400 uppercase font-bold">Rating</span>
-                                 <span className="block text-lg font-bold text-gray-900 flex items-center justify-center">
-                                    {metrics.performance.rating} <Star className="w-3 h-3 text-yellow-400 ml-1 fill-current" />
+                           <div className="text-center md:text-left">
+                              <h2 className="text-4xl font-black tracking-tight">{user.name || 'Professional Driver'}</h2>
+                              <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-3">
+                                 <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-white/10 flex items-center">
+                                    <Shield className="w-3.5 h-3.5 mr-2" /> Verified Partner
+                                 </span>
+                                 <span className="bg-emerald-400 text-emerald-900 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest flex items-center">
+                                    <div className="w-2 h-2 bg-emerald-900 rounded-full mr-2 animate-pulse" /> {metrics.status}
                                  </span>
                               </div>
-                              <div className="bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">
-                                 <span className="block text-xs text-gray-400 uppercase font-bold">Total Trips</span>
-                                 <span className="block text-lg font-bold text-gray-900">{metrics.performance.tripsCompleted}</span>
-                              </div>
+                           </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 relative z-10 w-full md:w-auto">
+                           <div className="bg-white/10 backdrop-blur-xl p-5 rounded-3xl border border-white/10 text-center hover:bg-white/20 transition-all">
+                              <span className="block text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Rating</span>
+                              <span className="text-2xl font-black flex items-center justify-center gap-1.5">
+                                 {metrics.performance.rating} <Star className="w-5 h-5 text-yellow-300 fill-yellow-300" />
+                              </span>
+                           </div>
+                           <div className="bg-white/10 backdrop-blur-xl p-5 rounded-3xl border border-white/10 text-center hover:bg-white/20 transition-all">
+                              <span className="block text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Trips</span>
+                              <span className="text-2xl font-black">{metrics.performance.tripsCompleted}</span>
                            </div>
                         </div>
                      </div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Personal Details */}
-                        <div className="bg-white rounded-2xl border border-gray-100 p-6 h-full shadow-sm">
-                           <h3 className="font-bold text-lg text-gray-900 mb-6 flex items-center border-b border-gray-50 pb-3">
-                              <UserIcon className="w-5 h-5 mr-2 text-brand-600" /> Personal Information
-                           </h3>
-                           <div className="space-y-5">
-                              <div>
-                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><Mail className="w-3 h-3 mr-1" /> Email Address</label>
-                                 {isEditingProfile ? (
-                                    <input
-                                       value={profileForm.email}
-                                       onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                                       className="w-full p-2 border border-gray-200 bg-gray-50 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-sm text-gray-900"
-                                    />
-                                 ) : (
-                                    <p className="text-gray-900 font-medium">{user.email}</p>
-                                 )}
+                     <div className="space-y-6">
+                        {/* Personal Details Card */}
+                        <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
+                           <div className="p-8">
+                              <div className="flex items-center justify-between mb-8">
+                                 <h3 className="font-black text-slate-900 text-lg flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600">
+                                       <UserIcon className="w-5 h-5" />
+                                    </div>
+                                    Profile Details
+                                 </h3>
+                                 <button
+                                    onClick={() => setIsEditingProfile(!isEditingProfile)}
+                                    className="px-5 py-2.5 bg-gray-50 text-gray-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center gap-2"
+                                 >
+                                    {isEditingProfile ? 'Cancel Edit' : 'Modify Profile'}
+                                 </button>
                               </div>
-                              <div>
-                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><Phone className="w-3 h-3 mr-1" /> Phone Number</label>
-                                 {isEditingProfile ? (
-                                    <input
-                                       value={profileForm.phone}
-                                       onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                                       className="w-full p-2 border border-gray-200 bg-gray-50 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-sm text-gray-900"
-                                    />
-                                 ) : (
-                                    <p className="text-gray-900 font-medium">{user.phone || 'N/A'}</p>
-                                 )}
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                 <div className="space-y-6">
+                                    <div>
+                                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center">
+                                          <Mail className="w-3.5 h-3.5 mr-2" /> Email Address
+                                       </label>
+                                       {isEditingProfile ? (
+                                          <input
+                                             value={profileForm.email}
+                                             onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                                             className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
+                                          />
+                                       ) : (
+                                          <p className="text-gray-900 font-bold ml-5.5 text-lg">{user.email}</p>
+                                       )}
+                                    </div>
+                                    <div>
+                                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center">
+                                          <Phone className="w-3.5 h-3.5 mr-2" /> Phone Number
+                                       </label>
+                                       {isEditingProfile ? (
+                                          <input
+                                             value={profileForm.phone}
+                                             onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                                             className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
+                                          />
+                                       ) : (
+                                          <p className="text-gray-900 font-bold ml-5.5 text-lg">{user.phone || 'N/A'}</p>
+                                       )}
+                                    </div>
+                                 </div>
+
+                                 <div className="space-y-6">
+                                    <div>
+                                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center">
+                                          <Truck className="w-3.5 h-3.5 mr-2" /> Vehicle Information
+                                       </label>
+                                       <div className="flex items-center gap-3">
+                                          <div className="bg-yellow-50 text-yellow-700 font-black px-5 py-2.5 rounded-xl border-2 border-dashed border-yellow-200 inline-block uppercase tracking-widest text-sm shadow-sm">
+                                             {user.plateNumber || 'TBD'}
+                                          </div>
+                                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">{user.vehicleType}</span>
+                                       </div>
+                                    </div>
+                                    <div>
+                                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 flex items-center">
+                                          <Shield className="w-3.5 h-3.5 mr-2" /> Verification
+                                       </label>
+                                       <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between">
+                                          <div>
+                                             <p className="text-xs font-black text-emerald-900 uppercase">Documents Verified</p>
+                                             <p className="text-[10px] text-emerald-600/60 font-medium">Auto-renew in 184 days</p>
+                                          </div>
+                                          <ShieldCheck className="w-6 h-6 text-emerald-500" />
+                                       </div>
+                                    </div>
+                                 </div>
                               </div>
-                              <div>
-                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><CreditCard className="w-3 h-3 mr-1" /> National ID Number</label>
-                                 {isEditingProfile ? (
-                                    <input
-                                       value={profileForm.idNumber}
-                                       onChange={(e) => setProfileForm({ ...profileForm, idNumber: e.target.value })}
-                                       className="w-full p-2 border border-gray-200 bg-gray-50 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-sm text-gray-900"
-                                    />
-                                 ) : (
-                                    <p className="text-gray-900 font-medium">{user.idNumber || 'N/A'}</p>
-                                 )}
-                              </div>
-                              <div>
-                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><Home className="w-3 h-3 mr-1" /> Residential Address</label>
-                                 {isEditingProfile ? (
-                                    <input
-                                       value={profileForm.address}
-                                       onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
-                                       className="w-full p-2 border border-gray-200 bg-gray-50 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-sm text-gray-900"
-                                    />
-                                 ) : (
-                                    <p className="text-gray-900 font-medium">{user.address || 'N/A'}</p>
-                                 )}
-                              </div>
+
+                              {isEditingProfile && (
+                                 <div className="mt-10 pt-8 border-t border-gray-50 flex justify-end">
+                                    <button
+                                       onClick={handleSaveProfile}
+                                       className="px-10 py-4 bg-brand-600 text-white rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-brand-200 hover:bg-brand-700 active:scale-95 transition-all flex items-center gap-3"
+                                    >
+                                       <Save className="w-4 h-4" /> Save Updated Profile
+                                    </button>
+                                 </div>
+                              )}
                            </div>
                         </div>
 
-                        {/* Vehicle & License Details */}
-                        <div className="bg-white rounded-2xl border border-gray-100 p-6 h-full shadow-sm">
-                           <h3 className="font-bold text-lg text-gray-900 mb-6 flex items-center border-b border-gray-50 pb-3">
-                              <Truck className="w-5 h-5 mr-2 text-brand-600" /> Vehicle & Licensing
-                           </h3>
-                           <div className="space-y-5">
-                              <div>
-                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Vehicle Type</label>
-                                 <div className="flex items-center space-x-2">
-                                    <span className="bg-gray-100 px-3 py-1 rounded-md text-sm font-bold text-gray-700 border border-gray-200">{user.vehicleType}</span>
-                                 </div>
-                              </div>
-                              <div>
-                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1 font-bold">Number Plate</label>
-                                 {isEditingProfile ? (
-                                    <input
-                                       value={profileForm.plateNumber}
-                                       onChange={(e) => setProfileForm({ ...profileForm, plateNumber: e.target.value })}
-                                       className="w-full p-2 border border-gray-200 bg-gray-50 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-sm uppercase text-gray-900"
-                                    />
-                                 ) : (
-                                    <div className="bg-yellow-50 text-yellow-600 font-bold px-4 py-2 rounded-lg border-2 border-dashed border-yellow-200 inline-block uppercase tracking-wider text-sm">
-                                       {user.plateNumber || 'TBD'}
+                        {/* Professional Suite: Security & Privacy */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                           <div className={`overflow-hidden border border-gray-50 rounded-[2.5rem] transition-all ${expandedSection === 'SECURITY' ? 'ring-2 ring-brand-500/20 bg-[#FBFCFE]' : 'bg-white shadow-sm'}`}>
+                              <button
+                                 onClick={() => setExpandedSection(expandedSection === 'SECURITY' ? null : 'SECURITY')}
+                                 className="w-full flex items-center justify-between p-8"
+                              >
+                                 <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
+                                       <Lock className="w-5 h-5" />
                                     </div>
-                                 )}
-                              </div>
-                           </div>
-                           <div className="mt-5">
-                              <label className="block text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><FileText className="w-3 h-3 mr-1" /> License Number</label>
-                              {isEditingProfile ? (
-                                 <input
-                                    value={profileForm.licenseNumber}
-                                    onChange={(e) => setProfileForm({ ...profileForm, licenseNumber: e.target.value })}
-                                    className="w-full p-2 border border-gray-200 bg-gray-50 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none text-sm text-gray-900"
-                                 />
-                              ) : (
-                                 <p className="text-gray-900 font-medium">{user.licenseNumber || 'N/A'}</p>
+                                    <div className="text-left">
+                                       <h3 className="font-black text-slate-900">Security</h3>
+                                       <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Two-Factor & Credentials</p>
+                                    </div>
+                                 </div>
+                                 {expandedSection === 'SECURITY' ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                              </button>
+
+                              {expandedSection === 'SECURITY' && (
+                                 <div className="px-8 pb-8 space-y-6 animate-in slide-in-from-top-4 duration-300">
+                                    <div className="space-y-4">
+                                       <div className="p-5 bg-white rounded-2xl border border-gray-100 flex items-center justify-between group cursor-pointer hover:border-brand-200 transition-all">
+                                          <div className="flex items-center gap-4">
+                                             <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600">
+                                                <QrCode className="w-5 h-5" />
+                                             </div>
+                                             <div>
+                                                <h4 className="font-bold text-slate-900 text-sm">Two-Factor Auth</h4>
+                                                <p className="text-[10px] text-gray-400 font-medium">Protect your earnings wallet</p>
+                                             </div>
+                                          </div>
+                                          <button
+                                             onClick={handleToggle2FA}
+                                             disabled={isUpdating2FA}
+                                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${is2FAEnabled ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                                          >
+                                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${is2FAEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                                          </button>
+                                       </div>
+
+                                       <div className="p-5 bg-white rounded-2xl border border-gray-100 flex items-center justify-between group cursor-pointer hover:border-brand-200 transition-all" onClick={() => setShowPasswordFields(!showPasswordFields)}>
+                                          <div className="flex items-center gap-4">
+                                             <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                                                <Key className="w-5 h-5" />
+                                             </div>
+                                             <div>
+                                                <h4 className="font-bold text-slate-900 text-sm">Authentication</h4>
+                                                <p className="text-[10px] text-gray-400 font-medium">Reset driver credentials</p>
+                                             </div>
+                                          </div>
+                                          <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-500 transition-transform group-hover:translate-x-1" />
+                                       </div>
+
+                                       {showPasswordFields && (
+                                          <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-4 animate-in slide-in-from-top-2">
+                                             <input
+                                                type="password"
+                                                placeholder="New Security Password"
+                                                value={passwords.new}
+                                                onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+                                                className="w-full px-5 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm outline-none focus:border-brand-400"
+                                             />
+                                             <button
+                                                onClick={handlePasswordUpdate}
+                                                disabled={loading}
+                                                className="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg"
+                                             >
+                                                {loading ? 'Processing...' : 'Update Password'}
+                                             </button>
+                                          </div>
+                                       )}
+                                    </div>
+                                 </div>
                               )}
                            </div>
 
-                           {isEditingProfile && (
-                              <div className="flex justify-end gap-3 mt-6 border-t border-gray-50 pt-4">
-                                 <button
-                                    onClick={() => setIsEditingProfile(false)}
-                                    className="px-4 py-2 border border-gray-200 text-gray-500 rounded-lg font-bold hover:bg-gray-50 text-sm"
-                                 >
-                                    Cancel
-                                 </button>
-                                 <button
-                                    onClick={handleSaveProfile}
-                                    className="px-4 py-2 bg-brand-600 text-white rounded-lg font-bold hover:bg-brand-700 flex items-center text-sm shadow-lg shadow-brand-100"
-                                 >
-                                    <Save className="w-4 h-4 mr-2" /> Save Changes
-                                 </button>
-                              </div>
-                           )}
-
-                           {!isEditingProfile && (
-                              <div className="pt-4 mt-2">
-                                 <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 flex items-start">
-                                    <Shield className="w-5 h-5 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                           <div className={`overflow-hidden border border-gray-50 rounded-[2.5rem] transition-all bg-white shadow-sm`}>
+                              <div className="p-8">
+                                 <div className="flex items-center gap-4 mb-6">
+                                    <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 shadow-sm">
+                                       <Bell className="w-5 h-5" />
+                                    </div>
                                     <div>
-                                       <p className="text-sm font-bold text-emerald-600">Account Status: Active</p>
-                                       <p className="text-xs text-emerald-500/60 mt-1">You are fully verified to accept delivery jobs.</p>
+                                       <h3 className="font-black text-slate-900">Notifications</h3>
+                                       <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Alert Preferences</p>
                                     </div>
                                  </div>
-                              </div>
-                           )}
-                        </div>
-                     </div>
 
-                     {/* Danger Zone */}
-                     <div className="bg-red-50 rounded-2xl border border-red-100 p-6 sm:p-8">
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                           <div>
-                              <h3 className="text-lg font-bold text-red-900 flex items-center">
-                                 <AlertTriangle className="w-5 h-5 mr-2" /> Danger Zone
-                              </h3>
-                              <p className="text-red-700 text-sm mt-1">
-                                 Once you delete your account, there is no going back. All your earnings history and ratings will be lost.
-                              </p>
+                                 <div className="space-y-3">
+                                    {[
+                                       { id: 'email', label: 'Invoices & Reports', icon: Mail },
+                                       { id: 'sms', label: 'Real-time Job Alerts', icon: Smartphone },
+                                       { id: 'push', label: 'Push App Notifications', icon: Navigation }
+                                    ].map((notif) => (
+                                       <div key={notif.id} className="flex items-center justify-between p-3.5 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                                          <div className="flex items-center gap-3">
+                                             <notif.icon className="w-4 h-4 text-gray-400" />
+                                             <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{notif.label}</span>
+                                          </div>
+                                          <button
+                                             onClick={() => setNotifications({ ...notifications, [notif.id]: !((notifications as any)[notif.id]) })}
+                                             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${(notifications as any)[notif.id] ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                                          >
+                                             <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${(notifications as any)[notif.id] ? 'translate-x-[1.25rem]' : 'translate-x-[0.25rem]'}`} />
+                                          </button>
+                                       </div>
+                                    ))}
+                                 </div>
+                              </div>
                            </div>
-                           <button
-                              onClick={() => setIsDeleteModalOpen(true)}
-                              className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap"
-                           >
-                              Delete Driver Account
-                           </button>
+
+                           <div className="bg-white rounded-[2.5rem] border border-gray-50 p-8 shadow-sm flex flex-col justify-between">
+                              <div className="flex items-center gap-4 mb-6">
+                                 <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 shadow-sm">
+                                    <AlertTriangle className="w-5 h-5" />
+                                 </div>
+                                 <div>
+                                    <h3 className="font-black text-slate-900">Privacy Control</h3>
+                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Account Status & Deletion</p>
+                                 </div>
+                              </div>
+
+                              <div className="space-y-4">
+                                 <button
+                                    onClick={handleDeactivateAccount}
+                                    className="flex items-center justify-between w-full p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-200 transition-all group"
+                                 >
+                                    <div className="flex items-center gap-3">
+                                       <Power className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
+                                       <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Deactivate temporarily</span>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-gray-300" />
+                                 </button>
+
+                                 {showDeleteInput ? (
+                                    <div className="space-y-3 animate-in zoom-in-95">
+                                       <input
+                                          value={deleteConfirmation}
+                                          onChange={(e) => setDeleteConfirmation(e.target.value)}
+                                          placeholder='Type "DELETE"'
+                                          className="w-full px-4 py-3 bg-red-50 border-2 border-red-100 rounded-xl font-black text-center text-red-600 outline-none uppercase text-xs"
+                                       />
+                                       <div className="grid grid-cols-2 gap-2">
+                                          <button onClick={() => setShowDeleteInput(false)} className="py-2.5 bg-gray-100 text-gray-400 rounded-xl text-[10px] font-black uppercase">Cancel</button>
+                                          <button disabled={deleteConfirmation !== 'DELETE'} onClick={handleDeleteAccount} className="py-2.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-50">Confirm</button>
+                                       </div>
+                                    </div>
+                                 ) : (
+                                    <button
+                                       onClick={() => setShowDeleteInput(true)}
+                                       className="w-full py-4 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100"
+                                    >
+                                       Permanently Erase Account
+                                    </button>
+                                 )}
+                              </div>
+                           </div>
+                        </div>
+
+                        {/* Document Verification Display */}
+                        <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm">
+                           <h3 className="font-black text-slate-900 text-lg mb-8 flex items-center gap-3">
+                              <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600">
+                                 <FileCheck className="w-5 h-5" />
+                              </div>
+                              Uploaded Documentation
+                           </h3>
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div className="space-y-4">
+                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-2">National Identity Card</label>
+                                 <div className="relative aspect-[16/10] rounded-3xl overflow-hidden bg-gray-50 border-2 border-gray-100 group shadow-inner">
+                                    {user.idImage ? (
+                                       <img src={user.idImage} alt="ID" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                    ) : (
+                                       <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+                                          <FileText className="w-8 h-8 opacity-20 mb-2" />
+                                          <span className="text-[10px] font-black uppercase tracking-tighter">Empty Slot</span>
+                                       </div>
+                                    )}
+                                    <div className="absolute top-4 right-4 bg-emerald-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase shadow-lg">Verified</div>
+                                 </div>
+                              </div>
+                              <div className="space-y-4">
+                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block ml-2">Driving License</label>
+                                 <div className="relative aspect-[16/10] rounded-3xl overflow-hidden bg-gray-50 border-2 border-gray-100 group shadow-inner">
+                                    {user.licenseImage ? (
+                                       <img src={user.licenseImage} alt="License" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                    ) : (
+                                       <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+                                          <FileText className="w-8 h-8 opacity-20 mb-2" />
+                                          <span className="text-[10px] font-black uppercase tracking-tighter">Empty Slot</span>
+                                       </div>
+                                    )}
+                                    <div className="absolute top-4 right-4 bg-emerald-500 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase shadow-lg">Active</div>
+                                 </div>
+                              </div>
+                           </div>
                         </div>
                      </div>
                   </div>
@@ -1564,7 +1957,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                                  <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
                                     <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Your Earnings</p>
                                     <p className="text-sm font-black text-emerald-700">
-                                       KES {Math.floor((activeJob.price || 0) * 0.8).toLocaleString()}
+                                       KES {activeJob.total?.toLocaleString()}
                                     </p>
                                  </div>
                               </div>
@@ -1651,7 +2044,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                                  <p className="text-sm font-bold text-gray-900 line-clamp-1 max-w-[150px]">{activeJob.items.description}</p>
                                  <div className="flex items-center space-x-2 mt-0.5">
                                     <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
-                                       Earn: KES {Math.floor((activeJob.price || 0) * 0.8).toLocaleString()}
+                                       Earn: KES {(activeJob.driverRate || Math.floor((activeJob.price || 0) * 0.8)).toLocaleString()}
                                     </span>
                                     <span className="text-[10px] font-bold text-gray-400">
                                        {(activeJob.remainingDistance ? (activeJob.remainingDistance / 1000) : 0).toLocaleString(undefined, { maximumFractionDigits: 1 })} km

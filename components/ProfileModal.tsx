@@ -105,7 +105,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                     name="idNumber"
                     value={formData.idNumber}
                     onChange={handleChange}
-                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-500/50 outline-none text-sm font-medium bg-white text-gray-900 placeholder:text-gray-400"
+                    disabled={user.role === 'driver'}
+                    className={`w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-500/50 outline-none text-sm font-medium ${user.role === 'driver' ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-900'} placeholder:text-gray-400`}
                   />
                 </div>
               </div>
