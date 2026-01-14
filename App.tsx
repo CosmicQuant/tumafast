@@ -5,6 +5,7 @@ import { useAuth } from './context/AuthContext';
 import { MapProvider } from './context/MapContext';
 import Navbar from './components/Navbar';
 import SideMenu from './components/SideMenu';
+import BottomNav from './components/BottomNav';
 import AuthModal from './components/AuthModal';
 import OnboardingModal from './components/OnboardingModal';
 import ProfileModal from './components/ProfileModal';
@@ -146,7 +147,7 @@ const App = () => {
             onProfile={() => { setIsMenuOpen(false); setShowProfile(true); }}
           />
 
-          <main className="flex-grow flex flex-col relative">
+          <main className="flex-grow flex flex-col relative pb-16 md:pb-0">
             <Suspense fallback={<SkeletonFallback />}>
               <Routes>
                 {/* Public Routes */}
@@ -211,6 +212,8 @@ const App = () => {
               </Routes>
             </Suspense>
           </main>
+
+          <BottomNav />
 
           {/* Support Chatbot (Kifaru) */}
           {!isDashboard && (

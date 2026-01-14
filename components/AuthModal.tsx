@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Mail, Lock, User, ArrowRight, Loader, Truck, ArrowLeft, CheckCircle, Briefcase, FileText, Phone, CreditCard, MapPin, Globe, Upload, Camera, Shield } from 'lucide-react';
 import { VehicleType } from '../types';
 import { authService } from '../services/authService';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -285,406 +286,420 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
     </div>
   );
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity"
-        onClick={onClose}
-      ></div>
-
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto no-scrollbar border border-gray-100">
-        {/* Header - Only for Login/Signup views, Hidden for forgot password inside logic */}
-        {view !== 'FORGOT_PASSWORD' && view !== 'ROLE_SELECT' && (
-          <div className="px-8 pt-8 pb-4 flex justify-between items-start">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                {view === 'LOGIN' ? 'Welcome back' : 'Create account'}
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {view === 'LOGIN'
-                  ? 'Enter your details to access your dashboard.'
-                  : (role === 'business' ? 'Create a Business Account' : 'Join TumaFast to start moving.')}
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-
-        {/* Close button absolute for forgot password view */}
-        {view === 'FORGOT_PASSWORD' && (
-          <button
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity"
             onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors z-10"
+          ></motion.div>
+
+          <motion.div
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            className="relative bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[95vh] sm:max-h-[90vh] overflow-y-auto no-scrollbar border border-gray-100 flex flex-col"
           >
-            <X className="w-5 h-5" />
-          </button>
-        )}
+            {/* Mobile Drag Handle */}
+            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mt-4 mb-2 sm:hidden flex-shrink-0" onClick={onClose} />
 
-        {/* Error Banner */}
-        {error && (
-          <div className="mx-8 mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center border border-red-100">
-            <div className="w-1.5 h-1.5 bg-red-600 rounded-full mr-2"></div>
-            {error}
-          </div>
-        )}
-
-        {view === 'FORGOT_PASSWORD' ? renderForgotPassword() : view === 'ROLE_SELECT' ? renderRoleSelection() : (
-          <>
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="px-8 py-6 space-y-4">
-
-              {/* Google Auth */}
-              {(view === 'LOGIN' || view === 'SIGNUP') && (
+            {/* Header - Only for Login/Signup views, Hidden for forgot password inside logic */}
+            {view !== 'FORGOT_PASSWORD' && view !== 'ROLE_SELECT' && (
+              <div className="px-8 pt-6 sm:pt-8 pb-4 flex justify-between items-start">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                    {view === 'LOGIN' ? 'Welcome back' : 'Create account'}
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1 font-medium italic">
+                    {view === 'LOGIN'
+                      ? 'Access your TumaFast dashboard.'
+                      : (role === 'business' ? 'Scale your business logistics.' : 'Join TumaFast to start moving.')}
+                  </p>
+                </div>
                 <button
-                  type="button"
-                  onClick={handleGoogleAuth}
-                  className="w-full flex items-center justify-center bg-white border border-gray-200 text-gray-900 font-bold py-2.5 rounded-xl hover:bg-gray-50 transition-colors mb-2 shadow-sm"
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors"
                 >
-                  <img
-                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                    alt="Google"
-                    className="w-5 h-5 mr-3"
-                  />
-                  <span className="text-gray-700 font-semibold text-sm">
-                    {view === 'LOGIN' ? 'Sign in with Google' : 'Sign up with Google'}
-                  </span>
+                  <X className="w-6 h-6" />
                 </button>
-              )}
-
-              {/* Role Selectors */}
-              {/* Role Selectors were here, now moved to dedicated screen */}
-
-              {view === 'SIGNUP' && (
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-500 uppercase">
-                    {role === 'business' ? 'Company Name' : 'Full Name'}
-                  </label>
-                  <div className="relative">
-                    {role === 'business' ? (
-                      <Briefcase className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                    ) : (
-                      <User className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                    )}
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
-                      placeholder={role === 'business' ? "Acme Logistics Ltd" : "John Doe"}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-500 uppercase">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
-                    placeholder="john@example.com"
-                  />
-                </div>
-              </div>
-
-              {/* Phone for ALL roles */}
-              {view === 'SIGNUP' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-gray-500 uppercase">Phone Number</label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                      <input
-                        type="tel"
-                        required
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
-                        placeholder="0700 000 000"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-gray-500 uppercase">National ID</label>
-                    <div className="relative">
-                      <Shield className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                      <input
-                        type="text"
-                        required
-                        value={idNumber}
-                        onChange={(e) => setIdNumber(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
-                        placeholder="12345678"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Driver & Business Fields */}
-              {view === 'SIGNUP' && (role === 'driver' || role === 'business') && (
-                <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-xs font-semibold text-gray-500 uppercase">
-                    {role === 'driver' ? 'Tax PIN (KRA)' : 'Company KRA PIN'}
-                  </label>
-                  <div className="relative">
-                    <FileText className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                    <input
-                      type="text"
-                      required
-                      value={pinNumber}
-                      onChange={(e) => setPinNumber(e.target.value.toUpperCase())}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none uppercase bg-gray-50 placeholder:text-gray-300"
-                      placeholder="A000000000Z"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Address with Location Button */}
-              {view === 'SIGNUP' && (role === 'driver' || role === 'business') && (
-                <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-semibold text-gray-500 uppercase">
-                      {role === 'driver' ? 'Home Location' : 'Business Location'}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleGetLocation}
-                      className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold hover:bg-blue-100 flex items-center border border-blue-100"
-                    >
-                      <MapPin className="w-3 h-3 mr-1" /> Use Device Location
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                    <input
-                      type="text"
-                      required
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
-                      placeholder="e.g. Westlands, Nairobi"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Business Description Field */}
-              {view === 'SIGNUP' && role === 'business' && (
-                <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-xs font-semibold text-gray-500 uppercase">Business Description</label>
-                  <div className="relative">
-                    <FileText className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                    <textarea
-                      required
-                      value={businessDescription}
-                      onChange={(e) => setBusinessDescription(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 min-h-[80px] placeholder:text-gray-300"
-                      placeholder="Describe your business and typical shipping needs..."
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Driver Specific Fields */}
-              {view === 'SIGNUP' && role === 'driver' && (
-                <div className="bg-gray-50 p-4 rounded-xl space-y-3 animate-in fade-in slide-in-from-top-2 border border-gray-100">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-gray-500 uppercase">License No.</label>
-                      <input
-                        type="text"
-                        required
-                        value={licenseNumber}
-                        onChange={(e) => setLicenseNumber(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 focus:ring-2 focus:ring-brand-500/50 bg-white placeholder:text-gray-300"
-                        placeholder="DL..."
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-gray-500 uppercase">Number Plate</label>
-                      <input
-                        type="text"
-                        required
-                        value={plate}
-                        onChange={(e) => setPlate(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 focus:ring-2 focus:ring-brand-500/50 uppercase bg-white placeholder:text-gray-300"
-                        placeholder="KDA 123A"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-gray-500 uppercase">Vehicle Type</label>
-                    <select
-                      value={vehicleType}
-                      onChange={(e) => setVehicleType(e.target.value as VehicleType)}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 focus:ring-2 focus:ring-brand-500/50 bg-white"
-                    >
-                      {Object.values(VehicleType).map(v => <option key={v} value={v} className="bg-white">{v}</option>)}
-                    </select>
-                  </div>
-
-                  {/* Document Uploads Section */}
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Upload Documents</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* ID Card Upload */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase">ID Card (Front)</label>
-                        <div
-                          onClick={() => document.getElementById('id-card-upload')?.click()}
-                          className={`w-full h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${idCardImage ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-gray-50 hover:border-brand-500/50'}`}
-                        >
-                          {idCardImage ? (
-                            <img src={idCardImage} alt="ID Card" className="w-full h-full object-cover" />
-                          ) : (
-                            <>
-                              <Camera className="w-5 h-5 text-gray-300 mb-1" />
-                              <span className="text-[10px] font-bold text-gray-400">Tap to upload</span>
-                            </>
-                          )}
-                        </div>
-                        <input
-                          id="id-card-upload"
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setIdCardFile(file);
-                              const reader = new FileReader();
-                              reader.onloadend = () => setIdCardImage(reader.result as string);
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                      </div>
-
-                      {/* Driving License Upload */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase">Driving License</label>
-                        <div
-                          onClick={() => document.getElementById('license-upload')?.click()}
-                          className={`w-full h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${licenseImage ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-gray-50 hover:border-brand-500/50'}`}
-                        >
-                          {licenseImage ? (
-                            <img src={licenseImage} alt="License" className="w-full h-full object-cover" />
-                          ) : (
-                            <>
-                              <Upload className="w-5 h-5 text-gray-300 mb-1" />
-                              <span className="text-[10px] font-bold text-gray-400">Tap to upload</span>
-                            </>
-                          )}
-                        </div>
-                        <input
-                          id="license-upload"
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setLicenseFile(file);
-                              const reader = new FileReader();
-                              reader.onloadend = () => setLicenseImage(reader.result as string);
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <p className="text-[9px] text-gray-400 mt-2 text-center">Photos must be clear and readable. These will be verified by our team.</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-semibold text-gray-500 uppercase">Password</label>
-                  {view === 'LOGIN' && (
-                    <button
-                      type="button"
-                      onClick={() => setView('FORGOT_PASSWORD')}
-                      className="text-xs font-semibold text-brand-600 hover:text-brand-700"
-                    >
-                      Forgot Password?
-                    </button>
-                  )}
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-brand-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-brand-700 hover:shadow-brand-500/30 transition-all flex items-center justify-center space-x-2 mt-4"
-              >
-                {loading ? (
-                  <Loader className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <span>
-                      {view === 'LOGIN' ? 'Sign In' : (
-                        role === 'driver' ? 'Register as Driver' : (
-                          role === 'business' ? 'Register Business' : 'Sign Up'
-                        )
-                      )}
-                    </span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-
-            </form>
-
-            {/* Footer */}
-            {!view.includes('ROLE_SELECT') && (
-              <div className="px-8 pb-8 text-center">
-                <p className="text-sm text-gray-500">
-                  {view === 'LOGIN' ? "Don't have an account?" : "Already have an account?"}{' '}
-                  <button
-                    onClick={() => {
-                      if (view === 'LOGIN') setView('ROLE_SELECT');
-                      else setView('LOGIN');
-                      setError('');
-                    }}
-                    className="font-bold text-brand-600 hover:text-brand-700 underline decoration-2 underline-offset-2"
-                  >
-                    {view === 'LOGIN' ? 'Sign up' : 'Log in'}
-                  </button>
-                </p>
               </div>
             )}
-          </>
-        )}
-      </div>
-    </div >
+
+            {/* Close button absolute for forgot password view */}
+            {view === 'FORGOT_PASSWORD' && (
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+
+            {/* Error Banner */}
+            {error && (
+              <div className="mx-8 mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center border border-red-100">
+                <div className="w-1.5 h-1.5 bg-red-600 rounded-full mr-2"></div>
+                {error}
+              </div>
+            )}
+
+            {view === 'FORGOT_PASSWORD' ? renderForgotPassword() : view === 'ROLE_SELECT' ? renderRoleSelection() : (
+              <>
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="px-8 py-6 space-y-4">
+
+                  {/* Google Auth */}
+                  {(view === 'LOGIN' || view === 'SIGNUP') && (
+                    <button
+                      type="button"
+                      onClick={handleGoogleAuth}
+                      className="w-full flex items-center justify-center bg-white border border-gray-200 text-gray-900 font-bold py-2.5 rounded-xl hover:bg-gray-50 transition-colors mb-2 shadow-sm"
+                    >
+                      <img
+                        src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                        alt="Google"
+                        className="w-5 h-5 mr-3"
+                      />
+                      <span className="text-gray-700 font-semibold text-sm">
+                        {view === 'LOGIN' ? 'Sign in with Google' : 'Sign up with Google'}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Role Selectors */}
+                  {/* Role Selectors were here, now moved to dedicated screen */}
+
+                  {view === 'SIGNUP' && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-500 uppercase">
+                        {role === 'business' ? 'Company Name' : 'Full Name'}
+                      </label>
+                      <div className="relative">
+                        {role === 'business' ? (
+                          <Briefcase className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                        ) : (
+                          <User className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                        )}
+                        <input
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
+                          placeholder={role === 'business' ? "Acme Logistics Ltd" : "John Doe"}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-500 uppercase">Email Address</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
+                        placeholder="john@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone for ALL roles */}
+                  {view === 'SIGNUP' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500 uppercase">Phone Number</label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                          <input
+                            type="tel"
+                            required
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
+                            placeholder="0700 000 000"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500 uppercase">National ID</label>
+                        <div className="relative">
+                          <Shield className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                          <input
+                            type="text"
+                            required
+                            value={idNumber}
+                            onChange={(e) => setIdNumber(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
+                            placeholder="12345678"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Driver & Business Fields */}
+                  {view === 'SIGNUP' && (role === 'driver' || role === 'business') && (
+                    <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
+                      <label className="text-xs font-semibold text-gray-500 uppercase">
+                        {role === 'driver' ? 'Tax PIN (KRA)' : 'Company KRA PIN'}
+                      </label>
+                      <div className="relative">
+                        <FileText className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                        <input
+                          type="text"
+                          required
+                          value={pinNumber}
+                          onChange={(e) => setPinNumber(e.target.value.toUpperCase())}
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none uppercase bg-gray-50 placeholder:text-gray-300"
+                          placeholder="A000000000Z"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Address with Location Button */}
+                  {view === 'SIGNUP' && (role === 'driver' || role === 'business') && (
+                    <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-semibold text-gray-500 uppercase">
+                          {role === 'driver' ? 'Home Location' : 'Business Location'}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleGetLocation}
+                          className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-bold hover:bg-blue-100 flex items-center border border-blue-100"
+                        >
+                          <MapPin className="w-3 h-3 mr-1" /> Use Device Location
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                        <input
+                          type="text"
+                          required
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
+                          placeholder="e.g. Westlands, Nairobi"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Business Description Field */}
+                  {view === 'SIGNUP' && role === 'business' && (
+                    <div className="space-y-1 animate-in fade-in slide-in-from-top-2">
+                      <label className="text-xs font-semibold text-gray-500 uppercase">Business Description</label>
+                      <div className="relative">
+                        <FileText className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                        <textarea
+                          required
+                          value={businessDescription}
+                          onChange={(e) => setBusinessDescription(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 min-h-[80px] placeholder:text-gray-300"
+                          placeholder="Describe your business and typical shipping needs..."
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Driver Specific Fields */}
+                  {view === 'SIGNUP' && role === 'driver' && (
+                    <div className="bg-gray-50 p-4 rounded-xl space-y-3 animate-in fade-in slide-in-from-top-2 border border-gray-100">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-500 uppercase">License No.</label>
+                          <input
+                            type="text"
+                            required
+                            value={licenseNumber}
+                            onChange={(e) => setLicenseNumber(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 focus:ring-2 focus:ring-brand-500/50 bg-white placeholder:text-gray-300"
+                            placeholder="DL..."
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-gray-500 uppercase">Number Plate</label>
+                          <input
+                            type="text"
+                            required
+                            value={plate}
+                            onChange={(e) => setPlate(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 focus:ring-2 focus:ring-brand-500/50 uppercase bg-white placeholder:text-gray-300"
+                            placeholder="KDA 123A"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500 uppercase">Vehicle Type</label>
+                        <select
+                          value={vehicleType}
+                          onChange={(e) => setVehicleType(e.target.value as VehicleType)}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 focus:ring-2 focus:ring-brand-500/50 bg-white"
+                        >
+                          {Object.values(VehicleType).map(v => <option key={v} value={v} className="bg-white">{v}</option>)}
+                        </select>
+                      </div>
+
+                      {/* Document Uploads Section */}
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Upload Documents</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* ID Card Upload */}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase">ID Card (Front)</label>
+                            <div
+                              onClick={() => document.getElementById('id-card-upload')?.click()}
+                              className={`w-full h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${idCardImage ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-gray-50 hover:border-brand-500/50'}`}
+                            >
+                              {idCardImage ? (
+                                <img src={idCardImage} alt="ID Card" className="w-full h-full object-cover" />
+                              ) : (
+                                <>
+                                  <Camera className="w-5 h-5 text-gray-300 mb-1" />
+                                  <span className="text-[10px] font-bold text-gray-400">Tap to upload</span>
+                                </>
+                              )}
+                            </div>
+                            <input
+                              id="id-card-upload"
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setIdCardFile(file);
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => setIdCardImage(reader.result as string);
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </div>
+
+                          {/* Driving License Upload */}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase">Driving License</label>
+                            <div
+                              onClick={() => document.getElementById('license-upload')?.click()}
+                              className={`w-full h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${licenseImage ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-gray-50 hover:border-brand-500/50'}`}
+                            >
+                              {licenseImage ? (
+                                <img src={licenseImage} alt="License" className="w-full h-full object-cover" />
+                              ) : (
+                                <>
+                                  <Upload className="w-5 h-5 text-gray-300 mb-1" />
+                                  <span className="text-[10px] font-bold text-gray-400">Tap to upload</span>
+                                </>
+                              )}
+                            </div>
+                            <input
+                              id="license-upload"
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setLicenseFile(file);
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => setLicenseImage(reader.result as string);
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[9px] text-gray-400 mt-2 text-center">Photos must be clear and readable. These will be verified by our team.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-semibold text-gray-500 uppercase">Password</label>
+                      {view === 'LOGIN' && (
+                        <button
+                          type="button"
+                          onClick={() => setView('FORGOT_PASSWORD')}
+                          className="text-xs font-semibold text-brand-600 hover:text-brand-700"
+                        >
+                          Forgot Password?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                      <input
+                        type="password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-gray-900 focus:ring-2 focus:ring-brand-500/50 transition-all outline-none bg-gray-50 placeholder:text-gray-300"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-brand-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-brand-700 hover:shadow-brand-500/30 transition-all flex items-center justify-center space-x-2 mt-4"
+                  >
+                    {loading ? (
+                      <Loader className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <span>
+                          {view === 'LOGIN' ? 'Sign In' : (
+                            role === 'driver' ? 'Register as Driver' : (
+                              role === 'business' ? 'Register Business' : 'Sign Up'
+                            )
+                          )}
+                        </span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                </form>
+
+                {/* Footer */}
+                {!view.includes('ROLE_SELECT') && (
+                  <div className="px-8 pb-8 text-center">
+                    <p className="text-sm text-gray-500">
+                      {view === 'LOGIN' ? "Don't have an account?" : "Already have an account?"}{' '}
+                      <button
+                        onClick={() => {
+                          if (view === 'LOGIN') setView('ROLE_SELECT');
+                          else setView('LOGIN');
+                          setError('');
+                        }}
+                        className="font-bold text-brand-600 hover:text-brand-700 underline decoration-2 underline-offset-2"
+                      >
+                        {view === 'LOGIN' ? 'Sign up' : 'Log in'}
+                      </button>
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </motion.div>
+        </div >
+      )}
+    </AnimatePresence>
   );
 };
 
