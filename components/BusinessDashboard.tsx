@@ -1484,7 +1484,42 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                 </div>
 
                                 {/* Professional Suite: Security & Privacy */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <div className={`overflow-hidden border border-gray-50 rounded-[2.5rem] transition-all bg-white shadow-sm`}>
+                                        <div className="p-8">
+                                            <div className="flex items-center gap-4 mb-6">
+                                                <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 shadow-sm">
+                                                    <Bell className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-black text-slate-900">Notifications</h3>
+                                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Enterprise Alerts</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                {[
+                                                    { id: 'email', label: 'Invoices & Billing', icon: Mail },
+                                                    { id: 'sms', label: 'Critical Status SMS', icon: Smartphone },
+                                                    { id: 'push', label: 'Push Dashboard Alerts', icon: Navigation }
+                                                ].map((notif) => (
+                                                    <div key={notif.id} className="flex items-center justify-between p-3.5 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                                                        <div className="flex items-center gap-3">
+                                                            <notif.icon className="w-4 h-4 text-gray-400" />
+                                                            <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{notif.label}</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setNotifications({ ...notifications, [notif.id]: !((notifications as any)[notif.id]) })}
+                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${(notifications as any)[notif.id] ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                                                        >
+                                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${(notifications as any)[notif.id] ? 'translate-x-[1.25rem]' : 'translate-x-[0.25rem]'}`} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div className={`overflow-hidden border border-gray-50 rounded-[2.5rem] transition-all ${expandedSection === 'SECURITY' ? 'ring-2 ring-brand-500/20 bg-[#FBFCFE]' : 'bg-white shadow-sm'}`}>
                                         <button
                                             onClick={() => setExpandedSection(expandedSection === 'SECURITY' ? null : 'SECURITY')}
@@ -1569,87 +1604,52 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                             </div>
                                         )}
                                     </div>
+                                </div>
 
-                                    <div className={`overflow-hidden border border-gray-50 rounded-[2.5rem] transition-all bg-white shadow-sm`}>
-                                        <div className="p-8">
-                                            <div className="flex items-center gap-4 mb-6">
-                                                <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 shadow-sm">
-                                                    <Bell className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-black text-slate-900">Notifications</h3>
-                                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Enterprise Alerts</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-3">
-                                                {[
-                                                    { id: 'email', label: 'Invoices & Billing', icon: Mail },
-                                                    { id: 'sms', label: 'Critical Status SMS', icon: Smartphone },
-                                                    { id: 'push', label: 'Push Dashboard Alerts', icon: Navigation }
-                                                ].map((notif) => (
-                                                    <div key={notif.id} className="flex items-center justify-between p-3.5 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
-                                                        <div className="flex items-center gap-3">
-                                                            <notif.icon className="w-4 h-4 text-gray-400" />
-                                                            <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{notif.label}</span>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => setNotifications({ ...notifications, [notif.id]: !((notifications as any)[notif.id]) })}
-                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${(notifications as any)[notif.id] ? 'bg-emerald-500' : 'bg-gray-200'}`}
-                                                        >
-                                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${(notifications as any)[notif.id] ? 'translate-x-[1.25rem]' : 'translate-x-[0.25rem]'}`} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                <div className="bg-red-50/20 rounded-[2.5rem] border border-red-100 p-8 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 shadow-sm">
+                                            <AlertTriangle className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-black text-slate-900">Privacy & Erasure</h3>
+                                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Account Status Control</p>
                                         </div>
                                     </div>
 
-                                    <div className="bg-white rounded-[2.5rem] border border-gray-50 p-8 shadow-sm flex flex-col justify-between">
-                                        <div className="flex items-center gap-4 mb-6">
-                                            <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 shadow-sm">
-                                                <AlertTriangle className="w-5 h-5" />
+                                    <div className="space-y-4">
+                                        <button
+                                            onClick={handleDeactivateAccount}
+                                            className="flex items-center justify-between w-full p-4 bg-white/50 rounded-2xl border border-red-50 hover:border-red-200 transition-all group"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <Power className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
+                                                <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Deactivate temporarily</span>
                                             </div>
-                                            <div>
-                                                <h3 className="font-black text-slate-900">Privacy & Erasure</h3>
-                                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-0.5">Account Status Control</p>
-                                            </div>
-                                        </div>
+                                            <ChevronRight className="w-4 h-4 text-gray-300" />
+                                        </button>
 
-                                        <div className="space-y-4">
+                                        {showDeleteInput ? (
+                                            <div className="space-y-3 animate-in zoom-in-95">
+                                                <input
+                                                    value={deleteConfirmation}
+                                                    onChange={(e) => setDeleteConfirmation(e.target.value)}
+                                                    placeholder='Type "DELETE" to proceed'
+                                                    className="w-full px-4 py-3 bg-white border-2 border-red-100 rounded-xl font-black text-center text-red-600 outline-none uppercase text-xs"
+                                                />
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <button onClick={() => setShowDeleteInput(false)} className="py-2.5 bg-gray-100 text-gray-400 rounded-xl text-[10px] font-black uppercase">Cancel</button>
+                                                    <button disabled={deleteConfirmation !== 'DELETE'} onClick={handleDeleteAccount} className="py-2.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-50">Erase Everything</button>
+                                                </div>
+                                            </div>
+                                        ) : (
                                             <button
-                                                onClick={handleDeactivateAccount}
-                                                className="flex items-center justify-between w-full p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-200 transition-all group"
+                                                onClick={() => setShowDeleteInput(true)}
+                                                className="w-full py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-200"
                                             >
-                                                <div className="flex items-center gap-3">
-                                                    <Power className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
-                                                    <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Deactivate temporarily</span>
-                                                </div>
-                                                <ChevronRight className="w-4 h-4 text-gray-300" />
+                                                Terminate Business Account
                                             </button>
-
-                                            {showDeleteInput ? (
-                                                <div className="space-y-3 animate-in zoom-in-95">
-                                                    <input
-                                                        value={deleteConfirmation}
-                                                        onChange={(e) => setDeleteConfirmation(e.target.value)}
-                                                        placeholder='Type "DELETE" to proceed'
-                                                        className="w-full px-4 py-3 bg-red-50 border-2 border-red-100 rounded-xl font-black text-center text-red-600 outline-none uppercase text-xs"
-                                                    />
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <button onClick={() => setShowDeleteInput(false)} className="py-2.5 bg-gray-100 text-gray-400 rounded-xl text-[10px] font-black uppercase">Cancel</button>
-                                                        <button disabled={deleteConfirmation !== 'DELETE'} onClick={handleDeleteAccount} className="py-2.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase disabled:opacity-50">Erase Everything</button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={() => setShowDeleteInput(true)}
-                                                    className="w-full py-4 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all border border-red-100"
-                                                >
-                                                    Terminate Business Account
-                                                </button>
-                                            )}
-                                        </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
