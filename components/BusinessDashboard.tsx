@@ -373,23 +373,6 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
         window.print();
     };
 
-    const handleDeleteAccount = async () => {
-        try {
-            await deleteAccount();
-            toast.success('Account deleted successfully');
-            onGoHome();
-        } catch (error: any) {
-            console.error('Delete account error:', error);
-            if (error.code === 'auth/requires-recent-login') {
-                toast.error('Please log out and log back in to delete your account for security reasons.');
-            } else {
-                toast.error('Failed to delete account. Please try again.');
-            }
-        } finally {
-            setIsDeleteModalOpen(false);
-        }
-    };
-
     // --- NEW: Admin Approval Logic ---
 
     const initiateSwap = (vehicle: any) => {
