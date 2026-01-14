@@ -10,6 +10,7 @@ import OnboardingModal from './components/OnboardingModal';
 import ProfileModal from './components/ProfileModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import ChatAssistant from './components/ChatAssistant';
+import { ChatProvider } from './context/ChatContext';
 
 // Lazy-loaded components for performance
 const Hero = lazy(() => import('./components/Hero'));
@@ -22,6 +23,12 @@ const CustomerDashboard = lazy(() => import('./components/CustomerDashboard'));
 const HistoryList = lazy(() => import('./components/HistoryList'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./components/TermsOfService'));
+const AboutUs = lazy(() => import('./components/AboutUs'));
+const BlogPage = lazy(() => import('./components/BlogPage'));
+const FAQPage = lazy(() => import('./components/FAQPage'));
+const SecurityPage = lazy(() => import('./components/SecurityPage'));
+const ContactUs = lazy(() => import('./components/ContactUs'));
+const VulnerabilityReport = lazy(() => import('./components/VulnerabilityReport'));
 
 const SkeletonFallback = () => (
   <div className="flex h-screen w-full items-center justify-center bg-gray-50">
@@ -39,6 +46,8 @@ const App = () => {
   const navigate = useNavigate();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalRole, setAuthModalRole] = useState<'customer' | 'driver' | 'business'>('customer');
+  const [authModalView, setAuthModalView] = useState<'LOGIN' | 'SIGNUP' | 'ROLE_SELECT'>('LOGIN');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -55,7 +64,11 @@ const App = () => {
       '/driver': 'Courier Dashboard | Tuma Fast',
       '/business-dashboard': 'Business Dashboard | Tuma Fast',
       '/privacy': 'Privacy Policy | Tuma Fast',
-      '/terms': 'Service Terms | Tuma Fast'
+      '/terms': 'Service Terms | Tuma Fast',
+      '/about': 'About Our Mission | Tuma Fast',
+      '/blog': 'Industry Blog | Tuma Fast',
+      '/faq': 'Help & FAQ | Tuma Fast',
+      '/security': 'Security Infrastructure | Tuma Fast'
     };
 
     const matchingKey = Object.keys(routeTitles)
@@ -112,165 +125,190 @@ const App = () => {
     location.pathname.startsWith('/track');
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900 overflow-x-hidden">
-      <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#333', color: '#fff' } }} />
+    <ChatProvider>
+      <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900 overflow-x-hidden">
+        <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#333', color: '#fff' } }} />
 
-      <MapProvider>
-        {!isDashboard && (
-          <Navbar
-            onToggleMobileMenu={() => setIsMenuOpen(true)}
-            onLogin={() => setShowAuthModal(true)}
-            isMapPage={isMapPage}
-            isDarkBackground={location.pathname === '/business'}
+        <MapProvider>
+          {!isDashboard && (
+            <Navbar
+              onToggleMobileMenu={() => setIsMenuOpen(true)}
+              onLogin={() => setShowAuthModal(true)}
+              isMapPage={isMapPage}
+              isDarkBackground={location.pathname === '/business'}
+            />
+          )}
+
+          <SideMenu
+            isOpen={isMenuOpen}
+            onClose={() => setIsMenuOpen(false)}
+            onLogin={() => { setIsMenuOpen(false); setShowAuthModal(true); }}
+            onProfile={() => { setIsMenuOpen(false); setShowProfile(true); }}
           />
-        )}
 
-        <SideMenu
-          isOpen={isMenuOpen}
-          onClose={() => setIsMenuOpen(false)}
-          onLogin={() => { setIsMenuOpen(false); setShowAuthModal(true); }}
-          onProfile={() => { setIsMenuOpen(false); setShowProfile(true); }}
-        />
+          <main className="flex-grow flex flex-col relative">
+            <Suspense fallback={<SkeletonFallback />}>
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Hero />} />
+                <Route path="/business" element={<BusinessLanding />} />
 
-        <main className="flex-grow flex flex-col relative">
-          <Suspense fallback={<SkeletonFallback />}>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Hero />} />
-              <Route path="/business" element={<BusinessLanding />} />
+                {/* Customer Routes */}
+                <Route path="/book" element={<BookingPage onRequireAuth={handleRequireAuth} />} />
 
-              {/* Customer Routes */}
-              <Route path="/book" element={<BookingPage onRequireAuth={handleRequireAuth} />} />
+                {/* Track supports both /track/:orderId and /track (via query param) */}
+                <Route path="/track/:orderId" element={<TrackingPage />} />
+                <Route path="/track" element={<TrackingPage />} />
 
-              {/* Track supports both /track/:orderId and /track (via query param) */}
-              <Route path="/track/:orderId" element={<TrackingPage />} />
-              <Route path="/track" element={<TrackingPage />} />
+                <Route path="/history" element={
+                  <ProtectedRoute allowedRoles={['customer', 'business', 'driver']}>
+                    <HistoryList
+                      onTrackOrder={(orderId) => navigate(`/track/${orderId}`)}
+                      onReorder={(prefill) => {
+                        if (user?.role === 'driver') {
+                          setShowAuthModal(true);
+                        } else {
+                          navigate('/book', { state: { prefill } });
+                        }
+                      }}
+                    />
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/history" element={
-                <ProtectedRoute allowedRoles={['customer', 'business', 'driver']}>
-                  <HistoryList
-                    onTrackOrder={(orderId) => navigate(`/track/${orderId}`)}
-                    onReorder={(prefill) => {
-                      if (user?.role === 'driver') {
-                        setShowAuthModal(true);
-                      } else {
-                        navigate('/book', { state: { prefill } });
-                      }
-                    }}
-                  />
-                </ProtectedRoute>
-              } />
+                <Route path="/customer-dashboard" element={
+                  <ProtectedRoute allowedRoles={['customer']}>
+                    <CustomerDashboard />
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/customer-dashboard" element={
-                <ProtectedRoute allowedRoles={['customer']}>
-                  <CustomerDashboard />
-                </ProtectedRoute>
-              } />
+                <Route path="/driver" element={
+                  <ProtectedRoute allowedRoles={['driver']}>
+                    <DriverDashboard user={user!} onGoHome={() => { }} />
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/driver" element={
-                <ProtectedRoute allowedRoles={['driver']}>
-                  <DriverDashboard user={user!} onGoHome={() => { }} />
-                </ProtectedRoute>
-              } />
+                <Route path="/business-dashboard" element={
+                  <ProtectedRoute allowedRoles={['business']}>
+                    <BusinessDashboard />
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/business-dashboard" element={
-                <ProtectedRoute allowedRoles={['business']}>
-                  <BusinessDashboard />
-                </ProtectedRoute>
-              } />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/about" element={<AboutUs onOpenAuth={(role, view) => {
+                  if (role) setAuthModalRole(role);
+                  if (view) setAuthModalView(view);
+                  setShowAuthModal(true);
+                }} />} />
+                <Route path="/blog" element={<BlogPage />} />
+                <Route path="/faq" element={<FAQPage />} />
+                <Route path="/security" element={<SecurityPage />} />
+                <Route path="/contact" element={<ContactUs />} />
+                <Route path="/report-vulnerability" element={<VulnerabilityReport />} />
 
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<TermsOfService />} />
+                {/* Catch all */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </main>
 
-              {/* Catch all */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </main>
-
-        {/* Support Chatbot (Kifaru) */}
-        {!isDashboard && (location.pathname === '/' || location.pathname === '/business') && (
-          <div className="pointer-events-auto">
-            <ChatAssistant />
-          </div>
-        )}
-
-        {/* Global Footer */}
-        {!isDashboard && !isMapPage && (
-          <footer className="bg-slate-900 text-gray-300 py-16 border-t border-white/5 pointer-events-auto relative z-10">
-            <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12">
-              <div className="flex flex-col items-center md:items-start text-center md:text-left">
-                <div className="flex items-center space-x-2 mb-4">
-                  <span className="text-2xl font-black text-white tracking-tight">Tuma<span className="text-brand-500">Fast</span></span>
-                </div>
-                <p className="max-w-sm text-gray-400 font-medium text-sm leading-relaxed mb-8">
-                  The most reliable logistics infrastructure for high-growth businesses and individuals in Kenya. Moving anything, anywhere, instantly.
-                </p>
-                <div className="flex space-x-6 text-sm font-bold text-gray-500">
-                  <a href="#" className="hover:text-white transition-colors">Help Center</a>
-                  <a href="#" className="hover:text-white transition-colors">Safety</a>
-                  <a href="#" className="hover:text-white transition-colors">Terms</a>
-                  <a href="#" className="hover:text-white transition-colors">Privacy</a>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-8">
-                <div>
-                  <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Service</h4>
-                  <ul className="space-y-4 text-sm font-medium text-gray-400">
-                    <li><button onClick={() => navigate('/book')} className="hover:text-brand-400 transition-colors">Book a Delivery</button></li>
-                    <li><button onClick={() => navigate('/business')} className="hover:text-brand-400 transition-colors">TumaFast for Business</button></li>
-                    <li><button onClick={() => navigate('/driver')} className="hover:text-brand-400 transition-colors">Drive with Us</button></li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Company</h4>
-                  <ul className="space-y-4 text-sm font-medium text-gray-400">
-                    <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-                  </ul>
-                </div>
-                <div className="hidden sm:block">
-                  <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Support</h4>
-                  <ul className="space-y-4 text-sm font-medium text-gray-400">
-                    <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">FAQs</a></li>
-                    <li><a href="#" className="hover:text-white transition-colors">Security</a></li>
-                  </ul>
-                </div>
-              </div>
+          {/* Support Chatbot (Kifaru) */}
+          {!isDashboard && (
+            <div className="pointer-events-auto">
+              <ChatAssistant />
             </div>
-            <div className="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-tighter">
-              <span>© {new Date().getFullYear()} TumaFast Kenya Ltd. All rights reserved.</span>
-              <div className="flex space-x-4 mt-4 md:mt-0">
-                <a href="#" className="hover:text-white">Twitter</a>
-                <a href="#" className="hover:text-white">Facebook</a>
-                <a href="#" className="hover:text-white">LinkedIn</a>
+          )}
+
+          {/* Global Footer */}
+          {!isDashboard && !isMapPage && (
+            <footer className="bg-slate-900 text-gray-300 py-16 border-t border-white/5 pointer-events-auto relative z-10">
+              <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div className="flex flex-col items-center md:items-start text-center md:text-left">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <span className="text-2xl font-black text-white tracking-tight">Tuma<span className="text-brand-500">Fast</span></span>
+                  </div>
+                  <p className="max-w-sm text-gray-400 font-medium text-sm leading-relaxed mb-8">
+                    The most reliable logistics infrastructure for high-growth businesses and individuals in Kenya. Moving anything, anywhere, instantly.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-8">
+                  <div>
+                    <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Service</h4>
+                    <ul className="space-y-4 text-sm font-medium text-gray-400">
+                      <li><button onClick={() => navigate('/book')} className="hover:text-brand-400 transition-colors">Book a Delivery</button></li>
+                      <li><button onClick={() => navigate('/business')} className="hover:text-brand-400 transition-colors">TumaFast for Business</button></li>
+                      <li>
+                        <button
+                          onClick={() => {
+                            setAuthModalRole('driver');
+                            setAuthModalView('SIGNUP');
+                            setShowAuthModal(true);
+                          }}
+                          className="hover:text-brand-400 transition-colors"
+                        >
+                          Drive with Us
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Company</h4>
+                    <ul className="space-y-4 text-sm font-medium text-gray-400">
+                      <li><button onClick={() => navigate('/about')} className="hover:text-white transition-colors text-left">About Us</button></li>
+                      <li><button onClick={() => navigate('/blog')} className="hover:text-white transition-colors text-left">Blog</button></li>
+                      <li><button onClick={() => navigate('/contact')} className="hover:text-white transition-colors text-left">Contact Us</button></li>
+                    </ul>
+                  </div>
+                  <div className="hidden sm:block">
+                    <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Support</h4>
+                    <ul className="space-y-4 text-sm font-medium text-gray-400">
+                      <li><button onClick={() => navigate('/faq')} className="hover:text-white transition-colors text-left">FAQs & Help</button></li>
+                      <li><button onClick={() => navigate('/terms')} className="hover:text-white transition-colors text-left">Service Terms</button></li>
+                      <li><button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors text-left">Privacy Policy</button></li>
+                      <li><button onClick={() => navigate('/security')} className="hover:text-white transition-colors text-left">Security</button></li>
+                    </ul>
+                  </div>
+                </div>
               </div>
-            </div>
-          </footer>
-        )}
+              <div className="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-tighter">
+                <span>© {new Date().getFullYear()} TumaFast Kenya Ltd. All rights reserved.</span>
+                <div className="flex space-x-4 mt-4 md:mt-0">
+                  <a href="#" className="hover:text-white">Twitter</a>
+                  <a href="#" className="hover:text-white">Facebook</a>
+                  <a href="#" className="hover:text-white">LinkedIn</a>
+                </div>
+              </div>
+            </footer>
+          )}
 
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-        />
-
-        <OnboardingModal
-          isOpen={showOnboarding}
-          onClose={() => setShowOnboarding(false)}
-        />
-
-        {user && (
-          <ProfileModal
-            isOpen={showProfile}
-            onClose={() => setShowProfile(false)}
-            user={user}
+          <AuthModal
+            isOpen={showAuthModal}
+            onClose={() => {
+              setShowAuthModal(false);
+              // Reset to defaults after close
+              setAuthModalRole('customer');
+              setAuthModalView('LOGIN');
+            }}
+            preselectedRole={authModalRole}
+            defaultView={authModalView}
           />
-        )}
-      </MapProvider>
-    </div>
+
+          <OnboardingModal
+            isOpen={showOnboarding}
+            onClose={() => setShowOnboarding(false)}
+          />
+
+          {user && (
+            <ProfileModal
+              isOpen={showProfile}
+              onClose={() => setShowProfile(false)}
+              user={user}
+            />
+          )}
+        </MapProvider>
+      </div>
+    </ChatProvider>
   );
 };
 

@@ -2,17 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, X, Minimize2, Maximize2 } from 'lucide-react';
 import { chatWithLogisticsAssistant } from '../services/geminiService';
 import type { ChatMessage } from '../types';
+import { useChat } from '../context/ChatContext';
 
 const ChatAssistant: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, setIsOpen, toggleChat } = useChat();
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: '1', role: 'model', text: 'Jambo! I am Kifaru, your logistics assistant. Need help with pricing, packaging, or finding a city?', timestamp: new Date() }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const toggleChat = () => setIsOpen(!isOpen);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
