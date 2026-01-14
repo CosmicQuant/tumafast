@@ -44,11 +44,11 @@ const ChatAssistant: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className={`fixed ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-20 right-4 sm:bottom-6 sm:right-6'} z-50 flex flex-col items-end`}>
       {isOpen && (
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-80 sm:w-96 mb-4 flex flex-col overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-10 fade-in h-[500px]">
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full h-full sm:w-96 sm:h-[500px] mb-0 sm:mb-4 flex flex-col overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-10 fade-in">
           {/* Header */}
-          <div className="bg-brand-600 p-4 flex justify-between items-center text-white">
+          <div className="bg-brand-600 p-5 flex justify-between items-center text-white flex-shrink-0">
             <div className="flex items-center space-x-2">
               <div className="bg-white/20 p-1.5 rounded-lg">
                 <MessageSquare className="w-4 h-4" />
@@ -123,12 +123,12 @@ const ChatAssistant: React.FC = () => {
       {!isOpen && (
         <button
           onClick={toggleChat}
-          className="group flex items-center justify-center w-14 h-14 rounded-full shadow-xl transition-all duration-300 bg-brand-600 hover:bg-brand-700 hover:scale-105"
+          className="group flex items-center justify-center w-14 h-14 rounded-2xl shadow-xl shadow-brand-500/30 transition-all duration-300 bg-brand-600 hover:bg-brand-700 hover:scale-105 active:scale-95"
         >
-          <MessageSquare className="w-7 h-7 text-white" />
-          <span className="absolute right-0 top-0 flex h-3 w-3">
+          <MessageSquare className="w-6 h-6 text-white group-hover:rotate-12 transition-transform" />
+          <span className="absolute -top-1 -right-1 flex h-4 w-4">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white"></span>
           </span>
         </button>
       )}

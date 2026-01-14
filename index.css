@@ -2,7 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Styles moved from index.html */
+/* Mobile First Optimizations */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  overscroll-behavior-y: none;
+  overflow-x: hidden;
+}
+
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
 
 @media (min-width: 768px) {
   html {
