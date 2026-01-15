@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultView?: 'LOGIN' | 'SIGNUP';
+  defaultView?: 'LOGIN' | 'SIGNUP' | 'ROLE_SELECT';
   preselectedRole?: 'customer' | 'driver' | 'business';
 }
 

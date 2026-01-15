@@ -835,7 +835,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             const statusRes = await paymentService.checkPaymentStatus(checkoutRequestId);
 
             if (statusRes.status === 'COMPLETED') {
-                setPaymentStatus('SUCCESS');
+                setPaymentStatus('COMPLETED');
                 completeOrder(orderData, tempOrderId);
             } else if (statusRes.status === 'FAILED') {
                 setPaymentStatus('FAILED');

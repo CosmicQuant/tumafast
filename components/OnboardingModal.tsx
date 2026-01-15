@@ -10,12 +10,28 @@ import {
 import { VehicleType } from '../types';
 import { storageService } from '../services/storageService';
 
-const OnboardingModal: React.FC = () => {
+interface OnboardingModalProps {
+    isOpen?: boolean;
+    onClose?: () => void;
+}
+
+const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, onClose }) => {
     const { user, updateUser, logout } = useAuth();
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (propIsOpen !== undefined) {
+            setIsOpen(propIsOpen);
+        }
+    }, [propIsOpen]);
+
+    const handleClose = () => {
+        setIsOpen(false);
+        onClose?.();
+    };
 
     // Form State
     const [name, setName] = useState('');

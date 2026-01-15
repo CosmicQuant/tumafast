@@ -266,7 +266,7 @@ const BlogPage: React.FC = () => {
                         <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500 rounded-full blur-[100px] opacity-20 -mr-32 -mt-32" />
                         <div className="relative z-10">
                             <h2 className="text-3xl font-black mb-4 tracking-tight">Stay ahead of the curve.</h2>
-                            <p className="text-gray-400 mb-8 max-w-lg font-medium">Join 5,000+ logistics professionals getting our weekly deep dive into AI and delivery infrastructure.</p>
+                            <p className="text-gray-400 mb-8 max-w-lg font-medium">Join 5,000+ smart logistics professionals getting our weekly deep dive into AI and delivery infrastructure.</p>
                             <div className="flex flex-col sm:flex-row gap-3 max-w-md">
                                 <input type="email" placeholder="you@company.com" className="flex-grow px-6 py-4 bg-white/10 border border-white/20 rounded-2xl text-white outline-none focus:border-brand-500 transition-all font-medium" />
                                 <button className="px-8 py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-brand-600/20">Subscribe</button>

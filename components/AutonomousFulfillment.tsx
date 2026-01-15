@@ -3,7 +3,7 @@ import { Brain, Zap, BarChart3, ArrowRight, ShieldCheck, Globe } from 'lucide-re
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
-const PredictiveOrchestration = () => {
+const AutonomousFulfillment = () => {
     return (
         <div className="bg-white pt-24 pb-16">
             {/* Hero Section */}
@@ -18,24 +18,18 @@ const PredictiveOrchestration = () => {
                         AI-Driven Logistics
                     </motion.div>
                     <h1 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight mb-6">
-                        Predictive Orchestration: <span className="text-brand-600">Dynamic Fulfillment</span>
+                        Smart Dispatch & <span className="text-brand-600">Autonomous Fulfillment</span>
                     </h1>
                     <p className="text-lg text-slate-600 leading-relaxed mb-8 font-medium">
-                        Solving the complexity of the African supply chain. Our AI-driven engine mitigates transit volatility, optimizes fuel efficiency, and ensures your network remains elastic in the face of urban congestion.
+                        Automating the complexity of the African logistics landscape. Our AI-driven adaptive fulfillment and automatic dispatching logic eliminates idle time, optimizes fuel efficiency, and ensures your network remains elastic under any conditions.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link
-                            to="/signup?type=business"
-                            className="px-8 py-4 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-all flex items-center justify-center group"
+                            to="/business"
+                            className="px-10 py-5 bg-brand-600 text-white rounded-2xl font-bold text-lg hover:bg-brand-700 transition-all shadow-xl shadow-brand-900/10 flex items-center justify-center group"
                         >
-                            Get Started
-                            <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                        </Link>
-                        <Link
-                            to="/contact"
-                            className="px-8 py-4 border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all"
-                        >
-                            Request Demo
+                            Start Your Integration
+                            <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
                         </Link>
                     </div>
                 </div>
@@ -47,9 +41,9 @@ const PredictiveOrchestration = () => {
                         <div className="w-12 h-12 bg-blue-50 flex items-center justify-center rounded-lg text-blue-600 mb-6 font-bold">
                             <Zap className="w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-bold text-slate-900 mb-4">Congestion-Aware Routing</h3>
+                        <h3 className="text-xl font-bold text-slate-900 mb-4">Smart Auto-Dispatch & Adaptive Fulfilment</h3>
                         <p className="text-slate-600 leading-relaxed">
-                            Not just static paths. Our proprietary engine recalculates routes based on live traffic surges and urban infrastructure shifts to ensure sub-60 min delivery cycles.
+                            Our AI-powered proprietary engine handles routing and loading optimizations that are congestion-aware. It adapts in real-time to infrastructure shifts ensuring maximum fulfilment speed.
                         </p>
                     </div>
                     <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
@@ -82,7 +76,7 @@ const PredictiveOrchestration = () => {
                             Join Kenya's most advanced logistics network and turn your delivery operations into a competitive advantage.
                         </p>
                         <Link
-                            to="/signup?type=business"
+                            to="/business"
                             className="inline-flex items-center px-10 py-5 bg-brand-600 text-white rounded-2xl font-bold text-lg hover:bg-brand-700 transition-all shadow-xl shadow-brand-900/20"
                         >
                             Start Your Integration
@@ -97,4 +91,4 @@ const PredictiveOrchestration = () => {
     );
 };
 
-export default PredictiveOrchestration;
+export default AutonomousFulfillment;

@@ -9,10 +9,11 @@ import {
 interface SideMenuProps {
     isOpen: boolean;
     onClose: () => void;
-    onOpenProfile?: () => void;
+    onProfile?: () => void;
+    onLogin?: () => void;
 }
 
-const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onOpenProfile }) => {
+const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onProfile, onLogin }) => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
 
@@ -25,7 +26,12 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onOpenProfile }) =
     };
 
     const handleProfileClick = () => {
-        onOpenProfile?.();
+        onProfile?.();
+        onClose();
+    };
+
+    const handleLoginClick = () => {
+        onLogin?.();
         onClose();
     };
 
