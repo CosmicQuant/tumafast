@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { CheckCircle2, Building2, BarChart3, Globe, ArrowRight, Zap, Layers, ChevronRight, Brain, Eye, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Building2, BarChart3, Globe, ArrowRight, Zap, Layers, ChevronRight, Brain, Eye, ShieldCheck, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface BusinessLandingProps {
@@ -55,7 +55,7 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ onGetStarted, onLogin
                      <span className="text-sm font-semibold text-white tracking-wide">TumaFast for Enterprise</span>
                   </div>
                   <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8 leading-[1.1] drop-shadow-xl text-white">
-                     Logistics infrastructure for <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-emerald-300">high-growth businesses.</span>
+                     Smart logistics infrastructure for <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-emerald-300">high-growth businesses.</span>
                   </h1>
                   <p className="text-xl md:text-2xl text-white mb-10 leading-relaxed max-w-2xl drop-shadow-md font-medium text-shadow-sm">
                      Automate your supply chain with our Bulk Scheduling tools, API integrations, and dedicated fleet management.
@@ -149,18 +149,18 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ onGetStarted, onLogin
                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   {/* Pillar 1 */}
                   <Link
-                     to="/solutions/predictive-orchestration"
+                     to="/solutions/autonomous-fulfillment"
                      className="group bg-white/5 border border-white/10 p-10 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden"
                   >
                      <div className="w-14 h-14 bg-brand-500/20 rounded-2xl flex items-center justify-center text-brand-400 mb-8 group-hover:scale-110 transition-transform duration-500">
                         <Brain className="w-7 h-7" />
                      </div>
-                     <h3 className="text-2xl font-bold mb-4">Predictive Orchestration</h3>
+                     <h3 className="text-2xl font-bold mb-4">Smart Dispatch & Autonomous Fulfillment</h3>
                      <p className="text-slate-400 leading-relaxed mb-8 flex-grow">
-                        AI-driven route optimization and demand forecasting that eliminates fleet idle time and maximizes fulfillment velocity.
+                        AI-driven adaptive fulfillment and automatic dispatching that eliminates idle time and maximizes velocity across your entire logistics chain.
                      </p>
                      <div className="flex items-center text-brand-400 font-bold group-hover:gap-2 transition-all">
-                        <span>Explore Intelligence Layer</span>
+                        <span>Explore AI Layer</span>
                         <ArrowRight className="ml-2 w-5 h-5" />
                      </div>
                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -170,43 +170,43 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ onGetStarted, onLogin
 
                   {/* Pillar 2 */}
                   <Link
-                     to="/solutions/real-time-visibility"
+                     to="/solutions/logistics-intelligence"
                      className="group bg-white/5 border border-white/10 p-10 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden"
                   >
                      <div className="w-14 h-14 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 mb-8 group-hover:scale-110 transition-transform duration-500">
-                        <Eye className="w-7 h-7" />
+                        <ShieldCheck className="w-7 h-7" />
                      </div>
-                     <h3 className="text-2xl font-bold mb-4">Unified Visibility</h3>
+                     <h3 className="text-2xl font-bold mb-4">Unified Logistics Intelligence</h3>
                      <p className="text-slate-400 leading-relaxed mb-8 flex-grow">
-                        Mission-critical telemetry and live control towers that provide end-to-end transparency for every movement in your network.
+                        Mission-critical oversight with live tracking, security protocols, and immutable digital trails consolidated into one high-fidelity telemetry dashboard.
                      </p>
                      <div className="flex items-center text-blue-400 font-bold group-hover:gap-2 transition-all">
-                        <span>Explore visibility Tower</span>
+                        <span>Explore Oversight Tower</span>
                         <ArrowRight className="ml-2 w-5 h-5" />
                      </div>
                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Eye className="w-32 h-32 -mr-8 -mt-8" />
+                        <ShieldCheck className="w-32 h-32 -mr-8 -mt-8" />
                      </div>
                   </Link>
 
                   {/* Pillar 3 */}
                   <Link
-                     to="/solutions/enterprise-compliance"
+                     to="/solutions/payment-collection"
                      className="group bg-white/5 border border-white/10 p-10 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden"
                   >
                      <div className="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 mb-8 group-hover:scale-110 transition-transform duration-500">
-                        <ShieldCheck className="w-7 h-7" />
+                        <CreditCard className="w-7 h-7" />
                      </div>
-                     <h3 className="text-2xl font-bold mb-4">Supply Chain Integrity</h3>
+                     <h3 className="text-2xl font-bold mb-4">Payment Collection</h3>
                      <p className="text-slate-400 leading-relaxed mb-8 flex-grow">
-                        Bridging the trust gap with verified identity, automated safety protocols, and immutable digital trails.
+                        Secure instant collections and settlements. We bridge the liquidity gap with automated mobile money processing for every fulfillment.
                      </p>
                      <div className="flex items-center text-emerald-400 font-bold group-hover:gap-2 transition-all">
-                        <span>Explore Integrity Engine</span>
+                        <span>Explore Payment Layer</span>
                         <ArrowRight className="ml-2 w-5 h-5" />
                      </div>
                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <ShieldCheck className="w-32 h-32 -mr-8 -mt-8" />
+                        <CreditCard className="w-32 h-32 -mr-8 -mt-8" />
                      </div>
                   </Link>
                </div>
@@ -276,9 +276,9 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ onGetStarted, onLogin
          {/* CTA */}
          <div className="bg-blue-600 py-20 text-center">
             <div className="max-w-4xl mx-auto px-4">
-               <h2 className="text-3xl font-bold text-white mb-6">Ready to optimize your logistics?</h2>
+               <h2 className="text-3xl font-bold text-white mb-6">Ready to upgrade to smart logistics?</h2>
                <p className="text-blue-100 text-lg mb-10 max-w-2xl mx-auto">
-                  Join the fastest growing logistics network in Kenya. No setup fees. Pay as you go.
+                  Join the fastest growing smart logistics network in Kenya. No setup fees. Pay as you go.
                </p>
                <button
                   onClick={onGetStarted}

@@ -30,9 +30,9 @@ const FAQPage = lazy(() => import('./components/FAQPage'));
 const SecurityPage = lazy(() => import('./components/SecurityPage'));
 const ContactUs = lazy(() => import('./components/ContactUs'));
 const VulnerabilityReport = lazy(() => import('./components/VulnerabilityReport'));
-const PredictiveOrchestration = lazy(() => import('./components/PredictiveOrchestration'));
-const RealTimeVisibility = lazy(() => import('./components/RealTimeVisibility'));
-const EnterpriseCompliance = lazy(() => import('./components/EnterpriseCompliance'));
+const AutonomousFulfillment = lazy(() => import('./components/AutonomousFulfillment'));
+const UnifiedLogisticsIntelligence = lazy(() => import('./components/UnifiedLogisticsIntelligence'));
+const PaymentCollection = lazy(() => import('./components/PaymentCollection'));
 
 const SkeletonFallback = () => (
   <div className="flex h-screen w-full items-center justify-center bg-gray-50">
@@ -72,7 +72,10 @@ const App = () => {
       '/about': 'About Our Mission | Tuma Fast',
       '/blog': 'Industry Blog | Tuma Fast',
       '/faq': 'Help & FAQ | Tuma Fast',
-      '/security': 'Security Infrastructure | Tuma Fast'
+      '/security': 'Security Infrastructure | Tuma Fast',
+      '/solutions/autonomous-fulfillment': 'Smart Dispatch & Autonomous Fulfillment | Tuma Fast',
+      '/solutions/logistics-intelligence': 'Unified Logistics Intelligence | Tuma Fast',
+      '/solutions/payment-collection': 'Payment Collection | Tuma Fast'
     };
 
     const matchingKey = Object.keys(routeTitles)
@@ -146,7 +149,7 @@ const App = () => {
           <SideMenu
             isOpen={isMenuOpen}
             onClose={() => setIsMenuOpen(false)}
-            onLogin={() => { setIsMenuOpen(false); setShowAuthModal(true); }}
+            onLogin={() => { setIsMenuOpen(false); setAuthModalView('LOGIN'); setShowAuthModal(true); }}
             onProfile={() => { setIsMenuOpen(false); setShowProfile(true); }}
           />
 
@@ -155,7 +158,23 @@ const App = () => {
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Hero />} />
-                <Route path="/business" element={<BusinessLanding />} />
+                <Route path="/business" element={
+                  <BusinessLanding
+                    onGetStarted={() => {
+                      setAuthModalRole('business');
+                      setAuthModalView('SIGNUP');
+                      setShowAuthModal(true);
+                    }}
+                    onLogin={() => {
+                      setAuthModalRole('business');
+                      setAuthModalView('LOGIN');
+                      setShowAuthModal(true);
+                    }}
+                    onNavigateToDashboard={() => {
+                      if (isAuthenticated) navigate('/business-dashboard');
+                    }}
+                  />
+                } />
 
                 {/* Customer Routes */}
                 <Route path="/book" element={<BookingPage onRequireAuth={handleRequireAuth} />} />
@@ -193,7 +212,12 @@ const App = () => {
 
                 <Route path="/business-dashboard" element={
                   <ProtectedRoute allowedRoles={['business']}>
-                    <BusinessDashboard />
+                    <BusinessDashboard
+                      user={user!}
+                      onNewRequest={(prefill) => navigate('/book', { state: { prefill } })}
+                      onGoHome={() => navigate('/')}
+                      onTrackOrder={(orderId) => navigate(`/track/${orderId}`)}
+                    />
                   </ProtectedRoute>
                 } />
 
@@ -209,9 +233,9 @@ const App = () => {
                 <Route path="/security" element={<SecurityPage />} />
                 <Route path="/contact" element={<ContactUs />} />
                 <Route path="/report-vulnerability" element={<VulnerabilityReport />} />
-                <Route path="/solutions/predictive-orchestration" element={<PredictiveOrchestration />} />
-                <Route path="/solutions/real-time-visibility" element={<RealTimeVisibility />} />
-                <Route path="/solutions/enterprise-compliance" element={<EnterpriseCompliance />} />
+                <Route path="/solutions/autonomous-fulfillment" element={<AutonomousFulfillment />} />
+                <Route path="/solutions/logistics-intelligence" element={<UnifiedLogisticsIntelligence />} />
+                <Route path="/solutions/payment-collection" element={<PaymentCollection />} />
 
                 {/* Catch all */}
                 <Route path="*" element={<Navigate to="/" replace />} />
@@ -222,7 +246,7 @@ const App = () => {
           <BottomNav />
 
           {/* Support Chatbot (Kifaru) */}
-          {!isDashboard && (
+          {!isDashboard && !isMapPage && (
             <div className="pointer-events-auto">
               <ChatAssistant />
             </div>
@@ -237,8 +261,12 @@ const App = () => {
                     <span className="text-2xl font-black text-white tracking-tight">Tuma<span className="text-brand-500">Fast</span></span>
                   </div>
                   <p className="max-w-sm text-gray-400 font-medium text-sm leading-relaxed mb-8">
-                    The most reliable logistics infrastructure for high-growth businesses and individuals in Kenya. Moving anything, anywhere, instantly.
+                    The most reliable smart logistics infrastructure for high-growth businesses and individuals in Kenya. Moving anything, anywhere, instantly.
                   </p>
+                  <div className="text-xs font-bold text-gray-500 uppercase tracking-widest space-y-2">
+                    <p>Swahili Pot Hub, Mombasa, Kenya.</p>
+                    <p className="text-brand-500">+254 742 490 499</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
@@ -272,9 +300,9 @@ const App = () => {
                   <div>
                     <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Solutions</h4>
                     <ul className="space-y-4 text-sm font-medium text-gray-400">
-                      <li><button onClick={() => navigate('/solutions/predictive-orchestration')} className="hover:text-white transition-colors text-left">Predictive Orchestration</button></li>
-                      <li><button onClick={() => navigate('/solutions/real-time-visibility')} className="hover:text-white transition-colors text-left">Unified Visibility</button></li>
-                      <li><button onClick={() => navigate('/solutions/enterprise-compliance')} className="hover:text-white transition-colors text-left">Supply Chain Integrity</button></li>
+                      <li><button onClick={() => navigate('/solutions/autonomous-fulfillment')} className="hover:text-white transition-colors text-left">Smart Dispatch & Autonomous Fulfillment</button></li>
+                      <li><button onClick={() => navigate('/solutions/logistics-intelligence')} className="hover:text-white transition-colors text-left">Unified Logistics Intelligence</button></li>
+                      <li><button onClick={() => navigate('/solutions/payment-collection')} className="hover:text-white transition-colors text-left">Payment Collection</button></li>
                     </ul>
                   </div>
                   <div>
@@ -320,7 +348,6 @@ const App = () => {
             <ProfileModal
               isOpen={showProfile}
               onClose={() => setShowProfile(false)}
-              user={user}
             />
           )}
         </MapProvider>

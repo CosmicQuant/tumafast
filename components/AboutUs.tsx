@@ -40,7 +40,7 @@ const AboutUs: React.FC<AboutUsProps> = ({ onOpenAuth }) => {
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-emerald-400">At The Speed of Intelligence.</span>
                     </h1>
                     <p className="text-xl text-gray-400 max-w-3xl mx-auto font-medium leading-relaxed">
-                        TumaFast is not just a delivery company. We are a technology powerhouse building the most reliable logistics infrastructure for high-growth businesses and individuals in Kenya.
+                        TumaFast is not just a delivery company. We are a technology powerhouse building the most reliable smart logistics infrastructure for high-growth businesses and individuals in Kenya.
                     </p>
                 </div>
             </section>
@@ -142,7 +142,7 @@ const AboutUs: React.FC<AboutUsProps> = ({ onOpenAuth }) => {
 
             {/* CTA Section */}
             <section className="py-24 max-w-4xl mx-auto px-4 text-center">
-                <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tight">Ready to upgrade your logistics?</h2>
+                <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tight">Ready to upgrade to smart logistics?</h2>
                 <p className="text-lg text-gray-500 mb-10 font-medium">Join thousands of businesses scaling faster with TumaFast.</p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center font-black uppercase tracking-widest text-xs">
                     <button
