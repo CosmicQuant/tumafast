@@ -30,7 +30,7 @@ const FleetManagement: React.FC = () => {
                         className="text-5xl md:text-8xl font-black text-white mb-8 tracking-tight leading-[1.1]"
                     >
                         Total Control. <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-emerald-400">Zero Latency.</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-600">Zero Latency.</span>
                     </motion.h1>
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
@@ -56,7 +56,7 @@ const FleetManagement: React.FC = () => {
                             title: 'Lifecycle Analytics',
                             desc: 'Predictive modeling for vehicle maintenance and fuel optimization.',
                             icon: BarChart3,
-                            color: 'text-emerald-400',
+                            color: 'text-brand-400',
                             stats: '22% Efficiency Gain'
                         },
                         {
@@ -141,8 +141,8 @@ const FleetManagement: React.FC = () => {
                                 <div className="absolute inset-0 bg-gradient-to-tr from-brand-600/10 to-transparent"></div>
                                 <Truck className="w-24 h-24 text-brand-500 opacity-20 animate-pulse" />
                                 <div className="absolute top-8 left-8 flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div>
-                                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Live Channel 042</span>
+                                    <div className="w-2 h-2 rounded-full bg-brand-500 animate-ping"></div>
+                                    <span className="text-[10px] font-black text-brand-500 uppercase tracking-widest">Live Channel 042</span>
                                 </div>
                             </div>
                         </div>

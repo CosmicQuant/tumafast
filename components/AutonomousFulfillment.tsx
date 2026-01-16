@@ -31,7 +31,7 @@ const AutonomousFulfillment = () => {
                             className="text-5xl md:text-7xl font-black text-white mb-8 tracking-tight leading-[1.1]"
                         >
                             Autonomous <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-blue-400">Dispatch Logic.</span>
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-brand-600">Dispatch Logic.</span>
                         </motion.h1>
 
                         <motion.p
@@ -57,7 +57,7 @@ const AutonomousFulfillment = () => {
                                     {[
                                         { label: 'Demand Input', icon: Network, color: 'text-blue-400' },
                                         { label: 'Neural Processing', icon: Brain, color: 'text-brand-400' },
-                                        { label: 'Autonomous Output', icon: Activity, color: 'text-emerald-400' },
+                                        { label: 'Autonomous Output', icon: Activity, color: 'text-brand-400' },
                                     ].map((step, i) => (step &&
                                         <div key={i} className="flex flex-col items-center">
                                             <div className={`w-20 h-20 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-4 transition-all group-hover:bg-slate-700/50 ${step.color}`}>
@@ -78,7 +78,7 @@ const AutonomousFulfillment = () => {
                                     />
                                     <motion.path
                                         d="M220,100 L270,100"
-                                        stroke="#10b981" strokeWidth="2" strokeDasharray="4 4" fill="none"
+                                        stroke="#22c55e" strokeWidth="2" strokeDasharray="4 4" fill="none"
                                         animate={{ strokeDashoffset: [-20, 0] }}
                                         transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
                                     />
@@ -143,8 +143,8 @@ const AutonomousFulfillment = () => {
                             icon: Globe,
                             title: "Autonomous Fulfillment",
                             desc: "Fully automated end-to-end fulfillment cycles, self-correcting for delays and ensuring performance.",
-                            color: "text-emerald-400",
-                            bg: "bg-emerald-500/10"
+                            color: "text-brand-400",
+                            bg: "bg-brand-500/10"
                         }
                     ].map((feature, i) => (
                         <div key={i} className="p-10 bg-slate-800/40 backdrop-blur-sm rounded-[2.5rem] border border-slate-700/50 hover:border-brand-500/30 transition-all group">

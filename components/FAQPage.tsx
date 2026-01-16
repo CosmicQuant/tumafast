@@ -40,26 +40,32 @@ const FAQPage: React.FC = () => {
     };
 
     return (
-        <div className="bg-white min-h-screen pt-24 pb-24">
-            <div className="max-w-4xl mx-auto px-4">
+        <div className="bg-[#0f172a] min-h-screen pt-24 pb-24 relative overflow-hidden">
+            {/* Ambient Background Elements */}
+            <div className="fixed inset-0 pointer-events-none">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-600/10 rounded-full blur-[120px]"></div>
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]"></div>
+            </div>
+
+            <div className="max-w-4xl mx-auto px-4 relative z-10">
                 {/* Header */}
                 <div className="text-center mb-16">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-6">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-brand-500/10 border border-brand-500/20 text-brand-400 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 backdrop-blur-md">
                         <HelpCircle className="w-4 h-4" /> Support Center
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 tracking-tighter">Frequently Asked <span className="text-brand-600">Questions</span></h1>
-                    <p className="text-lg text-gray-500 font-medium max-w-2xl mx-auto">Everything you need to know about TumaFast's AI-driven logistics network.</p>
+                    <h1 className="text-4xl md:text-6xl font-black text-white mb-6 tracking-tighter">Frequently Asked <span className="text-brand-500">Questions</span></h1>
+                    <p className="text-lg text-slate-400 font-medium max-w-2xl mx-auto">Everything you need to know about TumaFast's AI-driven logistics network.</p>
                 </div>
 
                 {/* Search */}
                 <div className="relative mb-16">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
                     <input
                         type="text"
                         placeholder="Search for answers (e.g. 'insurance', 'M-Pesa')..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-16 pr-6 py-6 bg-slate-50 border border-slate-100 rounded-3xl outline-none focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all font-medium text-slate-900"
+                        className="w-full pl-16 pr-6 py-6 bg-white/5 border border-white/10 rounded-3xl outline-none focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all font-medium text-white placeholder:text-slate-600"
                     />
                 </div>
 
@@ -67,7 +73,7 @@ const FAQPage: React.FC = () => {
                 <div className="space-y-12">
                     {FAQS.map((category) => (
                         <div key={category.category}>
-                            <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center">
+                            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-6 flex items-center">
                                 <span className="h-[2px] w-8 bg-brand-500 mr-3"></span> {category.category}
                             </h2>
                             <div className="space-y-4">
@@ -79,17 +85,17 @@ const FAQPage: React.FC = () => {
                                     if (searchQuery && !faq.q.toLowerCase().includes(searchQuery.toLowerCase()) && !faq.a.toLowerCase().includes(searchQuery.toLowerCase())) return null;
 
                                     return (
-                                        <div key={idx} className={`border rounded-[2rem] transition-all duration-300 overflow-hidden ${isOpen ? 'border-brand-100 bg-brand-50/20 ring-1 ring-brand-100' : 'border-gray-50 bg-white hover:border-gray-200 shadow-sm'}`}>
+                                        <div key={idx} className={`border rounded-[2rem] transition-all duration-300 overflow-hidden backdrop-blur-md ${isOpen ? 'border-brand-500/30 bg-brand-500/5 ring-1 ring-brand-500/20' : 'border-white/5 bg-slate-900/40 hover:border-white/20 shadow-sm'}`}>
                                             <button
                                                 onClick={() => toggleFaq(category.category, idx)}
                                                 className="w-full flex items-center justify-between p-8 text-left outline-none"
                                             >
-                                                <span className={`text-lg font-bold transition-colors ${isOpen ? 'text-brand-700' : 'text-slate-900'}`}>{faq.q}</span>
-                                                {isOpen ? <ChevronUp className="w-5 h-5 text-brand-600" /> : <ChevronDown className="w-5 h-5 text-gray-300" />}
+                                                <span className={`text-lg font-bold transition-colors ${isOpen ? 'text-brand-400' : 'text-white'}`}>{faq.q}</span>
+                                                {isOpen ? <ChevronUp className="w-5 h-5 text-brand-500" /> : <ChevronDown className="w-5 h-5 text-slate-600" />}
                                             </button>
                                             {isOpen && (
                                                 <div className="px-8 pb-8 pt-0 animate-in slide-in-from-top-2 duration-300">
-                                                    <p className="text-gray-600 leading-relaxed font-medium">{faq.a}</p>
+                                                    <p className="text-slate-400 leading-relaxed font-medium">{faq.a}</p>
                                                 </div>
                                             )}
                                         </div>
@@ -101,19 +107,20 @@ const FAQPage: React.FC = () => {
                 </div>
 
                 {/* Contact Card */}
-                <div className="mt-24 p-10 bg-slate-900 rounded-[3rem] text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl">
-                    <div className="text-center md:text-left">
+                <div className="mt-24 p-10 bg-slate-900 border border-white/10 rounded-[3rem] text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-brand-600 rounded-full blur-[100px] opacity-10 -mr-32 -mt-32" />
+                    <div className="text-center md:text-left relative z-10">
                         <h3 className="text-2xl font-black mb-2 tracking-tight">Still have questions?</h3>
-                        <p className="text-gray-400 font-medium">Our support team is active 24/7 to help you move.</p>
+                        <p className="text-slate-400 font-medium">Our support team is active 24/7 to help you move.</p>
                     </div>
-                    <div className="flex gap-4 flex-wrap justify-center">
+                    <div className="flex gap-4 flex-wrap justify-center relative z-10">
                         <button
                             onClick={openChat}
-                            className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all font-black uppercase tracking-widest text-[10px]"
+                            className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all font-black uppercase tracking-widest text-[10px]"
                         >
-                            <MessageCircle className="w-4 h-4" /> Live Chat
+                            <MessageCircle className="w-4 h-4 text-brand-400" /> Live Chat
                         </button>
-                        <button className="flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 rounded-2xl transition-all font-black uppercase tracking-widest text-[10px]">
+                        <button className="flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 rounded-2xl transition-all font-black uppercase tracking-widest text-[10px] shadow-lg shadow-brand-600/20">
                             <Mail className="w-4 h-4" /> Email Us
                         </button>
                     </div>

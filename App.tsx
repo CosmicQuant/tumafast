@@ -153,7 +153,7 @@ const App = () => {
                 setShowAuthModal(true);
               }}
               isMapPage={isMapPage}
-              isDarkBackground={['/business', '/fulfillment', '/intelligence', '/payments', '/fleet', '/security', '/contact', '/about', '/privacy', '/terms'].includes(location.pathname)}
+              isDarkBackground={['/business', '/fulfillment', '/intelligence', '/payments', '/fleet', '/security', '/contact', '/about', '/privacy', '/terms', '/blog', '/faq'].includes(location.pathname)}
             />
           )}
 
