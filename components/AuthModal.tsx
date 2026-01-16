@@ -12,9 +12,11 @@ interface AuthModalProps {
   onClose: () => void;
   defaultView?: 'LOGIN' | 'SIGNUP' | 'ROLE_SELECT';
   preselectedRole?: 'customer' | 'driver' | 'business';
+  customTitle?: string;
+  customDescription?: string;
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'LOGIN', preselectedRole }) => {
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'LOGIN', preselectedRole, customTitle, customDescription }) => {
   const { login, signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [view, setView] = useState<'LOGIN' | 'SIGNUP' | 'FORGOT_PASSWORD' | 'ROLE_SELECT'>(defaultView);
@@ -313,12 +315,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
               <div className="px-8 pt-6 sm:pt-8 pb-4 flex justify-between items-start">
                 <div>
                   <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                    {view === 'LOGIN' ? 'Welcome back' : 'Create account'}
+                    {customTitle || (view === 'LOGIN' ? 'Welcome back' : 'Create account')}
                   </h2>
                   <p className="text-sm text-gray-500 mt-1 font-medium italic">
-                    {view === 'LOGIN'
+                    {customDescription || (view === 'LOGIN'
                       ? 'Access your TumaFast dashboard.'
-                      : (role === 'business' ? 'Scale your business logistics.' : 'Join TumaFast to start moving.')}
+                      : (role === 'business' ? 'Scale your business logistics.' : 'Join TumaFast to start moving.'))}
                   </p>
                 </div>
                 <button

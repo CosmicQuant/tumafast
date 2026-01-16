@@ -12,7 +12,7 @@ import { ArrowLeft } from 'lucide-react';
 
 interface BookingPageProps {
     prefillData?: any;
-    onRequireAuth?: (data?: any) => void;
+    onRequireAuth?: (title?: string, desc?: string) => void;
     onClearPrefill?: () => void;
 }
 
@@ -54,8 +54,7 @@ const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData: propPrefi
 
     const handleOrderComplete = async (order: DeliveryOrder) => {
         if (!user) {
-            toast.error("Authentication required to complete booking.");
-            onRequireAuth?.(order);
+            onRequireAuth?.('Authentication Required', 'Please log in or sign up to complete your booking.');
             return;
         }
 

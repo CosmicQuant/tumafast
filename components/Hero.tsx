@@ -204,7 +204,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
       if (user?.role === 'driver') {
          showConfirm(
             "Booking Restricted",
-            "Driver accounts cannot place orders. Please log out and sign in with a Customer or Business account to book a delivery.",
+            "Driver accounts cannot place orders. Please log out and sign in with a Customer or Business account to book delivery.",
             async () => {
                await logout();
                navigate('/');
@@ -383,7 +383,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                </h1>
 
                <p className="max-w-xl mx-auto text-sm sm:text-base text-slate-600 font-medium leading-relaxed mb-5 sm:mb-7">
-                  From door-to-door Boda errands to 40ft container trailers. Connect with verified drivers and enterprise-grade solutions in seconds using Kenya's smartest logistics platform.
+                  From door-to-door Boda Boda errands to 40ft container trailers. Connect with verified drivers and enterprise-grade solutions in seconds using Kenya's smartest logistics platform.
                </p>
 
                {/* Dual Engine Gateway (Increased Weight) */}
@@ -402,7 +402,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                      <h3 className="text-base font-black text-slate-900 mb-0.5">Send Anything</h3>
                      <p className="text-[10px] text-slate-600 font-bold mb-2.5 leading-tight">Instant on-demand consumer deliveries.</p>
                      <div className="mt-auto flex items-center text-brand-600 font-bold text-[10px] uppercase tracking-widest">
-                        Start Now <ArrowRight className="ml-1.5 w-3.5 h-3.5" />
+                        Book Delivery <ArrowRight className="ml-1.5 w-3.5 h-3.5" />
                      </div>
                   </div>
 
@@ -512,7 +512,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                <div className="text-center mb-16">
                   <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Delivery Solutions for Everyone</h2>
                   <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-                     Whether you're sending a key across town or moving house across the country, we have the right vehicle for you.
+                     Whether you're sending a key across town, moving house across the country, or orchestrating high-volume enterprise logistics, we have the right vehicle for you.
                   </p>
                </div>
 
@@ -549,7 +549,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                      </div>
                      <h3 className="text-xl font-bold text-slate-900 mb-3">Enterprise Smart Logistics</h3>
                      <p className="text-slate-500 mb-6 leading-relaxed">
-                        Scalable delivery solutions for e-commerce, retail, and healthcare. Streamline your operations with bulk scheduling and API integration.
+                        Scalable delivery solutions for e-commerce, retail, and healthcare. Streamline your operations with fleet management, bulk scheduling and API integration.
                      </p>
                      <ul className="space-y-2 mb-8">
                         <li className="flex items-center text-sm text-slate-700">
@@ -805,7 +805,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick }) => {
                </p>
                <div className="flex flex-col sm:flex-row justify-center gap-4">
                   <button onClick={() => { if (checkDriverRole()) return; if (onStartBooking) onStartBooking(); else navigate('/book'); }} className="px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-brand-500/25">
-                     Book a Delivery
+                     Book Delivery
                   </button>
                   <button onClick={handleBusinessClick} className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-lg transition-all backdrop-blur-sm">
                      Business Account

@@ -17,7 +17,7 @@ export const HeroCTA: React.FC<HeroCTAProps> = ({ onStartBooking, onBusinessClic
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center gap-4">
                     <button onClick={onStartBooking} className="px-8 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-lg transition-all shadow-lg hover:shadow-brand-500/25">
-                        Book a Delivery
+                        Book Delivery
                     </button>
                     <button onClick={onBusinessClick} className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-lg transition-all backdrop-blur-sm">
                         Business Account

@@ -3,9 +3,10 @@ import { Rocket, Target, Users, Cpu, Globe, Zap, ShieldCheck, ArrowRight, Messag
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useChat } from '../context/ChatContext';
+import { motion } from 'framer-motion';
 
 interface AboutUsProps {
-    onOpenAuth?: (role?: 'customer' | 'driver' | 'business', view?: 'LOGIN' | 'SIGNUP') => void;
+    onOpenAuth?: (role?: 'customer' | 'driver' | 'business', view?: 'LOGIN' | 'SIGNUP', title?: string, desc?: string) => void;
 }
 
 const AboutUs: React.FC<AboutUsProps> = ({ onOpenAuth }) => {
@@ -15,102 +16,134 @@ const AboutUs: React.FC<AboutUsProps> = ({ onOpenAuth }) => {
 
     const handleGetStarted = () => {
         if (!isAuthenticated) {
-            onOpenAuth?.('business', 'SIGNUP');
+            onOpenAuth?.('business', 'SIGNUP', 'Enterprise Deployment', 'Scale your logistics infrastructure with TumaFast.');
         } else {
             if (user?.role === 'driver') navigate('/driver');
             else if (user?.role === 'business') navigate('/business-dashboard');
             else navigate('/customer-dashboard');
         }
     };
-    return (
-        <div className="bg-white min-h-screen">
-            {/* Hero Section */}
-            <section className="relative py-24 bg-slate-900 text-white overflow-hidden">
-                <div className="absolute inset-0 opacity-20">
-                    <div className="absolute top-0 left-0 w-96 h-96 bg-brand-500 rounded-full blur-[120px] -translate-x-1/2 -translate-y-1/2" />
-                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-500 rounded-full blur-[120px] translate-x-1/2 translate-y-1/2" />
-                </div>
 
-                <div className="max-w-6xl mx-auto px-4 relative z-10 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full text-brand-400 text-xs font-black uppercase tracking-widest mb-6">
-                        <Cpu className="w-4 h-4" /> AI-First Logistics
-                    </div>
-                    <h1 className="text-5xl md:text-7xl font-black mb-8 tracking-tighter">
-                        Moving Kenya <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-emerald-400">At The Speed of Intelligence.</span>
-                    </h1>
-                    <p className="text-xl text-gray-400 max-w-3xl mx-auto font-medium leading-relaxed">
-                        TumaFast is not just a delivery company. We are a technology powerhouse building the most reliable smart logistics infrastructure for high-growth businesses and individuals in Kenya.
-                    </p>
+    return (
+        <div className="bg-[#0f172a] min-h-screen font-sans text-slate-200 overflow-hidden">
+            {/* Hero Section */}
+            <section className="relative pt-32 pb-24 overflow-hidden">
+                {/* Background atmosphere */}
+                <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-brand-500/10 rounded-full blur-[120px] animate-pulse"></div>
+                <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-emerald-500/10 rounded-full blur-[100px] animate-pulse delay-1000"></div>
+
+                <div className="max-w-7xl mx-auto px-4 relative z-10 text-center">
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-500/10 border border-brand-500/20 rounded-full text-brand-400 text-xs font-bold uppercase tracking-widest mb-8 backdrop-blur-md"
+                    >
+                        <Cpu className="w-4 h-4" /> AI-First Logistics Infrastructure
+                    </motion.div>
+                    <motion.h1
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-5xl md:text-8xl font-black mb-10 tracking-tight leading-[1.1] text-white"
+                    >
+                        Moving Africa <br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-emerald-400">At Neural Speed.</span>
+                    </motion.h1>
+                    <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="text-xl md:text-2xl text-slate-400 max-w-3xl mx-auto font-medium leading-relaxed"
+                    >
+                        TumaFast is the technology layer building the most resilient smart logistics infrastructure for the continent's high-growth enterprises.
+                    </motion.p>
                 </div>
             </section>
 
             {/* Vision & Mission Section */}
-            <section className="py-20 bg-white">
-                <div className="max-w-6xl mx-auto px-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                        <div className="p-10 rounded-[3rem] bg-slate-50 border border-slate-100 hover:shadow-xl transition-all duration-500 group">
-                            <div className="w-16 h-16 bg-brand-600 rounded-2xl flex items-center justify-center text-white mb-8 group-hover:scale-110 transition-transform">
-                                <Globe className="w-8 h-8" />
+            <section className="py-32 relative overflow-hidden">
+                <div className="max-w-7xl mx-auto px-4 relative z-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            viewport={{ once: true }}
+                            className="p-12 rounded-[4rem] bg-white text-slate-900 shadow-2xl transition-all duration-500 group relative overflow-hidden"
+                        >
+                            <div className="w-20 h-20 bg-brand-600 rounded-3xl flex items-center justify-center text-white mb-10 group-hover:scale-110 transition-transform shadow-xl">
+                                <Globe className="w-10 h-10" />
                             </div>
-                            <h2 className="text-3xl font-black text-slate-900 mb-6 tracking-tight">Our Vision</h2>
-                            <p className="text-lg text-gray-600 font-medium leading-relaxed">
-                                To become Africa’s most intelligent logistics backbone, powering the future of commerce through seamless, AI-driven delivery infrastructure that connects people and opportunities across the continent.
+                            <h2 className="text-4xl font-black mb-8 tracking-tight">Our Vision</h2>
+                            <p className="text-xl text-slate-600 font-medium leading-relaxed">
+                                To become Africa’s intelligent logistics backbone, powering the future of global commerce through seamless, AI-driven infrastructure that connects people and opportunities.
                             </p>
-                        </div>
-                        <div className="p-10 rounded-[3rem] bg-slate-900 text-white hover:shadow-2xl transition-all duration-500 group">
-                            <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center text-slate-900 mb-8 group-hover:scale-110 transition-transform">
-                                <Target className="w-8 h-8" />
+                        </motion.div>
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            viewport={{ once: true }}
+                            className="p-12 rounded-[4rem] bg-slate-900 border border-slate-800 text-white shadow-3xl transition-all duration-500 group relative overflow-hidden"
+                        >
+                            <div className="w-20 h-20 bg-emerald-500 rounded-3xl flex items-center justify-center text-slate-900 mb-10 group-hover:scale-110 transition-transform shadow-xl">
+                                <Target className="w-10 h-10" />
                             </div>
-                            <h2 className="text-3xl font-black mb-6 tracking-tight">Our Mission</h2>
-                            <p className="text-lg text-gray-300 font-medium leading-relaxed">
-                                To empower businesses and individuals across Kenya with instant, transparent, and hyper-efficient logistics solutions. We are committed to eliminating the friction of distance and time through technology.
+                            <h2 className="text-4xl font-black mb-8 tracking-tight">Our Mission</h2>
+                            <p className="text-xl text-slate-300 font-medium leading-relaxed">
+                                To empower the commercial ecosystem with instant, transparent, and hyper-efficient logistics solutions. We bridge the distance gap through industrial-grade technology.
                             </p>
-                        </div>
+                            <div className="absolute top-0 right-0 p-8 opacity-5">
+                                <Target className="w-48 h-48 -mr-12 -mt-12" />
+                            </div>
+                        </motion.div>
                     </div>
                 </div>
             </section>
 
             {/* AI Core Section */}
-            <section className="py-24 max-w-6xl mx-auto px-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <section className="py-32 max-w-7xl mx-auto px-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
                     <div>
-                        <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tight">Intelligence in Every Mile</h2>
-                        <p className="text-lg text-gray-600 mb-8 leading-relaxed font-medium">
-                            Founded on the principle that logistics should be invisible, Tumafast leverages advanced AI models to optimize routes, predict demand, and ensure that every delivery is handled with surgical precision.
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-brand-500/10 text-brand-400 rounded-lg text-xs font-black uppercase tracking-[0.2em] mb-8">
+                            Internal Intelligence
+                        </div>
+                        <h2 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tight leading-tight">Intelligence in <br /> Every Movement.</h2>
+                        <p className="text-xl text-slate-400 mb-12 leading-relaxed font-medium">
+                            Founded on the principle that logistics should be invisible, Tumafast leverages advanced neural models to optimize pathfinding and ensure every dispatch movement is executed with surgical precision.
                         </p>
-                        <div className="space-y-6">
+                        <div className="space-y-10">
                             {[
-                                { title: 'Predictive Dispatch', desc: 'Our AI anticipates demand before it happens, positioning riders in the right place at the right time.', icon: Target },
-                                { title: 'Dynamic Routing', desc: 'Real-time traffic and weather analysis to find the fastest path, reducing delays by 40%.', icon: Zap },
-                                { title: 'Seamless Integration', desc: 'APIs that plug directly into your store, automating your entire fulfillment chain.', icon: Cpu }
+                                { title: 'Predictive Dispatch', desc: 'AI positionally allocates assets before demand spikes occur.', icon: Target, bg: 'bg-blue-500/10', color: 'text-blue-400' },
+                                { title: 'Neural Routing', desc: 'Real-time urban infrastructure analysis reducing fulfillment latency by 40%.', icon: Zap, bg: 'bg-emerald-500/10', color: 'text-emerald-400' },
+                                { title: 'Seamless Integration', desc: 'Plug-and-play API layers that automate your entire commercial stack.', icon: Cpu, bg: 'bg-purple-500/10', color: 'text-purple-400' }
                             ].map((feature, idx) => (
-                                <div key={idx} className="flex gap-4 p-4 rounded-2xl hover:bg-slate-50 transition-colors">
-                                    <div className="w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600 flex-shrink-0">
-                                        <feature.icon className="w-6 h-6" />
+                                <div key={idx} className="flex gap-6 group">
+                                    <div className={`w-14 h-14 ${feature.bg} ${feature.color} border border-white/5 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110`}>
+                                        <feature.icon className="w-7 h-7" />
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-slate-900 mb-1">{feature.title}</h4>
-                                        <p className="text-sm text-gray-500">{feature.desc}</p>
+                                        <h4 className="font-bold text-white text-xl mb-2">{feature.title}</h4>
+                                        <p className="text-slate-400 font-medium">{feature.desc}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
                     <div className="relative">
-                        <div className="aspect-square bg-gradient-to-br from-brand-100 to-indigo-100 rounded-[3rem] p-8 flex items-center justify-center">
-                            <div className="w-full h-full bg-white rounded-[2.5rem] shadow-2xl p-6 flex flex-col justify-between">
-                                <div className="space-y-4">
-                                    <div className="h-4 w-3/4 bg-slate-100 rounded-full animate-pulse" />
-                                    <div className="h-4 w-1/2 bg-slate-100 rounded-full animate-pulse" />
-                                    <div className="h-4 w-2/3 bg-slate-100 rounded-full animate-pulse" />
-                                </div>
-                                <div className="flex justify-center py-12">
-                                    <Globe className="w-32 h-32 text-brand-600 animate-spin-slow" />
-                                </div>
-                                <div className="flex justify-between items-center bg-brand-600 p-4 rounded-2xl text-white">
-                                    <span className="text-xs font-black uppercase tracking-widest">Efficiency Multiplier</span>
-                                    <span className="text-xl font-bold">14.2x</span>
+                        <div className="aspect-square bg-slate-900 border border-slate-700 rounded-[4rem] p-1 shadow-3xl overflow-hidden relative group">
+                            <div className="absolute inset-0 bg-gradient-to-br from-brand-600/20 to-transparent"></div>
+                            <div className="relative h-full w-full bg-[#0c1222] rounded-[3.8rem] flex flex-col items-center justify-center p-12">
+                                <motion.div
+                                    animate={{ scale: [1, 1.05, 1], rotate: [0, 5, -5, 0] }}
+                                    transition={{ duration: 10, repeat: Infinity }}
+                                    className="text-center"
+                                >
+                                    <Globe className="w-40 h-40 text-brand-500 mb-10 opacity-30 blur-[2px]" />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="w-32 h-32 border-2 border-brand-500/30 rounded-full animate-ping"></div>
+                                    </div>
+                                </motion.div>
+                                <div className="mt-8 bg-brand-600/10 border border-brand-600/20 px-6 py-4 rounded-2xl text-center">
+                                    <p className="text-xs font-black text-brand-400 uppercase tracking-[0.3em] mb-2">Efficiency Quotient</p>
+                                    <p className="text-4xl font-black text-white tracking-tighter">14.2x</p>
                                 </div>
                             </div>
                         </div>
@@ -118,22 +151,23 @@ const AboutUs: React.FC<AboutUsProps> = ({ onOpenAuth }) => {
                 </div>
             </section>
 
-            {/* Mission Section */}
-            <section className="bg-slate-50 py-24">
-                <div className="max-w-6xl mx-auto px-4 text-center">
-                    <h2 className="text-4xl font-black text-slate-900 mb-12">Our Core Values</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Core Values Section */}
+            <section className="bg-slate-900 border-y border-white/5 py-32 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5"></div>
+                <div className="max-w-7xl mx-auto px-4 text-center relative z-10">
+                    <h2 className="text-4xl md:text-6xl font-black text-white mb-20 tracking-tight">Our Core Values</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
                         {[
-                            { title: 'Radical Transparency', desc: 'No hidden fees. Real-time tracking. Instant accountability.', icon: ShieldCheck },
-                            { title: 'Community Empowered', desc: 'Providing sustainable earnings for thousands of Kenyan couriers.', icon: Users },
-                            { title: 'Scale Obsessed', desc: 'Building systems that handle 1 or 1,000,000 orders with the same ease.', icon: Rocket }
+                            { title: 'Radical Transparency', desc: 'No hidden buffers. Real-time telemetry. Absolute accountability.', icon: ShieldCheck, color: 'text-brand-400' },
+                            { title: 'Courier Empowering', desc: 'Building sustainable micro-entrepreneurship for thousands of carriers.', icon: Users, color: 'text-emerald-400' },
+                            { title: 'Frictionless Scaling', desc: 'Building software that handles 1 or 1,000,000 dispatches with the same ease.', icon: Rocket, color: 'text-blue-400' }
                         ].map((value, idx) => (
-                            <div key={idx} className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group">
-                                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-900 mb-6 group-hover:bg-brand-600 group-hover:text-white transition-colors">
-                                    <value.icon className="w-8 h-8" />
+                            <div key={idx} className="bg-white/[0.03] backdrop-blur-sm p-12 rounded-[3.5rem] border border-white/5 hover:border-white/20 transition-all group">
+                                <div className={`w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center ${value.color} mb-10 border border-white/5 group-hover:scale-110 transition-transform shadow-2xl`}>
+                                    <value.icon className="w-10 h-10" />
                                 </div>
-                                <h3 className="text-xl font-black mb-4">{value.title}</h3>
-                                <p className="text-gray-500 font-medium leading-relaxed">{value.desc}</p>
+                                <h3 className="text-2xl font-black text-white mb-6 tracking-tight">{value.title}</h3>
+                                <p className="text-slate-400 text-lg font-medium leading-relaxed">{value.desc}</p>
                             </div>
                         ))}
                     </div>
@@ -141,28 +175,25 @@ const AboutUs: React.FC<AboutUsProps> = ({ onOpenAuth }) => {
             </section>
 
             {/* CTA Section */}
-            <section className="py-24 max-w-4xl mx-auto px-4 text-center">
-                <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tight">Ready to upgrade to smart logistics?</h2>
-                <p className="text-lg text-gray-500 mb-10 font-medium">Join thousands of businesses scaling faster with TumaFast.</p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center font-black uppercase tracking-widest text-xs">
+            <section className="py-32 max-w-5xl mx-auto px-4 text-center">
+                <h2 className="text-5xl md:text-6xl font-black text-white mb-8 tracking-tight leading-tight">Ready to integrate <br /> smart logistics?</h2>
+                <p className="text-xl text-slate-400 mb-16 font-medium max-w-2xl mx-auto">Join the enterprises building their future with TumaFast.</p>
+                <div className="flex flex-col sm:flex-row gap-6 justify-center">
                     <button
                         onClick={handleGetStarted}
-                        className="px-10 py-5 bg-slate-900 text-white rounded-2xl shadow-xl hover:bg-brand-600 transition-all font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                        className="px-12 py-6 bg-brand-600 text-white rounded-2xl shadow-2xl shadow-brand-900/40 hover:bg-brand-500 transition-all font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 active:scale-95"
                     >
-                        Get Started <ArrowRight className="w-4 h-4" />
-                    </button>
-                    <button
-                        onClick={() => navigate('/contact')}
-                        className="px-10 py-5 bg-white border border-gray-200 text-slate-600 rounded-2xl hover:bg-gray-50 transition-all font-black uppercase tracking-widest text-xs"
-                    >
-                        Contact Sales
+                        Initiate Integration <ArrowRight className="w-6 h-6" />
                     </button>
                     <button
                         onClick={openChat}
-                        className="px-10 py-5 bg-slate-50 text-slate-400 rounded-2xl hover:text-brand-600 transition-all font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                        className="px-12 py-6 bg-slate-800 text-white border border-slate-700 rounded-2xl hover:bg-slate-700 transition-all font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 active:scale-95"
                     >
-                        <MessageCircle className="w-4 h-4" /> Live Chat
+                        <MessageCircle className="w-6 h-6" /> Support Desk
                     </button>
+                </div>
+                <div className="mt-16 text-slate-600 font-bold uppercase tracking-[0.4em] text-[10px]">
+                    Nairobi • Mombasa • Kisumu • Eldoret • Nakuru
                 </div>
             </section>
         </div>

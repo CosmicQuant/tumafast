@@ -16,7 +16,7 @@ interface BookingFormProps {
     prefillData?: any;
     onOrderComplete: (order: DeliveryOrder) => void;
     onCollapseChange?: (isCollapsed: boolean) => void;
-    onRequireAuth?: (data?: any) => void;
+    onRequireAuth?: (title?: string, desc?: string) => void;
 }
 
 const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete, onCollapseChange, onRequireAuth }) => {
@@ -782,9 +782,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
         if (!user) {
             if (onRequireAuth) {
-                onRequireAuth(orderData);
+                onRequireAuth('Authentication Required', 'Please log in or sign up to complete your booking.');
             } else {
-                showAlert('Authentication Required', 'Please sign in or create an account to book a delivery.', 'info');
+                showAlert('Authentication Required', 'Please sign in or create an account to book delivery.', 'info');
             }
             return;
         }
