@@ -16,9 +16,10 @@ const Layout: React.FC<LayoutProps> = ({ onOpenProfile, onLogin }) => {
     const isDashboard = location.pathname.includes('/dashboard');
     const isMapPage = ['/book', '/tracking'].some(path => location.pathname.startsWith(path)) && location.pathname !== '/business';
     const isHome = location.pathname === '/' || location.pathname === '/business';
+    const isDarkPage = ['/business', '/fulfillment', '/intelligence', '/payments', '/security', '/contact', '/about', '/privacy', '/terms', '/fleet'].includes(location.pathname);
 
     return (
-        <div className={`relative min-h-screen min-h-[100dvh] flex flex-col font-sans ${!isMapPage ? 'bg-slate-50' : 'overflow-hidden'}`}>
+        <div className={`relative min-h-screen min-h-[100dvh] flex flex-col font-sans ${!isMapPage ? (isDarkPage ? 'bg-[#0f172a]' : 'bg-slate-50') : 'overflow-hidden'}`}>
             {/* UI Layer */}
             <div className={`relative z-10 flex flex-col min-h-screen min-h-[100dvh] ${isMapPage ? 'pointer-events-none' : ''}`}>
                 {!isDashboard && (
@@ -26,7 +27,7 @@ const Layout: React.FC<LayoutProps> = ({ onOpenProfile, onLogin }) => {
                         <Navbar
                             onOpenProfile={onOpenProfile}
                             onLogin={onLogin}
-                            isDarkBackground={location.pathname === '/business'}
+                            isDarkBackground={isDarkPage}
                             isMapPage={isMapPage}
                             isMobileMenuOpen={isMobileMenuOpen}
                             onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

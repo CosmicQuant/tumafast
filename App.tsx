@@ -33,6 +33,7 @@ const VulnerabilityReport = lazy(() => import('./components/VulnerabilityReport'
 const AutonomousFulfillment = lazy(() => import('./components/AutonomousFulfillment'));
 const UnifiedLogisticsIntelligence = lazy(() => import('./components/UnifiedLogisticsIntelligence'));
 const PaymentCollection = lazy(() => import('./components/PaymentCollection'));
+const FleetManagement = lazy(() => import('./components/FleetManagement'));
 
 const SkeletonFallback = () => (
   <div className="flex h-screen w-full items-center justify-center bg-gray-50">
@@ -52,6 +53,8 @@ const App = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalRole, setAuthModalRole] = useState<'customer' | 'driver' | 'business'>('customer');
   const [authModalView, setAuthModalView] = useState<'LOGIN' | 'SIGNUP' | 'ROLE_SELECT'>('LOGIN');
+  const [authModalTitle, setAuthModalTitle] = useState<string | undefined>(undefined);
+  const [authModalDesc, setAuthModalDesc] = useState<string | undefined>(undefined);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -59,23 +62,24 @@ const App = () => {
   // Dynamic Browser Titles
   useEffect(() => {
     const routeTitles: Record<string, string> = {
-      '/': 'Tuma Fast - Reliable Delivery in Kenya',
-      '/business': 'Tuma Fast for Business - Scale Your Logistics',
-      '/book': 'Book a Delivery | Tuma Fast',
-      '/track': 'Track Your Order | Tuma Fast',
-      '/history': 'Delivery History | Tuma Fast',
-      '/customer-dashboard': 'Settings & Deliveries | Tuma Fast',
-      '/driver': 'Courier Dashboard | Tuma Fast',
-      '/business-dashboard': 'Business Dashboard | Tuma Fast',
+      '/': 'TumaFast - Send anything, Fast & Reliable',
+      '/about': 'Institutional Mission | Tuma Fast',
+      '/business': 'Enterprise Fulfillment | Tuma Fast',
+      '/fulfillment': 'Autonomous Fulfillment | Tuma Fast',
+      '/intelligence': 'Logistics Intelligence | Tuma Fast',
+      '/payments': 'Smart Liquidity | Tuma Fast',
+      '/fleet': 'Fleet Management | Tuma Fast',
+      '/security': 'System Integrity & Security | Tuma Fast',
+      '/contact': 'Enterprise Desk | Tuma Fast',
+      '/book': 'New Dispatch | Tuma Fast',
+      '/track': 'Real-time Telemetry | Tuma Fast',
+      '/driver': 'Carrier Portal | Tuma Fast',
+      '/customer-dashboard': 'Terminal Console | Tuma Fast',
+      '/business-dashboard': 'Enterprise Dashboard | Tuma Fast',
       '/privacy': 'Privacy Policy | Tuma Fast',
       '/terms': 'Service Terms | Tuma Fast',
-      '/about': 'About Our Mission | Tuma Fast',
       '/blog': 'Industry Blog | Tuma Fast',
-      '/faq': 'Help & FAQ | Tuma Fast',
-      '/security': 'Security Infrastructure | Tuma Fast',
-      '/solutions/autonomous-fulfillment': 'Smart Dispatch & Autonomous Fulfillment | Tuma Fast',
-      '/solutions/logistics-intelligence': 'Unified Logistics Intelligence | Tuma Fast',
-      '/solutions/payment-collection': 'Payment Collection | Tuma Fast'
+      '/faq': 'Help & FAQ | Tuma Fast'
     };
 
     const matchingKey = Object.keys(routeTitles)
@@ -101,7 +105,9 @@ const App = () => {
     }
   }, [user]);
 
-  const handleRequireAuth = () => {
+  const handleRequireAuth = (title?: string, desc?: string) => {
+    if (title) setAuthModalTitle(title);
+    if (desc) setAuthModalDesc(desc);
     setShowAuthModal(true);
   };
 
@@ -140,16 +146,28 @@ const App = () => {
           {!isDashboard && (
             <Navbar
               onToggleMobileMenu={() => setIsMenuOpen(true)}
-              onLogin={() => setShowAuthModal(true)}
+              onLogin={(role, title, desc) => {
+                if (role) setAuthModalRole(role);
+                if (title) setAuthModalTitle(title);
+                if (desc) setAuthModalDesc(desc);
+                setShowAuthModal(true);
+              }}
               isMapPage={isMapPage}
-              isDarkBackground={location.pathname === '/business'}
+              isDarkBackground={['/business', '/fulfillment', '/intelligence', '/payments', '/fleet', '/security', '/contact', '/about', '/privacy', '/terms'].includes(location.pathname)}
             />
           )}
 
           <SideMenu
             isOpen={isMenuOpen}
             onClose={() => setIsMenuOpen(false)}
-            onLogin={() => { setIsMenuOpen(false); setAuthModalView('LOGIN'); setShowAuthModal(true); }}
+            onLogin={(role, title, desc) => {
+              setIsMenuOpen(false);
+              setAuthModalView('LOGIN');
+              if (role) setAuthModalRole(role);
+              if (title) setAuthModalTitle(title);
+              if (desc) setAuthModalDesc(desc);
+              setShowAuthModal(true);
+            }}
             onProfile={() => { setIsMenuOpen(false); setShowProfile(true); }}
           />
 
@@ -157,17 +175,37 @@ const App = () => {
             <Suspense fallback={<SkeletonFallback />}>
               <Routes>
                 {/* Public Routes */}
-                <Route path="/" element={<Hero />} />
+                <Route path="/" element={
+                  <Hero
+                    onStartBooking={(prefill) => {
+                      if (!isAuthenticated) {
+                        setAuthModalRole('customer');
+                        setAuthModalView('LOGIN'); // Or signup? 
+                        setAuthModalTitle('Start Sending');
+                        setAuthModalDesc('Login or Sign Up to book your first delivery.');
+                        setShowAuthModal(true);
+                      } else {
+                        navigate('/book', { state: { prefill } });
+                      }
+                    }}
+                    onBusinessClick={() => navigate('/business')}
+                  />
+                } />
                 <Route path="/business" element={
                   <BusinessLanding
+                    user={user}
                     onGetStarted={() => {
                       setAuthModalRole('business');
                       setAuthModalView('SIGNUP');
+                      setAuthModalTitle('Enterprise Deployment');
+                      setAuthModalDesc('Scale your logistics infrastructure with TumaFast.');
                       setShowAuthModal(true);
                     }}
                     onLogin={() => {
                       setAuthModalRole('business');
                       setAuthModalView('LOGIN');
+                      setAuthModalTitle('Enterprise Login');
+                      setAuthModalDesc('Access your institutional dashboard.');
                       setShowAuthModal(true);
                     }}
                     onNavigateToDashboard={() => {
@@ -189,6 +227,9 @@ const App = () => {
                       onTrackOrder={(orderId) => navigate(`/track/${orderId}`)}
                       onReorder={(prefill) => {
                         if (user?.role === 'driver') {
+                          setAuthModalRole('customer');
+                          setAuthModalTitle('Customer Access Required');
+                          setAuthModalDesc('To place orders, you must be logged in as a customer.');
                           setShowAuthModal(true);
                         } else {
                           navigate('/book', { state: { prefill } });
@@ -223,9 +264,11 @@ const App = () => {
 
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
-                <Route path="/about" element={<AboutUs onOpenAuth={(role, view) => {
+                <Route path="/about" element={<AboutUs onOpenAuth={(role, view, title, desc) => {
                   if (role) setAuthModalRole(role);
                   if (view) setAuthModalView(view);
+                  if (title) setAuthModalTitle(title);
+                  if (desc) setAuthModalDesc(desc);
                   setShowAuthModal(true);
                 }} />} />
                 <Route path="/blog" element={<BlogPage />} />
@@ -233,9 +276,10 @@ const App = () => {
                 <Route path="/security" element={<SecurityPage />} />
                 <Route path="/contact" element={<ContactUs />} />
                 <Route path="/report-vulnerability" element={<VulnerabilityReport />} />
-                <Route path="/solutions/autonomous-fulfillment" element={<AutonomousFulfillment />} />
-                <Route path="/solutions/logistics-intelligence" element={<UnifiedLogisticsIntelligence />} />
-                <Route path="/solutions/payment-collection" element={<PaymentCollection />} />
+                <Route path="/fulfillment" element={<AutonomousFulfillment />} />
+                <Route path="/intelligence" element={<UnifiedLogisticsIntelligence />} />
+                <Route path="/payments" element={<PaymentCollection />} />
+                <Route path="/fleet" element={<FleetManagement />} />
 
                 {/* Catch all */}
                 <Route path="*" element={<Navigate to="/" replace />} />
@@ -265,7 +309,10 @@ const App = () => {
                   </p>
                   <div className="text-xs font-bold text-gray-500 uppercase tracking-widest space-y-2">
                     <p>Swahili Pot Hub, Mombasa, Kenya.</p>
-                    <p className="text-brand-500">+254 742 490 499</p>
+                    <div className="flex flex-col space-y-1 text-brand-500">
+                      <p>+254 742 490 499</p>
+                      <p>+254 711 775 856</p>
+                    </div>
                   </div>
                 </div>
 
@@ -281,13 +328,15 @@ const App = () => {
                   <div>
                     <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Service</h4>
                     <ul className="space-y-4 text-sm font-medium text-gray-400">
-                      <li><button onClick={() => navigate('/book')} className="hover:text-brand-400 transition-colors text-left">Book a Delivery</button></li>
-                      <li><button onClick={() => navigate('/business')} className="hover:text-brand-400 transition-colors text-left">TumaFast for Business</button></li>
+                      <li><button onClick={() => navigate('/book')} className="hover:text-brand-400 transition-colors text-left">Book Delivery</button></li>
+                      <li><button onClick={() => navigate('/business')} className="hover:text-brand-400 transition-colors text-left uppercase tracking-tighter">TumaFast for Enterprise</button></li>
                       <li>
                         <button
                           onClick={() => {
                             setAuthModalRole('driver');
                             setAuthModalView('SIGNUP');
+                            setAuthModalTitle('Earn with TumaFast');
+                            setAuthModalDesc('Sign up to start receiving delivery requests and earning money.');
                             setShowAuthModal(true);
                           }}
                           className="hover:text-brand-400 transition-colors text-left"
@@ -300,9 +349,10 @@ const App = () => {
                   <div>
                     <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Solutions</h4>
                     <ul className="space-y-4 text-sm font-medium text-gray-400">
-                      <li><button onClick={() => navigate('/solutions/autonomous-fulfillment')} className="hover:text-white transition-colors text-left">Smart Dispatch & Autonomous Fulfillment</button></li>
-                      <li><button onClick={() => navigate('/solutions/logistics-intelligence')} className="hover:text-white transition-colors text-left">Unified Logistics Intelligence</button></li>
-                      <li><button onClick={() => navigate('/solutions/payment-collection')} className="hover:text-white transition-colors text-left">Payment Collection</button></li>
+                      <li><button onClick={() => navigate('/fulfillment')} className="hover:text-white transition-colors text-left uppercase tracking-tighter">Autonomous Fulfillment</button></li>
+                      <li><button onClick={() => navigate('/intelligence')} className="hover:text-white transition-colors text-left uppercase tracking-tighter">Logistics Intelligence</button></li>
+                      <li><button onClick={() => navigate('/payments')} className="hover:text-white transition-colors text-left uppercase tracking-tighter">Smart Liquidity</button></li>
+                      <li><button onClick={() => navigate('/fleet')} className="hover:text-white transition-colors text-left uppercase tracking-tighter">Fleet Management</button></li>
                     </ul>
                   </div>
                   <div>
@@ -334,9 +384,13 @@ const App = () => {
               // Reset to defaults after close
               setAuthModalRole('customer');
               setAuthModalView('LOGIN');
+              setAuthModalTitle(undefined);
+              setAuthModalDesc(undefined);
             }}
             preselectedRole={authModalRole}
             defaultView={authModalView}
+            customTitle={authModalTitle}
+            customDescription={authModalDesc}
           />
 
           <OnboardingModal

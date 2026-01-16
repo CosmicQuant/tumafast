@@ -266,7 +266,7 @@ const CustomerDashboard: React.FC = () => {
                         onClick={() => navigate('/book')}
                         className="bg-[#22C55E] hover:bg-green-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-green-100 transition-all active:scale-95 text-sm uppercase tracking-wider"
                     >
-                        <Plus className="w-5 h-5" /> NEW ORDER
+                        <Plus className="w-5 h-5" /> BOOK DELIVERY
                     </button>
                 </div>
 

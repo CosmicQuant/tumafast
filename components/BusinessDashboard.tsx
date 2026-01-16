@@ -647,7 +647,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                 onClick={onNewRequest}
                                 className="w-full sm:w-auto bg-brand-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center shadow-sm hover:bg-brand-700"
                             >
-                                <Plus className="w-4 h-4 mr-2" /> New Request
+                                <Plus className="w-4 h-4 mr-2" /> New Dispatch
                             </button>
                         </header>
 
@@ -835,7 +835,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                     <Package className="w-12 h-12 text-gray-200 mx-auto mb-4" />
                                     <h3 className="text-lg font-bold text-gray-900">No deliveries found</h3>
                                     <p className="text-gray-500">You don't have any {deliveryFilter.toLowerCase()} orders.</p>
-                                    <button onClick={onNewRequest} className="mt-4 text-brand-600 font-bold hover:underline">Create a Request</button>
+                                    <button onClick={onNewRequest} className="mt-4 text-brand-600 font-bold hover:underline">Dispatch New Fulfillment</button>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 gap-4">

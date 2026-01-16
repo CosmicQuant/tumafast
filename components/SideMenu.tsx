@@ -10,7 +10,7 @@ interface SideMenuProps {
     isOpen: boolean;
     onClose: () => void;
     onProfile?: () => void;
-    onLogin?: () => void;
+    onLogin?: (role?: 'customer' | 'driver' | 'business', title?: string, desc?: string) => void;
 }
 
 const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onProfile, onLogin }) => {
@@ -31,7 +31,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onProfile, onLogin
     };
 
     const handleLoginClick = () => {
-        onLogin?.();
+        onLogin?.('customer');
         onClose();
     };
 

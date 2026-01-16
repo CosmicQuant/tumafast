@@ -7,7 +7,7 @@ import DropdownMenu from './DropdownMenu';
 
 interface NavbarProps {
   onOpenProfile?: () => void;
-  onLogin?: () => void;
+  onLogin?: (role?: 'customer' | 'driver' | 'business', title?: string, desc?: string) => void;
   isDarkBackground?: boolean;
   isMapPage?: boolean;
   isMobileMenuOpen?: boolean;
@@ -55,7 +55,7 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenProfile, onLogin, isDarkBackgroun
 
   const handleDriveClick = () => {
     if (!user) {
-      onLogin?.();
+      onLogin?.('driver', 'Earn with TumaFast', 'Sign in to start receiving delivery requests.');
       return;
     }
     if (user.role === 'customer' || user.role === 'business') {
@@ -99,10 +99,10 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenProfile, onLogin, isDarkBackgroun
             className="flex items-center space-x-2 cursor-pointer group"
             onClick={handleLogoClick}
           >
-            <div className="bg-gradient-to-br from-brand-400 to-brand-600 p-1.5 rounded-lg shadow-sm group-hover:shadow-brand-300 transition-all">
+            <div className="bg-gradient-to-br from-brand-500 to-brand-600 p-2 rounded-xl shadow-lg group-hover:shadow-brand-300 transition-all duration-300">
               <Truck className="text-white w-5 h-5" />
             </div>
-            <span className={`font-bold text-lg tracking-tight ${isDarkBackground ? 'text-white' : 'text-slate-800'}`}>Tuma<span className="text-brand-600">Fast</span></span>
+            <span className={`font-black text-2xl tracking-tight transition-colors duration-300 ${isDarkBackground ? 'text-white' : 'text-slate-900'}`}>Tuma<span className={isDarkBackground ? 'text-brand-400' : 'text-brand-600'}>Fast</span></span>
           </div>
         )}
 
@@ -123,7 +123,7 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenProfile, onLogin, isDarkBackgroun
                   onClick={handleBusinessClick}
                   className={`text-sm font-bold transition-colors ${isDarkBackground ? 'text-white/90 hover:text-white' : 'text-slate-600 hover:text-brand-600'}`}
                 >
-                  Business
+                  Enterprise
                 </button>
               </div>
             ) : (
@@ -160,8 +160,8 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenProfile, onLogin, isDarkBackgroun
               </div>
             ) : (
               <button
-                onClick={onLogin}
-                className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-black px-6 py-2.5 rounded-full transition-all shadow-lg shadow-brand-200 active:scale-95"
+                onClick={() => onLogin?.()}
+                className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-black px-6 py-2.5 rounded-full transition-all active:scale-95"
               >
                 Sign In
               </button>
@@ -189,7 +189,7 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenProfile, onLogin, isDarkBackgroun
           ) : (
             <button
               onClick={onLogin}
-              className={`text-sm font-black px-6 py-2.5 rounded-full transition-all shadow-lg shadow-brand-200 active:scale-95 ${isMapPage ? 'bg-brand-600 text-white pointer-events-auto' : 'bg-brand-600 text-white'}`}
+              className={`text-sm font-black px-6 py-2.5 rounded-full transition-all active:scale-95 ${isMapPage ? 'bg-brand-600 text-white pointer-events-auto' : 'bg-brand-600 text-white'}`}
             >
               Sign In
             </button>
