@@ -11,15 +11,15 @@ const PaymentCollection = () => {
             {/* Glassmorphic Hero Section */}
             <div className="relative pt-32 pb-24 overflow-hidden">
                 {/* Background Atmosphere */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse"></div>
-                <div className="absolute top-1/2 right-0 w-[400px] h-[400px] bg-brand-500/10 rounded-full blur-[100px] animate-pulse delay-700"></div>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-brand-500/10 rounded-full blur-[120px] animate-pulse"></div>
+                <div className="absolute top-1/2 right-0 w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[100px] animate-pulse delay-700"></div>
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                     <div className="max-w-4xl mx-auto text-center">
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="inline-flex items-center px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-bold mb-8 backdrop-blur-md"
+                            className="inline-flex items-center px-4 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm font-bold mb-8 backdrop-blur-md"
                         >
                             <DollarSign className="w-4 h-4 mr-2" />
                             Financial Layer: Instant Liquidity
@@ -31,7 +31,7 @@ const PaymentCollection = () => {
                             className="text-5xl md:text-7xl font-black text-white mb-8 tracking-tight leading-[1.1]"
                         >
                             Smart Settlement <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">& Liquidity.</span>
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-blue-400">& Liquidity.</span>
                         </motion.h1>
 
                         <motion.p
@@ -50,13 +50,13 @@ const PaymentCollection = () => {
                             transition={{ duration: 0.8 }}
                             className="relative aspect-video max-w-4xl mx-auto rounded-[2.5rem] border border-white/10 bg-slate-900/40 backdrop-blur-3xl p-8 shadow-2xl mb-16 overflow-hidden group"
                         >
-                            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#10b981 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+                            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#22c55e 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
 
                             <div className="relative h-full flex items-center justify-around border border-white/5 rounded-[2rem] bg-[#0c1222]/80 p-6">
                                 {[
-                                    { label: 'Collection', icon: Smartphone, color: 'text-emerald-400' },
-                                    { label: 'Escrow', icon: Lock, color: 'text-brand-400' },
-                                    { label: 'Settlement', icon: RefreshCw, color: 'text-teal-400' },
+                                    { label: 'Collection', icon: Smartphone, color: 'text-brand-400' },
+                                    { label: 'Escrow', icon: Lock, color: 'text-blue-400' },
+                                    { label: 'Settlement', icon: RefreshCw, color: 'text-brand-400' },
                                 ].map((item, i) => (
                                     <div key={i} className="flex flex-col items-center">
                                         <div className={`w-24 h-24 rounded-3xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-4 transition-all group-hover:bg-slate-700/50 ${item.color}`}>
@@ -71,12 +71,12 @@ const PaymentCollection = () => {
                                 {/* Flow Arrows */}
                                 <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 600 300">
                                     <motion.path
-                                        d="M200,150 L260,150" stroke="#10b981" strokeWidth="2" strokeDasharray="6 6" fill="none"
+                                        d="M200,150 L260,150" stroke="#22c55e" strokeWidth="2" strokeDasharray="6 6" fill="none"
                                         animate={{ strokeDashoffset: [-24, 0] }}
                                         transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
                                     />
                                     <motion.path
-                                        d="M340,150 L400,150" stroke="#14b8a6" strokeWidth="2" strokeDasharray="6 6" fill="none"
+                                        d="M340,150 L400,150" stroke="#3b82f6" strokeWidth="2" strokeDasharray="6 6" fill="none"
                                         animate={{ strokeDashoffset: [-24, 0] }}
                                         transition={{ repeat: Infinity, duration: 1.5, ease: "linear", delay: 0.5 }}
                                     />
@@ -92,7 +92,7 @@ const PaymentCollection = () => {
                         >
                             <Link
                                 to="/business"
-                                className="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black text-lg hover:bg-emerald-700 transition-all shadow-2xl shadow-emerald-900/40 flex items-center justify-center group"
+                                className="px-10 py-5 bg-brand-600 text-white rounded-2xl font-black text-lg hover:bg-brand-700 transition-all shadow-2xl shadow-brand-900/40 flex items-center justify-center group"
                             >
                                 Start Your Integration
                                 <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
@@ -109,11 +109,11 @@ const PaymentCollection = () => {
             </div>
 
             {/* Mission Section Text Band */}
-            <div className="bg-emerald-600 py-24 relative overflow-hidden">
+            <div className="bg-brand-600 py-24 relative overflow-hidden">
                 <div className="absolute inset-0 bg-slate-900 opacity-10"></div>
                 <div className="max-w-5xl mx-auto px-4 text-center relative z-10">
                     <h2 className="text-white text-3xl md:text-4xl font-black mb-8">Zero Liquidity Lag. Secure Trade.</h2>
-                    <p className="text-xl md:text-2xl text-emerald-50 leading-relaxed font-medium opacity-90">
+                    <p className="text-xl md:text-2xl text-brand-50 leading-relaxed font-medium opacity-90">
                         Seamlessly close the loop between logistics and finance with automated mobile money collection and instant commercial settlement. We provide the secure liquidity layer that allows businesses to scale without the risks of physical cash.
                     </p>
                 </div>
@@ -127,15 +127,15 @@ const PaymentCollection = () => {
                             icon: HandCoins,
                             title: "Cash-on-Delivery (COD)",
                             desc: "Automated mobile money collection at the point of delivery. Eliminate the risks of physical cash handling.",
-                            color: "text-emerald-400",
-                            bg: "bg-emerald-500/10"
+                            color: "text-brand-400",
+                            bg: "bg-brand-500/10"
                         },
                         {
                             icon: Zap,
                             title: "Instant Settlement",
                             desc: "Once the good is delivered and payment collected, the settlement to your bank happens instantly.",
-                            color: "text-teal-400",
-                            bg: "bg-teal-500/10"
+                            color: "text-blue-400",
+                            bg: "bg-blue-500/10"
                         },
                         {
                             icon: ShieldCheck,
@@ -145,7 +145,7 @@ const PaymentCollection = () => {
                             bg: "bg-brand-500/10"
                         }
                     ].map((feature, i) => (
-                        <div key={i} className="p-10 bg-slate-800/40 backdrop-blur-sm rounded-[2.5rem] border border-slate-700/50 hover:border-emerald-500/30 transition-all group">
+                        <div key={i} className="p-10 bg-slate-800/40 backdrop-blur-sm rounded-[2.5rem] border border-slate-700/50 hover:border-brand-500/30 transition-all group">
                             <div className={`w-14 h-14 ${feature.bg} flex items-center justify-center rounded-2xl ${feature.color} mb-8 transition-transform group-hover:scale-110`}>
                                 <feature.icon className="w-7 h-7" />
                             </div>
@@ -161,11 +161,11 @@ const PaymentCollection = () => {
             {/* How it Works / Dashboard Mockup */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
                 <div className="bg-slate-900 border border-slate-700/50 rounded-[3.5rem] p-12 md:p-20 flex flex-col lg:flex-row items-center gap-16 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-[100px]"></div>
+                    <div className="absolute top-0 left-0 w-96 h-96 bg-brand-500/5 rounded-full blur-[100px]"></div>
                     <div className="lg:w-1/2">
-                        <div className="inline-flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1 mb-8">
-                            <Layers className="w-4 h-4 text-emerald-400" />
-                            <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Commercial Backend</span>
+                        <div className="inline-flex items-center space-x-2 bg-brand-500/10 border border-brand-500/20 rounded-lg px-3 py-1 mb-8">
+                            <Layers className="w-4 h-4 text-brand-400" />
+                            <span className="text-xs font-bold text-brand-400 uppercase tracking-widest">Commercial Backend</span>
                         </div>
                         <h2 className="text-4xl font-black mb-8 text-white leading-tight">Bridging the Commercial Liquidity Gap</h2>
                         <ul className="space-y-8">
@@ -175,7 +175,7 @@ const PaymentCollection = () => {
                                 { title: "Automated Reconciliation", desc: "Every transaction is automatically mapped to your internal order IDs." }
                             ].map((item, idx) => (
                                 <li key={idx} className="flex gap-4">
-                                    <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-emerald-400 shrink-0 border border-white/5">
+                                    <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-brand-400 shrink-0 border border-white/5">
                                         <CheckCircle2 className="w-6 h-6" />
                                     </div>
                                     <div>
@@ -189,7 +189,7 @@ const PaymentCollection = () => {
                     <div className="lg:w-1/2 relative w-full">
                         <div className="bg-[#0c1222] border border-white/5 rounded-3xl p-8 shadow-inner overflow-hidden">
                             <div className="flex justify-between items-center mb-10">
-                                <div className="text-xs font-black text-emerald-400 tracking-widest">REAL-TIME LIQUIDITY</div>
+                                <div className="text-xs font-black text-brand-400 tracking-widest">REAL-TIME LIQUIDITY</div>
                                 <div className="h-2 w-16 bg-white/10 rounded-full"></div>
                             </div>
 
@@ -203,15 +203,15 @@ const PaymentCollection = () => {
                                     {[1, 2].map(i => (
                                         <div key={i} className="flex justify-between items-center p-4 bg-white/[0.02] rounded-xl text-xs">
                                             <div className="flex gap-3 items-center">
-                                                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                                <div className="w-2 h-2 rounded-full bg-brand-500"></div>
                                                 <span className="text-slate-400 font-bold tracking-tight">ORDER #{9823 + i}</span>
                                             </div>
-                                            <span className="text-emerald-400 font-black">+ KES 4,200</span>
+                                            <span className="text-brand-400 font-black">+ KES 4,200</span>
                                         </div>
                                     ))}
                                 </div>
 
-                                <button className="w-full py-4 bg-emerald-600 rounded-xl font-black text-sm text-white shadow-lg shadow-emerald-900/20 hover:bg-emerald-500 transition-all">
+                                <button className="w-full py-4 bg-brand-600 rounded-xl font-black text-sm text-white shadow-lg shadow-brand-900/20 hover:bg-brand-500 transition-all">
                                     Trigger Instant Settlement
                                 </button>
                             </div>
@@ -222,22 +222,22 @@ const PaymentCollection = () => {
 
             {/* Bottom CTA */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
-                <div className="bg-emerald-600 rounded-[3rem] p-16 text-center text-white relative overflow-hidden shadow-2xl">
+                <div className="bg-brand-600 rounded-[3rem] p-16 text-center text-white relative overflow-hidden shadow-2xl">
                     <div className="relative z-10 max-w-2xl mx-auto">
                         <h2 className="text-4xl font-black mb-6">Stop Chasing Payments.</h2>
-                        <p className="text-emerald-50 text-xl mb-10 font-medium opacity-90">
+                        <p className="text-brand-50 text-xl mb-10 font-medium opacity-90">
                             Transform your logistics operations from a cost center into a high-velocity revenue engine.
                         </p>
                         <div className="flex flex-col sm:flex-row justify-center gap-4">
                             <button
                                 onClick={() => navigate('/business')}
-                                className="px-10 py-5 bg-white text-emerald-600 rounded-2xl font-black text-lg hover:bg-slate-100 transition-all shadow-lg"
+                                className="px-10 py-5 bg-white text-brand-600 rounded-2xl font-black text-lg hover:bg-slate-100 transition-all shadow-lg"
                             >
                                 Get Started Now
                             </button>
                             <button
                                 onClick={() => navigate('/contact')}
-                                className="px-10 py-5 bg-emerald-500 text-white rounded-2xl font-black text-lg hover:bg-emerald-400 transition-all flex items-center justify-center border border-emerald-400"
+                                className="px-10 py-5 bg-brand-500 text-white rounded-2xl font-black text-lg hover:bg-brand-400 transition-all flex items-center justify-center border border-brand-400"
                             >
                                 Contact Sales
                             </button>
