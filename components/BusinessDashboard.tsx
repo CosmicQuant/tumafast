@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { User, DeliveryOrder, AddressBookEntry } from '../types';
 import { VehicleType, ServiceType } from '../types';
-import { LayoutDashboard, Smartphone, Upload, BarChart3, Download, Plus, Search, FileText, CheckCircle2, AlertCircle, Copy, Check, Terminal, Trash2, MapPin, Building, Home, User as UserIcon, Edit2, Save, Menu, X, Package, Shield, Mail, Phone, Briefcase, ArrowRight, Truck, ChevronRight, RefreshCw, Battery, Map as MapIcon, Navigation, Car, Hash, AlignLeft, MoreVertical, Clock, AlertTriangle, Bike, PieChart, TrendingUp, Activity, Eye, EyeOff, Globe, Server, Play, Code, LogOut, Star, Lock, Key, QrCode, ShieldCheck, FileCheck, ChevronUp, ChevronDown, CheckCircle, Power, Bell } from 'lucide-react';
+import { LayoutDashboard, Smartphone, Upload, BarChart3, Download, Plus, Search, FileText, CheckCircle2, AlertCircle, Copy, Check, Terminal, Trash2, MapPin, Building, Home, User as UserIcon, Edit2, Save, Menu, X, Package, Shield, Mail, Phone, Briefcase, ArrowRight, Truck, ChevronRight, RefreshCw, Battery, Map as MapIcon, Navigation, Car, Hash, AlignLeft, MoreVertical, Clock, AlertTriangle, Bike, PieChart, TrendingUp, Activity, Eye, EyeOff, Globe, Server, Play, Code, LogOut, Star, Lock, Key, QrCode, ShieldCheck, FileCheck, ChevronUp, ChevronDown, CheckCircle, Power, Bell, Loader2 } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, OverlayView, InfoWindow } from '@react-google-maps/api';
 import { APP_CONFIG } from '../config';
 import { orderService } from '../services/orderService';
 import { mapService } from '../services/mapService';
 import { useAuth } from '../context/AuthContext';
-import { LOCATION_COORDINATES } from '../constants';
-import { collection, query, where, onSnapshot, addDoc } from 'firebase/firestore';
+import { LOCATION_COORDINATES, GOOGLE_MAPS_LIBRARIES } from '../constants';
+import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
+import BulkOrderModal from './BulkOrderModal';
 
 interface BusinessDashboardProps {
     user: User;
@@ -43,8 +44,6 @@ const getVehicleIcon = (type: string) => {
     if (type === VehicleType.TUKTUK) return Car;
     return Truck;
 };
-
-const LIBRARIES: ("places" | "geometry")[] = ['places', 'geometry'];
 
 // Dummy Fleet Data
 const INITIAL_FLEET = [
@@ -91,7 +90,11 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
     const { logout, updateUser, deleteAccount } = useAuth();
     const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'DELIVERIES' | 'FLEET' | 'BULK' | 'ADDRESSES' | 'API' | 'PROFILE'>('OVERVIEW');
     const [bulkInput, setBulkInput] = useState('');
-    const [parsedBulkOrders, setParsedBulkOrders] = useState<Partial<DeliveryOrder>[]>([]);
+    const [parsedBulkOrders, setParsedBulkOrders] = useState<(Partial<DeliveryOrder> & {
+        validationStatus?: 'VALID' | 'ERROR' | 'GEOCODING' | 'GEOCODED_SUCCESS' | 'GEOCODED_FAILED';
+        validationError?: string;
+        coordinates?: { lat: number, lng: number };
+    })[]>([]);
     const [bulkStep, setBulkStep] = useState<'INPUT' | 'PREVIEW' | 'SUCCESS'>('INPUT');
     const [processingBulk, setProcessingBulk] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -107,6 +110,148 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
     // API Tab State
     const [showSecretKey, setShowSecretKey] = useState(false);
     const [docLanguage, setDocLanguage] = useState<'curl' | 'node' | 'python'>('curl');
+
+    // API Console Upgrade State
+    const [liveMode, setLiveMode] = useState(false);
+    const [webhookUrl, setWebhookUrl] = useState('https://api.your-company.com/webhooks/tumafast');
+    const [webhookEvents, setWebhookEvents] = useState({
+        // Order Events
+        'order.created': true,
+        'order.cancelled': true,
+
+        // Fulfillment Events (Logistics)
+        'fulfillment.allocated': true,       // Driver assigned
+        'fulfillment.reallocated': false,    // Driver changed
+        'fulfillment.arrived_pickup': false,
+        'fulfillment.picked_up': true,       // In Transit
+        'fulfillment.arrived_dropoff': false,
+        'fulfillment.completed': true,       // Delivered
+        'fulfillment.failed': true,          // Delivery attempted but failed
+
+        // Financial Events
+        'payment.succeeded': true,
+        'payment.failed': true,
+        'invoice.generated': false
+    });
+    const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
+    const [apiKey, setApiKey] = useState('sk_test_51Mz928sL92...x928sL92'); // Mock key
+    const [publishableKey, setPublishableKey] = useState('pk_test_88Xy...92kL'); // Mock key
+    const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+    const [notification, setNotification] = useState<{ message: string, type: 'success' | 'info' | 'warning' } | null>(null);
+
+    // Initial Load of Config & API Key
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const fetchConfig = async () => {
+            try {
+                // 1. Fetch API Key
+                const q = query(
+                    collection(db, 'api_keys'),
+                    where('businessId', '==', user.id),
+                    where('mode', '==', liveMode ? 'LIVE' : 'TEST'),
+                    where('active', '==', true)
+                );
+
+                // Real-time listener for key updates
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    if (!snapshot.empty) {
+                        // Sort by createdAt desc locally or rely on query order if indexed
+                        const docs = snapshot.docs.map(d => d.data());
+                        // Simple sort by date string
+                        docs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                        setApiKey(docs[0].key);
+                        // Check for publishable key if it exists in the record
+                        if (docs[0].publishableKey) {
+                            setPublishableKey(docs[0].publishableKey);
+                        } else {
+                            // Fallback for old records or if not yet generated
+                            setPublishableKey(liveMode ? 'pk_live_... (Roll to Generate)' : 'pk_test_... (Roll to Generate)');
+                        }
+                    } else {
+                        // No key found, set default placeholder
+                        setApiKey(liveMode ? 'sk_live_... (Generate New)' : 'sk_test_... (Generate New)');
+                        setPublishableKey(liveMode ? 'pk_live_... (Generate New)' : 'pk_test_... (Generate New)');
+                    }
+                });
+
+                return () => unsubscribe();
+            } catch (e) {
+                console.error("Failed to load config", e);
+            }
+        };
+
+        fetchConfig();
+    }, [user?.id, liveMode]); // Re-run when mode switches
+
+    // Auto-dismiss Notifications
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => {
+                setNotification(null);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
+    const handleSaveWebhookConfiguration = async () => {
+        if (!user?.id) return;
+        setIsSavingConfig(true);
+        try {
+            const businessRef = doc(db, 'businesses', user.id);
+            await updateDoc(businessRef, {
+                webhookConfig: {
+                    url: webhookUrl,
+                    events: Object.entries(webhookEvents).filter(([_, enabled]) => enabled).map(([e]) => e)
+                }
+            });
+            setNotification({ message: 'Webhook configuration saved.', type: 'success' });
+        } catch (error) {
+            console.error(error);
+            setNotification({ message: 'Failed to save configuration.', type: 'warning' });
+        } finally {
+            setIsSavingConfig(false);
+        }
+    };
+
+    const handleRegenerateKey = async () => {
+        if (!user?.id) {
+            setNotification({ message: 'Error: User ID missing. Provide user context.', type: 'warning' });
+            return;
+        }
+
+        if (window.confirm("Are you sure? This will invalidate the current key immediately.")) {
+            setIsRegeneratingKey(true);
+            try {
+                const prefix = liveMode ? 'sk_live_' : 'sk_test_';
+                const pkPrefix = liveMode ? 'pk_live_' : 'pk_test_';
+
+                const newKey = `${prefix}${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+                const newPk = `${pkPrefix}${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+
+                // 1. Save to `api_keys` collection for the API Middleware to verify
+                await addDoc(collection(db, 'api_keys'), {
+                    key: newKey,
+                    publishableKey: newPk,
+                    businessId: user.id,
+                    mode: liveMode ? 'LIVE' : 'TEST',
+                    createdAt: new Date().toISOString(),
+                    active: true
+                });
+
+                // 2. Ideally invalidate old keys here
+
+                setApiKey(newKey);
+                setPublishableKey(newPk);
+                setNotification({ message: 'Both Keys (Secret & Publishable) refreshed.', type: 'success' });
+            } catch (error) {
+                console.error("Key Gen Error:", error);
+                setNotification({ message: 'Failed to generate key.', type: 'warning' });
+            } finally {
+                setIsRegeneratingKey(false);
+            }
+        }
+    };
 
     // Deliveries State
     const [businessOrders, setBusinessOrders] = useState<DeliveryOrder[]>([]);
@@ -129,13 +274,15 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
 
     // Confirmation & Admin Workflow State
     const [confirmDialog, setConfirmDialog] = useState<{ type: 'SWAP' | 'REMOVE', vehicle: any } | null>(null);
-    const [notification, setNotification] = useState<{ message: string, type: 'success' | 'info' | 'warning' } | null>(null);
+
+    // Bulk Order State
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
     // Map State
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: APP_CONFIG.GOOGLE_MAPS_API_KEY,
-        libraries: LIBRARIES
+        libraries: GOOGLE_MAPS_LIBRARIES
     });
     const [map, setMap] = useState<google.maps.Map | null>(null);
 
@@ -188,6 +335,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
     });
     const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
     const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+    const [isFixingData, setIsFixingData] = useState(false);
 
     const handleAddressSearch = async (query: string) => {
         setNewAddress(prev => ({ ...prev, address: query }));
@@ -319,44 +467,104 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
         }
     };
 
+    // Geocoding Helper
+    const geocodeBulkOrders = async (rows: any[]) => {
+        const updated = [...rows];
+
+        for (let i = 0; i < updated.length; i++) {
+            if (updated[i].validationStatus === 'VALID') {
+                updated[i].validationStatus = 'GEOCODING';
+                setParsedBulkOrders([...updated]);
+
+                try {
+                    // Only geocode dropoff for validation purposes
+                    const result = await mapService.geocodeAddress(updated[i].dropoff || '');
+
+                    if (result) {
+                        updated[i].validationStatus = 'GEOCODED_SUCCESS';
+                        updated[i].coordinates = { lat: result.lat, lng: result.lng };
+                    } else {
+                        updated[i].validationStatus = 'GEOCODED_FAILED';
+                        updated[i].validationError = 'Address not found on map.';
+                    }
+                } catch (e) {
+                    updated[i].validationStatus = 'GEOCODED_FAILED';
+                    updated[i].validationError = 'Geocoding service unavailable.';
+                }
+
+                // Update state progressively and wait a bit
+                setParsedBulkOrders([...updated]);
+                await new Promise(r => setTimeout(r, 200));
+            }
+        }
+    };
+
     // ... (Bulk handlers) ...
     const handleParseBulk = (textInput?: string) => {
         const inputToProcess = textInput || bulkInput;
         if (!inputToProcess.trim()) return;
 
         const lines = inputToProcess.split('\n').filter(line => line.trim() !== '');
-        const parsed: Partial<DeliveryOrder>[] = [];
+        const parsed: any[] = [];
 
         lines.forEach((line) => {
             // Support both Pipe and Comma separation
             const delimiter = line.includes('|') ? '|' : ',';
             const parts = line.split(delimiter).map(s => s.trim());
 
-            if (parts.length >= 3) {
-                // Map vehicle and service type strings to enums
-                const rawVehicle = parts[6] || 'Boda Boda';
-                const vehicle = Object.values(VehicleType).find(v => v.toLowerCase().includes(rawVehicle.toLowerCase())) || VehicleType.BODA;
+            // Expected Format: Pickup, Dropoff, Item, Recipient, Phone, ID, Vehicle, Service
+            const [pickup, dropoff, item, name, phone, idNo, vehicleStr, serviceStr] = parts;
 
-                const rawService = parts[7] || 'Standard';
-                const service = Object.values(ServiceType).find(s => s.toLowerCase().includes(rawService.toLowerCase())) || ServiceType.STANDARD;
+            let status: 'VALID' | 'ERROR' = 'VALID';
+            let error = '';
 
-                parsed.push({
-                    pickup: parts[0],
-                    dropoff: parts[1],
-                    items: { description: parts[2], weightKg: 1, fragile: false, value: 0 },
-                    recipient: {
-                        name: parts[3] || 'Customer',
-                        phone: parts[4] || '',
-                        idNumber: parts[5] || ''
-                    },
-                    vehicle: vehicle,
-                    serviceType: service,
-                    pickupTime: parts[8] || 'ASAP',
-                    price: parts[6]?.toLowerCase().includes('lorry') ? 2500 : 250 // Base pricing logic
-                });
+            // Strict Validation
+            if (!pickup) { status = 'ERROR'; error += 'Missing Pickup. '; }
+            if (!dropoff) { status = 'ERROR'; error += 'Missing Dropoff. '; }
+            if (!item) { status = 'ERROR'; error += 'Missing Item. '; }
+            if (!name) { status = 'ERROR'; error += 'Missing Name. '; }
+
+            // Phone Validation
+            const cleanPhone = phone ? phone.replace(/[^0-9+]/g, '') : '';
+            if (phone && cleanPhone && !/^(?:\+254|0)?(7|1)\d{8}$/.test(cleanPhone)) {
+                status = 'ERROR'; error += 'Invalid Phone. ';
             }
+
+            // Map vehicle and service type strings to enums
+            const rawVehicle = vehicleStr || 'Boda Boda';
+            const vehicle = Object.values(VehicleType).find(v => v.toLowerCase().includes(rawVehicle.toLowerCase())) || VehicleType.BODA;
+
+            const rawService = serviceStr || 'Standard';
+            const service = Object.values(ServiceType).find(s => s.toLowerCase().includes(rawService.toLowerCase())) || ServiceType.STANDARD;
+
+            parsed.push({
+                pickup: pickup || '',
+                dropoff: dropoff || '',
+                items: { description: item || '', weightKg: 1, fragile: false, value: 0 },
+                recipient: {
+                    name: name || '',
+                    phone: cleanPhone || '',
+                    idNumber: idNo || ''
+                },
+                vehicle: vehicle,
+                serviceType: service,
+                pickupTime: 'ASAP',
+                price: rawVehicle.toLowerCase().includes('lorry') ? 2500 : 250,
+                validationStatus: status,
+                validationError: error
+            });
         });
+
+        if (parsed.length === 0) {
+            setNotification({ message: 'No valid rows found. Please check your format.', type: 'warning' });
+            return;
+        }
+
         setParsedBulkOrders(parsed);
+        setBulkStep('PREVIEW');
+
+        // Trigger Geocoding
+        geocodeBulkOrders(parsed);
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -379,10 +587,123 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
         reader.readAsText(file);
     };
 
+    const downloadCSVTemplate = () => {
+        const headers = ["Pickup", "Dropoff", "Item Description", "Recipient Name", "Recipient Phone", "Recipient ID", "Vehicle Type", "Service Type"];
+        const example = ["Westlands", "CBD", "Documents Box", "John Doe", "0712345678", "12345678", "Boda Boda", "Standard"];
+        const csvContent = "data:text/csv;charset=utf-8,"
+            + headers.join(",") + "\n"
+            + example.join(",");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "tumafast_bulk_template.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handlePrintWaybills = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const html = `
+          <html>
+            <head>
+              <title>TumaFast Waybills - ${new Date().toLocaleDateString()}</title>
+              <style>
+                body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; color: #000; }
+                .waybill { border: 2px solid #000; margin-bottom: 40px; padding: 20px; page-break-inside: avoid; max-width: 800px; }
+                .header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: start; }
+                .logo { font-size: 24px; font-weight: bold; letter-spacing: -1px; }
+                .meta { text-align: right; font-size: 11px; }
+                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+                .section { margin-bottom: 10px; }
+                .label { font-size: 10px; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; }
+                .value { font-size: 14px; font-weight: bold; border: 1px solid #ccc; padding: 8px; border-radius: 4px; }
+                .large { font-size: 18px; }
+                .footer { border-top: 1px dashed #000; padding-top: 10px; font-size: 10px; text-align: center; }
+                @media print { 
+                    .no-print { display: none !important; }
+                    body { -webkit-print-color-adjust: exact; }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="no-print" style="padding: 20px; background: #eee; text-align: center; margin-bottom: 20px; font-family: sans-serif;">
+                <p>System dialog should open automatically. If not:</p>
+                <button onclick="window.print()" style="font-size: 16px; padding: 10px 20px; cursor: pointer; background: #000; color: #fff; border: none; border-radius: 6px;">Print Waybills</button>
+              </div>
+              ${parsedBulkOrders.map(order => `
+                <div class="waybill">
+                  <div class="header">
+                     <div>
+                        <div class="logo">TUMAFAST DEPLOY</div>
+                        <div class="section" style="margin-top: 5px;">
+                            <span style="background: #000; color: #fff; padding: 2px 6px; font-size: 12px; font-weight: bold;">${order.serviceType || 'Standard'}</span>
+                        </div>
+                     </div>
+                     <div class="meta">
+                        <div>REF: ${order.id || 'PENDING'}</div>
+                        <div>DATE: ${new Date().toLocaleDateString()}</div>
+                        <div>VEHICLE: ${order.vehicle}</div>
+                     </div>
+                  </div>
+                  
+                  <div class="grid">
+                      <div class="section">
+                         <div class="label">Recipient</div>
+                         <div class="value large">${order.recipient?.name || 'N/A'}</div>
+                         <div style="margin-top: 4px;">PHONE: ${order.recipient?.phone || 'N/A'}</div>
+                         <div>ID: ${order.recipient?.idNumber || 'N/A'}</div>
+                      </div>
+                      <div class="section">
+                         <div class="label">Package</div>
+                         <div class="value">${order.items?.description || order.itemDescription || 'Standard Package'}</div>
+                      </div>
+                  </div>
+
+                  <div class="grid">
+                      <div class="section">
+                         <div class="label">Pickup Location</div>
+                         <div class="value">${order.pickup}</div>
+                      </div>
+                      <div class="section">
+                         <div class="label">Dropoff Location</div>
+                         <div class="value">${order.dropoff}</div>
+                      </div>
+                  </div>
+
+                  <div class="footer">
+                     Driver: Please verify Recipient ID matches above • Handle with Care • TumaFast Logistics
+                  </div>
+                </div>
+              `).join('')}
+              <script>
+                window.onload = function() { window.print(); }
+              </script>
+            </body>
+          </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
     const handleConfirmBulk = async () => {
+        // Filter out strict format errors, but allow Geocoding Failures (treated as unverified locations)
+        const validOrders = parsedBulkOrders.filter(o => o.validationStatus !== 'ERROR');
+
+        if (validOrders.length === 0) {
+            setNotification({ message: 'No valid orders to schedule.', type: 'warning' });
+            return;
+        }
+
         setProcessingBulk(true);
-        setTimeout(async () => {
-            for (const pOrder of parsedBulkOrders) {
+        const createdOrders: any[] = [];
+
+        try {
+            for (const pOrder of validOrders) {
                 const orderData: Omit<DeliveryOrder, 'id'> = {
                     userId: user.id,
                     pickup: pOrder.pickup!,
@@ -394,20 +715,37 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                     driverRate: Math.floor(pOrder.price! * 0.8),
                     status: 'pending',
                     estimatedDuration: '45 mins',
+                    // Save coordinates if geocoding succeeded
+                    // pickupCoords: ... (not currently geocoded in bulk)
+                    dropoffCoords: pOrder.coordinates,
                     date: new Date().toISOString(),
                     createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                     sender: { name: user.companyName || user.name, phone: user.phone || '' },
                     recipient: pOrder.recipient || { name: 'Customer', phone: '', idNumber: '' },
                     serviceType: pOrder.serviceType || ServiceType.STANDARD,
                     paymentMethod: 'CORPORATE_INVOICE',
                     verificationCode: Math.floor(1000 + Math.random() * 9000).toString()
                 };
-                await orderService.createOrder(orderData);
+                const created = await orderService.createOrder(orderData);
+                createdOrders.push(created);
             }
-            setProcessingBulk(false);
+            // Update state with created orders (which have IDs now) so waybills can use real IDs
+            setParsedBulkOrders(createdOrders);
             setBulkStep('SUCCESS');
             setBulkInput('');
-        }, 2000);
+            setNotification({ message: `Successfully scheduled ${validOrders.length} orders.`, type: 'success' });
+
+            // Refresh Dashboard Data
+            await fetchOrders();
+            await fetchMetrics();
+
+        } catch (error) {
+            console.error("Bulk create error", error);
+            setNotification({ message: 'Failed to create some orders.', type: 'warning' });
+        } finally {
+            setProcessingBulk(false);
+        }
     };
 
     const handleSaveProfile = async () => {
@@ -660,11 +998,11 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
 
             {/* Mobile Header */}
             <div className="bg-white border-b border-gray-100 p-4 flex justify-between items-center lg:hidden sticky top-0 z-30">
-                <button onClick={onGoHome} className="text-lg font-bold hover:opacity-80 transition-opacity flex items-center">
-                    Tuma<span className="text-brand-600">Business</span>
-                </button>
                 <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-gray-50 rounded-lg text-gray-500">
                     <Menu className="w-6 h-6" />
+                </button>
+                <button onClick={onGoHome} className="text-lg font-bold hover:opacity-80 transition-opacity flex items-center">
+                    Tuma<span className="text-brand-600">Business</span>
                 </button>
             </div>
 
@@ -743,12 +1081,20 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                 <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
                                 <p className="text-gray-500">Welcome back, {user.name}</p>
                             </div>
-                            <button
-                                onClick={() => onNewRequest()}
-                                className="w-full sm:w-auto bg-brand-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center shadow-sm hover:bg-brand-700"
-                            >
-                                <Plus className="w-4 h-4 mr-2" /> New Dispatch
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                                <button
+                                    onClick={() => setActiveTab('BULK')}
+                                    className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors"
+                                >
+                                    <Upload className="w-4 h-4 mr-2" /> Bulk Import
+                                </button>
+                                <button
+                                    onClick={() => onNewRequest()}
+                                    className="w-full sm:w-auto bg-brand-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center shadow-sm hover:bg-brand-700 transition-colors"
+                                >
+                                    <Plus className="w-4 h-4 mr-2" /> New Dispatch
+                                </button>
+                            </div>
                         </header>
 
                         {/* Top Stats Cards */}
@@ -770,7 +1116,10 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                 <h3 className="text-2xl font-bold text-gray-900">{stats.deliveries}</h3>
                                 <p className="text-sm text-gray-500">Deliveries Completed</p>
                             </div>
-                            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                            <div
+                                className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm cursor-pointer hover:border-brand-200 transition-colors"
+                                onClick={() => setActiveTab('DELIVERIES')}
+                            >
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="bg-amber-50 p-3 rounded-lg text-amber-600"><Activity className="w-6 h-6" /></div>
                                 </div>
@@ -819,7 +1168,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                                             </span>
                                                         )}
                                                         <span className="mx-2">•</span>
-                                                        {order.items.description}
+                                                        {order.items?.description || order.itemDescription || 'Delivery'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -923,9 +1272,18 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                     <h1 className="text-2xl font-bold text-gray-900">Deliveries</h1>
                                     <p className="text-gray-500">Track ongoing shipments and view history.</p>
                                 </div>
-                                <div className="flex bg-white rounded-lg p-1 border border-gray-100 shadow-sm">
-                                    <button onClick={() => setDeliveryFilter('ACTIVE')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${deliveryFilter === 'ACTIVE' ? 'bg-brand-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Ongoing</button>
-                                    <button onClick={() => setDeliveryFilter('HISTORY')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${deliveryFilter === 'HISTORY' ? 'bg-brand-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Delivered</button>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => onNewRequest()}
+                                        className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-brand-700 transition-colors shadow-sm"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        New Dispatch
+                                    </button>
+                                    <div className="flex bg-white rounded-lg p-1 border border-gray-100 shadow-sm">
+                                        <button onClick={() => setDeliveryFilter('ACTIVE')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${deliveryFilter === 'ACTIVE' ? 'bg-brand-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Ongoing</button>
+                                        <button onClick={() => setDeliveryFilter('HISTORY')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${deliveryFilter === 'HISTORY' ? 'bg-brand-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>Delivered</button>
+                                    </div>
                                 </div>
                             </div>
                             {loadingOrders ? (
@@ -956,7 +1314,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${order.status === 'delivered' ? 'bg-emerald-100 text-emerald-600' : order.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-brand-100 text-brand-600'}`}>{order.status.replace('_', ' ')}</span>
                                                     </div>
                                                     <h3 className="font-bold text-lg text-gray-900 flex items-center">
-                                                        {order.items.description}
+                                                        {order.items?.description || order.itemDescription || 'Delivery'}
                                                         {order.status !== 'delivered' && (
                                                             <span className="ml-3 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-brand-50 text-brand-600 border border-brand-100">
                                                                 <Shield className="w-2.5 h-2.5 mr-1" />
@@ -1246,7 +1604,12 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                     <div className="space-y-4">
                                         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-                                            <label className="block text-sm font-bold text-gray-700 mb-2">Paste Orders (CSV or Pipe separated)</label>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="block text-sm font-bold text-gray-700">Paste Orders (CSV or Pipe separated)</label>
+                                                <button onClick={downloadCSVTemplate} className="text-xs text-brand-600 font-medium hover:text-brand-800 flex items-center bg-brand-50 hover:bg-brand-100 px-2 py-1 rounded transition-colors">
+                                                    <Download className="w-3 h-3 mr-1" /> Template
+                                                </button>
+                                            </div>
                                             <p className="text-xs text-brand-600 font-medium mb-3 bg-brand-50 p-2 rounded-lg border border-brand-100">
                                                 Required: Pickup, Dropoff, Item, Recipient, Phone, ID, Vehicle, Service
                                             </p>
@@ -1258,7 +1621,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                             />
                                             <div className="flex justify-end mt-4">
                                                 <button onClick={() => handleParseBulk()} disabled={!bulkInput.trim()} className="bg-brand-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-brand-700 disabled:opacity-50 flex items-center transition-colors">
-                                                    <ArrowRight className="w-4 h-4 mr-2" /> Process List
+                                                    <ArrowRight className="w-4 h-4 mr-2" /> Process Fulfillments
                                                 </button>
                                             </div>
                                         </div>
@@ -1304,39 +1667,67 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                                     <th className="px-6 py-3">Pickup & Dropoff</th>
                                                     <th className="px-6 py-3">Recipient Details</th>
                                                     <th className="px-6 py-3">Item & Vehicle</th>
-                                                    <th className="px-6 py-3">Service</th>
-                                                    <th className="px-6 py-3">Est. Cost</th>
+                                                    <th className="px-6 py-3">Est. Price</th>
+                                                    <th className="px-6 py-3">Validation</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-50">
                                                 {parsedBulkOrders.map((order, idx) => (
-                                                    <tr key={idx} className="hover:bg-gray-50">
+                                                    <tr key={idx} className={order.validationStatus === 'ERROR' || order.validationStatus === 'GEOCODED_FAILED' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}>
                                                         <td className="px-6 py-4">
-                                                            <div className="font-medium text-gray-900">{order.pickup}</div>
-                                                            <div className="text-xs text-gray-400">→ {order.dropoff}</div>
+                                                            <div className="font-medium text-gray-900">{order.pickup || <span className="text-red-500">Missing</span>}</div>
+                                                            <div className="text-xs text-gray-400">→ {order.dropoff || <span className="text-red-500">Missing</span>}</div>
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <div className="font-medium text-gray-700">{order.recipient?.name}</div>
+                                                            <div className="font-medium text-gray-700">{order.recipient?.name || <span className="text-red-500">Missing</span>}</div>
                                                             <div className="text-xs text-gray-500">{order.recipient?.phone}</div>
                                                             <div className="text-[10px] text-brand-600 font-bold">ID: {order.recipient?.idNumber}</div>
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <div className="text-gray-900 font-medium">{order.items?.description}</div>
-                                                            <div className="text-xs text-gray-400">{order.vehicle}</div>
+                                                            <div className="text-xs text-gray-400">{order.vehicle} • {order.serviceType}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4 font-bold text-gray-900">
+                                                            {(order.validationStatus !== 'ERROR' && order.validationStatus !== 'GEOCODED_FAILED') ? `KES ${(order.price || 0).toLocaleString()}` : '-'}
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <span className="px-2 py-1 bg-brand-50 text-brand-600 rounded text-[10px] font-bold uppercase">
-                                                                {order.serviceType}
-                                                            </span>
+                                                            {order.validationStatus === 'ERROR' || order.validationStatus === 'GEOCODED_FAILED' ? (
+                                                                <span className="text-red-600 text-xs font-bold flex items-center gap-1">
+                                                                    <AlertTriangle className="w-3 h-3" />
+                                                                    {order.validationError || 'Invalid'}
+                                                                </span>
+                                                            ) : order.validationStatus === 'GEOCODING' ? (
+                                                                <span className="text-yellow-600 text-xs font-bold flex items-center gap-1">
+                                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                                    Checking Map...
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-green-600 text-xs font-bold flex items-center gap-1">
+                                                                    <CheckCircle className="w-3 h-3" />
+                                                                    Valid
+                                                                </span>
+                                                            )}
                                                         </td>
-                                                        <td className="px-6 py-4 font-bold text-brand-600">KES {(order.price || 0).toLocaleString()}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
-                                        <button onClick={handleConfirmBulk} disabled={processingBulk} className="bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center shadow-lg shadow-emerald-500/20 transition-colors">
+                                    <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+                                        <div className="text-lg font-bold text-gray-700">
+                                            Total: <span className="text-brand-600">KES {parsedBulkOrders.reduce((sum, o) => {
+                                                if (o.validationStatus === 'GEOCODED_SUCCESS' || !o.validationStatus) { // Assuming valid if not errors
+                                                    return sum + (o.price || 0);
+                                                }
+                                                return sum;
+                                            }, 0).toLocaleString()}</span>
+                                            <span className="text-xs text-gray-400 font-normal ml-2">({parsedBulkOrders.filter(o => o.validationStatus !== 'ERROR' && o.validationStatus !== 'GEOCODED_FAILED').length} valid orders)</span>
+                                        </div>
+                                        <button
+                                            onClick={handleConfirmBulk}
+                                            disabled={processingBulk || parsedBulkOrders.some(o => o.validationStatus === 'ERROR' || o.validationStatus === 'GEOCODED_FAILED')}
+                                            className="bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center shadow-lg shadow-emerald-500/20 transition-colors"
+                                        >
                                             {processingBulk ? (
                                                 <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div> Processing...</>
                                             ) : (
@@ -1354,6 +1745,12 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Orders Scheduled Successfully!</h2>
                                     <p className="text-gray-500 mb-8">{parsedBulkOrders.length} deliveries have been added to your queue. Drivers will be assigned shortly.</p>
                                     <div className="flex justify-center gap-4">
+                                        <button
+                                            onClick={handlePrintWaybills}
+                                            className="px-6 py-2 bg-white border border-brand-200 text-brand-700 rounded-lg font-bold hover:bg-brand-50 transition-colors flex items-center shadow-sm"
+                                        >
+                                            <FileText className="w-4 h-4 mr-2" /> Print Waybills
+                                        </button>
                                         <button
                                             onClick={() => { setParsedBulkOrders([]); setBulkStep('INPUT'); }}
                                             className="px-6 py-2 border border-gray-200 rounded-lg font-bold text-gray-600 hover:bg-gray-50 transition-colors"
@@ -1519,131 +1916,234 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                 {
                     activeTab === 'API' && (
                         <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl">
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-900">API & Integration</h1>
-                                <p className="text-gray-500">Connect your store or app to TumaFast's logistics network.</p>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-900">API & Integration</h1>
+                                    <p className="text-gray-500">Connect your platform directly to our logistics network.</p>
+                                </div>
+                                <div className="flex items-center space-x-3 bg-white p-1 rounded-xl border border-gray-200">
+                                    <button
+                                        onClick={() => setLiveMode(false)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${!liveMode ? 'bg-amber-100 text-amber-800 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    >
+                                        Test Mode
+                                    </button>
+                                    <button
+                                        onClick={() => setLiveMode(true)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${liveMode ? 'bg-emerald-100 text-emerald-800 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    >
+                                        Live Mode
+                                    </button>
+                                </div>
                             </div>
 
                             {/* API Keys Section */}
-                            <div className="bg-white rounded-2xl p-8 text-gray-900 shadow-xl relative overflow-hidden border border-gray-100">
-                                <div className="absolute top-0 right-0 p-32 bg-brand-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                            <div className={`rounded-2xl p-8 text-gray-900 shadow-xl relative overflow-hidden border transition-all ${liveMode ? 'bg-white border-emerald-100' : 'bg-amber-50/30 border-amber-100'}`}>
+                                <div className={`absolute top-0 right-0 p-32 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 transition-colors ${liveMode ? 'bg-emerald-50' : 'bg-amber-100/50'}`}></div>
 
                                 <div className="relative z-10">
                                     <div className="flex items-center justify-between mb-6">
                                         <div className="flex items-center space-x-2">
-                                            <div className="bg-emerald-50 text-emerald-600 p-2 rounded-lg">
-                                                <Server className="w-5 h-5" />
+                                            <div className={`p-2 rounded-lg ${liveMode ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                                <Key className="w-5 h-5" />
                                             </div>
-                                            <h3 className="text-lg font-bold">Live API Credentials</h3>
+                                            <h3 className="text-lg font-bold">{liveMode ? 'Live' : 'Test'} API Credentials</h3>
                                         </div>
                                         <div className="flex space-x-2">
-                                            <button className="text-xs bg-gray-50 hover:bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors">Roll Key</button>
+                                            <button
+                                                onClick={handleRegenerateKey}
+                                                disabled={isRegeneratingKey}
+                                                className="text-xs bg-white/50 hover:bg-white text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors shadow-sm flex items-center"
+                                            >
+                                                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isRegeneratingKey ? 'animate-spin' : ''}`} />
+                                                Roll Key
+                                            </button>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-4">
+                                    <div className="space-y-6">
                                         <div>
-                                            <label className="text-xs font-bold text-gray-400 uppercase mb-1.5 block tracking-wider">Publishable Key</label>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block tracking-wider">Publishable Key (Frontend)</label>
                                             <div className="flex items-center space-x-2">
-                                                <code className="flex-1 bg-gray-50 p-3.5 rounded-xl border border-gray-200 font-mono text-brand-600 text-sm">
-                                                    pk_live_51Mz928sL92...x92
+                                                <code className="flex-1 bg-white p-3.5 rounded-xl border border-gray-200 font-mono text-gray-600 text-sm shadow-sm">
+                                                    {publishableKey || (liveMode ? 'pk_live_...' : 'pk_test_...')}
                                                 </code>
-                                                <button className="p-3.5 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors border border-gray-200">
+                                                <button
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(publishableKey);
+                                                        setNotification({ message: 'Copied to clipboard', type: 'success' });
+                                                    }}
+                                                    className="p-3.5 bg-white hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 transition-colors border border-gray-200 shadow-sm"
+                                                >
                                                     <Copy className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </div>
 
                                         <div>
-                                            <label className="text-xs font-bold text-gray-400 uppercase mb-1.5 block tracking-wider">Secret Key</label>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block tracking-wider">Secret Key (Backend)</label>
                                             <div className="flex items-center space-x-2">
-                                                <code className="flex-1 bg-gray-50 p-3.5 rounded-xl border border-gray-200 font-mono text-amber-600 text-sm flex items-center">
-                                                    {showSecretKey ? 'sk_live_51Mz928sL92...x928sL92_SECRET' : '••••••••••••••••••••••••••••••••'}
+                                                <code className={`flex-1 bg-white p-3.5 rounded-xl border border-gray-200 font-mono text-sm flex items-center shadow-sm ${liveMode ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                                    {showSecretKey ? apiKey : 'sk_••••••••••••••••••••••••••••••••'}
                                                 </code>
                                                 <button
                                                     onClick={() => setShowSecretKey(!showSecretKey)}
-                                                    className="p-3.5 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors border border-gray-200"
+                                                    className="p-3.5 bg-white hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 transition-colors border border-gray-200 shadow-sm"
                                                 >
                                                     {showSecretKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                                 </button>
-                                                <button className="p-3.5 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-600 transition-colors border border-gray-200">
+                                                <button
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(apiKey);
+                                                        setNotification({ message: 'Copied secret key', type: 'success' });
+                                                    }}
+                                                    className="p-3.5 bg-white hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-600 transition-colors border border-gray-200 shadow-sm"
+                                                >
                                                     <Copy className="w-4 h-4" />
                                                 </button>
                                             </div>
-                                            <p className="text-xs text-gray-500 mt-2 flex items-center">
-                                                <AlertCircle className="w-3 h-3 mr-1.5" /> Keep this key secret. Never share it in client-side code.
+                                            <p className={`text-xs mt-2 flex items-center ${liveMode ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                                <Shield className="w-3 h-3 mr-1.5" />
+                                                {liveMode ? 'Handling real money. Keep this server-side only.' : 'Test mode active. Transactions are simulated.'}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Quick Start Documentation */}
-                            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                                <div className="border-b border-gray-100 bg-gray-50 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                    <div className="flex items-center space-x-2">
-                                        <Code className="w-5 h-5 text-gray-400" />
-                                        <h3 className="font-bold text-gray-900">Quick Start</h3>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                {/* Configuration */}
+                                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-full">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="font-bold text-gray-900 flex items-center">
+                                            <Globe className="w-5 h-5 mr-2 text-gray-400" /> Webhook Configuration
+                                        </h3>
+                                        <div className="flex items-center space-x-2">
+                                            <span className="relative flex h-2 w-2">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                            </span>
+                                            <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Listening</span>
+                                        </div>
                                     </div>
-                                    <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200 shadow-sm">
-                                        <button onClick={() => setDocLanguage('curl')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${docLanguage === 'curl' ? 'bg-brand-600 text-white' : 'text-gray-500 hover:bg-gray-200'}`}>cURL</button>
-                                        <button onClick={() => setDocLanguage('node')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${docLanguage === 'node' ? 'bg-brand-600 text-white' : 'text-gray-500 hover:bg-gray-200'}`}>Node.js</button>
-                                        <button onClick={() => setDocLanguage('python')} className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${docLanguage === 'python' ? 'bg-brand-600 text-white' : 'text-gray-500 hover:bg-gray-200'}`}>Python</button>
+
+                                    <div className="space-y-6 flex-1">
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block tracking-wider">Endpoint URL</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="url"
+                                                    value={webhookUrl}
+                                                    onChange={(e) => setWebhookUrl(e.target.value)}
+                                                    className="w-full pl-4 pr-24 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                />
+                                                <button className="absolute right-2 top-2 px-3 py-1.5 bg-white text-xs font-bold text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50 shadow-sm">
+                                                    Test
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-400 uppercase mb-3 block tracking-wider">Event Subscriptions</label>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                                {Object.entries(webhookEvents).map(([event, enabled]) => (
+                                                    <label key={event} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-brand-200 hover:bg-brand-50/50 transition-colors cursor-pointer group">
+                                                        <div className="flex items-center flex-1 min-w-0 mr-3">
+                                                            <div className={`flex-shrink-0 w-2 h-2 rounded-full mr-3 ${enabled ? 'bg-brand-500' : 'bg-gray-300'}`}></div>
+                                                            <span className={`text-xs font-bold font-mono truncate ${enabled ? 'text-gray-900' : 'text-gray-500'}`} title={event}>{event}</span>
+                                                        </div>
+                                                        <div className={`flex-shrink-0 w-8 h-5 rounded-full p-0.5 transition-colors ${enabled ? 'bg-brand-500' : 'bg-gray-200'}`}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                setWebhookEvents(prev => ({ ...prev, [event]: !enabled }));
+                                                            }}
+                                                        >
+                                                            <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${enabled ? 'translate-x-3' : 'translate-x-0'}`} />
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 pt-4 border-t border-gray-50">
+                                        <button
+                                            onClick={handleSaveWebhookConfiguration}
+                                            disabled={isSavingConfig}
+                                            className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-lg shadow-gray-200 hover:bg-gray-800 transition-all flex items-center justify-center disabled:opacity-70"
+                                        >
+                                            {isSavingConfig ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                                            Save Configuration
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="relative group">
-                                    <pre className="bg-gray-900 text-brand-50 p-6 overflow-x-auto text-sm font-mono leading-relaxed">
-                                        {CODE_SNIPPETS[docLanguage]}
-                                    </pre>
-                                    <button className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Copy className="w-4 h-4" />
-                                    </button>
-                                </div>
-                                <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex justify-between items-center">
-                                    <a href="#" className="text-sm font-bold text-brand-600 hover:underline flex items-center">
-                                        View Full Documentation <ArrowRight className="w-4 h-4 ml-1" />
-                                    </a>
-                                    <button className="text-sm font-bold text-gray-600 hover:text-gray-900 flex items-center bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-colors">
-                                        <Play className="w-3 h-3 mr-1.5 fill-current" /> Run in Postman
-                                    </button>
+
+                                {/* Request Logs */}
+                                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-full flex flex-col">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="font-bold text-gray-900 flex items-center">
+                                            <Activity className="w-5 h-5 mr-2 text-gray-400" /> Recent Activity
+                                        </h3>
+                                        <button className="text-xs font-bold text-gray-500 hover:text-brand-600 transition-colors">View All Logs</button>
+                                    </div>
+
+                                    <div className="flex-1 overflow-hidden relative">
+                                        <div className="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-white to-transparent z-10"></div>
+                                        <div className="space-y-3 overflow-y-auto h-[300px] pr-2 pb-4 pt-2 custom-scrollbar">
+                                            {[
+                                                { method: 'POST', endpoint: '/v1/orders', status: 201, time: '2s ago', latency: '45ms' },
+                                                { method: 'GET', endpoint: '/v1/quotes', status: 200, time: '1m ago', latency: '12ms' },
+                                                { method: 'POST', endpoint: '/v1/webhooks/test', status: 200, time: '5m ago', latency: '124ms' },
+                                                { method: 'POST', endpoint: '/v1/orders/cancel', status: 400, time: '12m ago', latency: '32ms', error: true },
+                                                { method: 'GET', endpoint: '/v1/orders/ord_1238', status: 200, time: '1h ago', latency: '18ms' },
+                                            ].map((log, i) => (
+                                                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 hover:border-gray-300 transition-colors group">
+                                                    <div className="flex items-center space-x-3">
+                                                        <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${log.method === 'POST' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                            {log.method}
+                                                        </span>
+                                                        <div>
+                                                            <p className="text-xs font-bold text-gray-700 font-mono">{log.endpoint}</p>
+                                                            <p className="text-[10px] text-gray-400">{log.time} • {log.latency}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center">
+                                                        {log.error ? (
+                                                            <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded flex items-center">
+                                                                <AlertCircle className="w-3 h-3 mr-1" /> {log.status}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs font-bold text-gray-500 group-hover:text-gray-900 transition-colors">
+                                                                {log.status} OK
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <div className="text-center py-4">
+                                                <p className="text-xs text-gray-400">Showing last 5 requests</p>
+                                            </div>
+                                        </div>
+                                        <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-white to-transparent z-10"></div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Webhooks */}
-                            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="font-bold text-gray-900 flex items-center">
-                                        <Globe className="w-5 h-5 mr-2 text-gray-400" /> Webhooks
-                                    </h3>
-                                    <button className="text-brand-600 text-sm font-bold flex items-center hover:underline">
-                                        <Plus className="w-4 h-4 mr-1" /> Add Endpoint
+                            {/* Documentation Footer */}
+                            <div className="bg-gray-900 rounded-2xl p-6 text-center sm:text-left sm:flex items-center justify-between shadow-2xl relative overflow-hidden">
+                                <div className="relative z-10">
+                                    <h4 className="text-white font-bold text-lg mb-1">Building something custom?</h4>
+                                    <p className="text-gray-400 text-sm">Read our full API Reference and integration guides.</p>
+                                </div>
+                                <div className="relative z-10 mt-4 sm:mt-0 flex gap-3">
+                                    <button
+                                        onClick={() => window.open('/docs', '_blank')}
+                                        className="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold uppercase tracking-wide transition-all shadow-lg shadow-brand-900/50 flex items-center"
+                                    >
+                                        <FileText className="w-4 h-4 mr-2" /> API Reference
                                     </button>
                                 </div>
-                                <div className="space-y-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-100 rounded-xl gap-3 hover:border-brand-100 transition-colors group bg-gray-50">
-                                        <div className="flex items-start space-x-3">
-                                            <div className="mt-1 bg-emerald-100 text-emerald-600 p-1.5 rounded-lg">
-                                                <Activity className="w-4 h-4" />
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-sm text-gray-900">Order Status Updates</p>
-                                                <p className="text-xs text-gray-500 break-all font-mono mt-1">https://api.your-server.com/webhooks/tumafast</p>
-                                                <div className="flex gap-2 mt-2">
-                                                    <span className="bg-white text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded border border-gray-200">order.updated</span>
-                                                    <span className="bg-white text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded border border-gray-200">delivery.completed</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="bg-emerald-100 text-emerald-600 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-200 flex items-center">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span> Active
-                                            </div>
-                                            <button className="text-gray-400 hover:text-gray-600 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Edit2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                {/* Background glow */}
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2"></div>
                             </div>
                         </div>
                     )
@@ -1909,18 +2409,59 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                                         </button>
                                                     </div>
 
-                                                    <div className="p-5 bg-white rounded-2xl border border-gray-100 flex items-center justify-between group cursor-pointer hover:border-brand-200 transition-all" onClick={() => setShowPasswordFields(!showPasswordFields)}>
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                                                                <Key className="w-5 h-5" />
-                                                            </div>
-                                                            <div>
-                                                                <h4 className="font-bold text-slate-900 text-sm">Update Password</h4>
-                                                                <p className="text-[10px] text-gray-400 font-medium">Ensure account integrity</p>
-                                                            </div>
-                                                        </div>
-                                                        <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-brand-500 transition-transform group-hover:translate-x-1" />
+                                                    <div className="p-5 bg-white rounded-2xl border border-gray-100 flex items-center justify-center group cursor-pointer hover:border-brand-200 transition-all font-bold text-gray-400 hover:text-brand-600 text-sm" onClick={() => setShowPasswordFields(!showPasswordFields)}>
+                                                        <Key className="w-5 h-5 mr-2" />
+                                                        Update Password / Security
                                                     </div>
+
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!user?.id) return;
+                                                            if (!window.confirm("Run data repair? This will add missing timestamps to old orders so they appear in the dashboard.")) return;
+
+                                                            setIsFixingData(true);
+                                                            try {
+                                                                const allOrders = await orderService.getUserOrdersUnsorted(user.id);
+                                                                const brokenOrders = allOrders.filter(o => !o.date);
+
+                                                                if (brokenOrders.length === 0) {
+                                                                    setNotification({ message: "No broken orders found.", type: "info" });
+                                                                    setIsFixingData(false);
+                                                                    return;
+                                                                }
+
+                                                                let fixedCount = 0;
+                                                                const batch = writeBatch(db);
+
+                                                                // Fix them
+                                                                for (const order of brokenOrders) {
+                                                                    const ref = doc(db, 'orders', (order as any).docId || order.id);
+                                                                    // Use createdAt if available, otherwise now
+                                                                    const fallbackDate = order.createdAt || new Date().toISOString();
+                                                                    batch.update(ref, {
+                                                                        date: fallbackDate,
+                                                                        updatedAt: new Date().toISOString()
+                                                                    });
+                                                                    fixedCount++;
+                                                                }
+
+                                                                await batch.commit();
+                                                                setNotification({ message: `Successfully repaired ${fixedCount} orders! Reloading...`, type: "success" });
+                                                                fetchOrders(); // Refresh list
+
+                                                            } catch (e) {
+                                                                console.error(e);
+                                                                setNotification({ message: "Repair failed. Check console.", type: "warning" });
+                                                            } finally {
+                                                                setIsFixingData(false);
+                                                            }
+                                                        }}
+                                                        disabled={isFixingData}
+                                                        className="w-full py-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        {isFixingData ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                                        Run Data Self-Repair
+                                                    </button>
 
                                                     {showPasswordFields && (
                                                         <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-4 animate-in slide-in-from-top-2">
@@ -2102,6 +2643,63 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                     </div>
                 </div>
             )}
+
+            <BulkOrderModal
+                isOpen={isBulkModalOpen}
+                onClose={() => setIsBulkModalOpen(false)}
+                vehicleType={VehicleType.BODA}
+                onSubmit={async (orders) => {
+                    if (!user?.id) return;
+                    try {
+                        const batch = writeBatch(db);
+                        const timestamp = new Date().toISOString();
+
+                        orders.forEach((orderData: any) => {
+                            const newOrderRef = doc(collection(db, 'orders'));
+                            batch.set(newOrderRef, {
+                                userId: user.id,
+                                status: 'pending',
+                                createdAt: timestamp,
+                                date: timestamp,
+                                updatedAt: timestamp,
+                                pickup: orderData.pickupLocation,
+                                dropoff: orderData.dropoffLocation,
+                                dropoffCoords: orderData.coordinates,
+                                price: 150, // Mock base price
+                                driverRate: 120, // 80% of 150
+                                distance: '5 km', // Mock
+                                vehicle: orderData.vehicleType,
+                                serviceType: orderData.serviceType,
+                                recipient: {
+                                    name: orderData.recipientName,
+                                    phone: orderData.recipientPhone,
+                                    idNumber: orderData.recipientId
+                                },
+                                sender: {
+                                    name: user.name || user.companyName || 'Business',
+                                    phone: user.phone || ''
+                                },
+                                items: {
+                                    description: orderData.itemDescription,
+                                    weightKg: 1,
+                                    fragile: false,
+                                    value: 0
+                                },
+                                verificationCode: Math.floor(1000 + Math.random() * 9000).toString(),
+                                isBatchOrder: true,
+                                batchId: timestamp
+                            });
+                        });
+
+                        await batch.commit();
+                        setNotification({ message: `Successfully created ${orders.length} orders!`, type: 'success' });
+                        fetchOrders();
+                    } catch (error) {
+                        console.error(error);
+                        setNotification({ message: 'Failed to create batch orders.', type: 'warning' });
+                    }
+                }}
+            />
         </div >
     );
 };

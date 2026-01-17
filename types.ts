@@ -156,6 +156,7 @@ export interface DeliveryOrder {
   pickupTime?: string; // ISO string or 'ASAP'
   vehicle: VehicleType;
   items: OrderItem;
+  itemDescription?: string; // Legacy/Bulk field
   price: number; // Total customer price
   driverRate: number; // Amount driver earns
   status: 'pending' | 'driver_assigned' | 'in_transit' | 'delivered' | 'cancelled';

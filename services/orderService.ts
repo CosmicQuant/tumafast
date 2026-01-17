@@ -44,6 +44,19 @@ export const orderService = {
   },
 
   /**
+   * Temporary utility to fetch ALL user orders without sorting.
+   * Useful for finding and fixing legacy orders with missing date fields.
+   */
+  getUserOrdersUnsorted: async (userId: string): Promise<(DeliveryOrder & { docId: string })[]> => {
+    const q = query(
+      collection(db, ORDERS_COLLECTION),
+      where('userId', '==', userId)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), docId: d.id } as any));
+  },
+
+  /**
    * Fetch orders for the Driver Marketplace (Pending Status).
    */
   getMarketplaceOrders: async (): Promise<DeliveryOrder[]> => {

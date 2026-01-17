@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { mapService } from '@/services/mapService';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { APP_CONFIG } from '@/config';
+import { GOOGLE_MAPS_LIBRARIES } from '@/constants';
 import { db } from '@/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
@@ -80,13 +81,11 @@ interface MapContextType {
 
 const MapContext = createContext<MapContextType | undefined>(undefined);
 
-const LIBRARIES: ("places" | "geometry")[] = ['places', 'geometry'];
-
 export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: APP_CONFIG.GOOGLE_MAPS_API_KEY,
-        libraries: LIBRARIES
+        libraries: GOOGLE_MAPS_LIBRARIES
     });
 
     const [orderState, setOrderState] = useState<MapOrderState>('IDLE');

@@ -1,0 +1,165 @@
+{
+    "info": {
+        "_postman_id": "tumafast-enterprise-api-v1",
+        "name": "TumaFast Enterprise API v1",
+        "description": "Official Logistics API for TumaFast Kenya. Integrate on-demand delivery into your e-commerce or ERP system.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "https://us-central1-YOUR-PROJECT-ID.cloudfunctions.net/v1",
+            "type": "string"
+        },
+        {
+            "key": "api_key",
+            "value": "sk_test_51Mz928sL92kL",
+            "type": "string"
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{api_key}}",
+                "type": "string"
+            }
+        ]
+    },
+    "item": [
+        {
+            "name": "1. Get Price Quote",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"pickup\": \"Westlands, Nairobi\",\n    \"dropoff\": \"CBD, Nairobi\",\n    \"vehicle_type\": \"BODA\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{base_url}}/quotes",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "quotes"
+                    ]
+                },
+                "description": "Get an estimated price and ETA for a delivery before booking."
+            },
+            "response": []
+        },
+        {
+            "name": "2. Create Delivery Order",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "var jsonData = pm.response.json();",
+                            "pm.environment.set(\"last_order_id\", jsonData.id);"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"pickup\": \"Westlands, Nairobi\",\n    \"dropoff\": \"CBD, Nairobi\",\n    \"item_description\": \"Box of Documents (Confidential)\",\n    \"vehicle_type\": \"BODA\",\n    \"recipient\": {\n        \"name\": \"Alice Kinuthia\",\n        \"phone\": \"+254712345678\",\n        \"id_number\": \"12345678\"\n    }\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{base_url}}/orders",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "orders"
+                    ]
+                },
+                "description": "Request a driver for immediate pickup."
+            },
+            "response": []
+        },
+        {
+            "name": "3. Get Order Status",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/orders/{{last_order_id}}",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "orders",
+                        "{{last_order_id}}"
+                    ]
+                },
+                "description": "Retrieve the current status and driver details of an active order."
+            },
+            "response": []
+        },
+        {
+            "name": "4. Update Order (Modify Route)",
+            "request": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"dropoff\": \"JKIA Airport, Nairobi\",\n    \"stops\": [\n        { \"type\": \"waypoint\", \"address\": \"Mombasa Road\", \"recipient\": \"John\", \"phone\": \"+254700000000\" }\n    ]\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{base_url}}/orders/{{last_order_id}}",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "orders",
+                        "{{last_order_id}}"
+                    ]
+                },
+                "description": "Add stops or change destination. Allowed only if order is not completed. Price will effectively update."
+            },
+            "response": []
+        },
+        {
+            "name": "5. Cancel Order",
+            "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/orders/{{last_order_id}}/cancel",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "orders",
+                        "{{last_order_id}}",
+                        "cancel"
+                    ]
+                },
+                "description": "Cancel a pending request. Cannot be used if status is 'in_transit' or 'delivered'."
+            },
+            "response": []
+        }
+    ]
+}
