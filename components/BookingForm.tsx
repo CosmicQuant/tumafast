@@ -114,11 +114,21 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
     const [itemWeight, setItemWeight] = useState(prefillData?.items?.weightKg?.toString() || '');
     const [orderValue, setOrderValue] = useState(prefillData?.items?.value?.toString() || '');
     const [serviceType, setServiceType] = useState<ServiceType>(prefillData?.serviceType || ServiceType.EXPRESS);
-    const [waypoints, setWaypoints] = useState<Array<{ id: string, address: string, coords: { lat: number, lng: number } | null }>>(
+    const [waypoints, setWaypoints] = useState<Array<{
+        id: string,
+        address: string,
+        coords: { lat: number, lng: number } | null,
+        recipientName?: string,
+        recipientPhone?: string,
+        instructions?: string
+    }>>(
         prefillData?.stops?.filter((s: any) => s.type === 'waypoint').map((s: any) => ({
             id: s.id,
             address: s.address,
-            coords: { lat: s.lat, lng: s.lng }
+            coords: { lat: s.lat, lng: s.lng },
+            recipientName: s.recipient?.name || '',
+            recipientPhone: s.recipient?.phone || '',
+            instructions: s.instructions || ''
         })) || []
     );
     const [activeWaypointIndex, setActiveWaypointIndex] = useState<number | null>(null);
@@ -776,7 +786,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                 lng: w.coords?.lng || 0,
                 type: 'waypoint' as const,
                 status: 'pending' as const,
-                sequenceOrder: idx + 1
+                sequenceOrder: idx + 1,
+                recipient: (w.recipientName && w.recipientPhone) ? {
+                    name: w.recipientName,
+                    phone: w.recipientPhone
+                } : undefined,
+                instructions: w.instructions
             }))
         };
 
@@ -857,7 +872,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             return;
         }
         const newId = `stop-${Date.now()}`;
-        setWaypoints([...waypoints, { id: newId, address: '', coords: null }]);
+        setWaypoints([...waypoints, {
+            id: newId,
+            address: '',
+            coords: null,
+            recipientName: '',
+            recipientPhone: '',
+            instructions: ''
+        }]);
     };
 
     const removeWaypoint = (id: string) => {
@@ -886,8 +908,11 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                     lat: w.coords!.lat,
                     lng: w.coords!.lng,
                     address: w.address,
-                    contact: orderData.recipient, // Could be customized per waypoint
-                    instructions: ''
+                    contact: (w.recipientName && w.recipientPhone) ? {
+                        name: w.recipientName,
+                        phone: w.recipientPhone
+                    } : orderData.recipient,
+                    instructions: w.instructions || ''
                 }));
 
             const optimizationResult = await mapService.optimizeStops(
@@ -908,7 +933,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                     type: s.type,
                     status: s.status,
                     verificationCode: s.verificationCode,
-                    sequenceOrder: s.sequenceOrder
+                    sequenceOrder: s.sequenceOrder,
+                    recipient: s.contact, // Map back from generic contact to recipient
+                    instructions: s.instructions
                 }));
 
             // Use the final dropoff's code as the main order verification code for backward compatibility
@@ -970,6 +997,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         { type: VehicleType.LORRY, icon: Truck, label: '3T Lorry', desc: 'Commercial loads', maxDist: 2000, maxWeight: '3000kg' },
         { type: VehicleType.TRAILER, icon: Truck, label: 'Container Trailer', desc: 'Containers & Heavy Freight', maxDist: 5000, maxWeight: '28000kg' },
     ];
+
+    const handleWaypointDetailChange = (index: number, field: 'recipientName' | 'recipientPhone' | 'instructions', value: string) => {
+        const newWaypoints = [...waypoints];
+        newWaypoints[index] = { ...newWaypoints[index], [field]: value };
+        setWaypoints(newWaypoints);
+    };
 
     // Suggestion Handlers
     const handleInputChange = async (type: 'pickup' | 'dropoff' | 'waypoint', value: string, index?: number) => {
@@ -1397,69 +1430,73 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                 {/* --- Waypoints Section --- */}
                                 <div className="relative ml-6 space-y-4 border-l-2 border-dashed border-gray-100 pl-6 py-2">
                                     {waypoints.map((wp, idx) => (
-                                        <div key={wp.id} className="relative animate-in slide-in-from-left-4 duration-300">
-                                            <div className="absolute -left-[31px] top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-brand-400 z-10"></div>
-                                            <div className="relative group/wp">
+                                        <div key={wp.id} className="relative animate-in slide-in-from-left-4 duration-300 pb-2">
+                                            <div className="absolute -left-[31px] top-6 w-4 h-4 rounded-full bg-white border-2 border-brand-400 z-10"></div>
+                                            <div className="relative group/wp bg-gray-50/50 rounded-2xl p-2 border border-gray-100 hover:border-brand-200 transition-all">
                                                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-2">Stop {idx + 1}</label>
-                                                <input
-                                                    type="text"
-                                                    value={wp.address}
-                                                    onChange={(e) => handleInputChange('waypoint', e.target.value, idx)}
-                                                    onFocus={() => {
-                                                        setActiveInput(`waypoint-${idx}`);
-                                                        setActiveWaypointIndex(idx);
-                                                        setShowPickupSuggestions(false); // Clean up
-                                                        setIsMapSelecting(false); // Stop map selection if user starts typing
-                                                    }}
-                                                    className={`w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 pl-4 pr-24 text-sm font-bold text-gray-700 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-brand-500/10 transition-all ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'ring-2 ring-brand-500' : ''}`}
-                                                    placeholder={`Drop-off ${idx + 1}...`}
-                                                />
-                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-1">
-                                                    <button
-                                                        onClick={() => {
+
+                                                {/* LOCATION INPUT */}
+                                                <div className="relative mb-2">
+                                                    <input
+                                                        type="text"
+                                                        value={wp.address}
+                                                        onChange={(e) => handleInputChange('waypoint', e.target.value, idx)}
+                                                        onFocus={() => {
                                                             setActiveInput(`waypoint-${idx}`);
                                                             setActiveWaypointIndex(idx);
-                                                            const nextState = !isMapSelecting;
-                                                            setIsMapSelecting(nextState);
-                                                            if (nextState) {
-                                                                setIsCollapsed(true);
-                                                                if (wp.coords) setMapCenter(wp.coords.lat, wp.coords.lng);
-                                                            }
+                                                            setShowPickupSuggestions(false);
+                                                            setIsMapSelecting(false);
                                                         }}
-                                                        className={`p-1.5 rounded-lg transition-all shadow-sm active:scale-95 ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'bg-brand-600 text-white' : 'bg-white text-gray-400 hover:text-brand-600'}`}
-                                                        title="Set on Map"
-                                                    >
-                                                        <Map className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={async () => {
-                                                            const coords = await requestUserLocation();
-                                                            if (coords) {
-                                                                const address = await mapService.reverseGeocode(coords.lat, coords.lng);
-                                                                if (address) {
-                                                                    const newWaypoints = [...waypoints];
-                                                                    newWaypoints[idx].address = address;
-                                                                    newWaypoints[idx].coords = coords;
-                                                                    setWaypoints(newWaypoints);
+                                                        className={`w-full bg-white border border-gray-100 rounded-xl py-3 pl-3 pr-24 text-sm font-bold text-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-brand-500/10 transition-all ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'ring-2 ring-brand-500' : ''}`}
+                                                        placeholder={`Stop Location...`}
+                                                    />
+                                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                                                        <button
+                                                            onClick={() => {
+                                                                setActiveInput(`waypoint-${idx}`);
+                                                                setActiveWaypointIndex(idx);
+                                                                const nextState = !isMapSelecting;
+                                                                setIsMapSelecting(nextState);
+                                                                if (nextState) {
+                                                                    setIsCollapsed(true);
+                                                                    if (wp.coords) setMapCenter(wp.coords.lat, wp.coords.lng);
                                                                 }
-                                                            }
-                                                        }}
-                                                        className="p-1.5 bg-white hover:bg-gray-50 rounded-lg text-brand-600 transition-all shadow-sm active:scale-95"
-                                                        title="Use Current Location"
-                                                    >
-                                                        <Navigation className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => removeWaypoint(wp.id)}
-                                                        className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </button>
+                                                            }}
+                                                            className={`p-1.5 rounded-lg transition-all shadow-sm active:scale-95 ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'bg-brand-600 text-white' : 'bg-white text-gray-400 hover:text-brand-600'}`}
+                                                            title="Set on Map"
+                                                        >
+                                                            <Map className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => removeWaypoint(wp.id)}
+                                                            className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* DETAILS INPUTS */}
+                                                <div className="grid grid-cols-2 gap-2 px-1">
+                                                    <input
+                                                        type="text"
+                                                        value={wp.recipientName || ''}
+                                                        onChange={(e) => handleWaypointDetailChange(idx, 'recipientName', e.target.value)}
+                                                        className="w-full bg-transparent border-b border-gray-200 py-1 text-xs font-medium text-gray-600 placeholder:text-gray-300 focus:border-brand-500 focus:ring-0 transition-colors"
+                                                        placeholder="Contact Name (Optional)"
+                                                    />
+                                                    <input
+                                                        type="tel"
+                                                        value={wp.recipientPhone || ''}
+                                                        onChange={(e) => handleWaypointDetailChange(idx, 'recipientPhone', e.target.value)}
+                                                        className="w-full bg-transparent border-b border-gray-200 py-1 text-xs font-medium text-gray-600 placeholder:text-gray-300 focus:border-brand-500 focus:ring-0 transition-colors"
+                                                        placeholder="Phone (Optional)"
+                                                    />
                                                 </div>
 
                                                 {/* Waypoint Suggestions Dropdown */}
                                                 {showDropoffSuggestions && activeWaypointIndex === idx && dropoffSuggestions.length > 0 && (
-                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[60] animate-in fade-in slide-in-from-top-2">
+                                                    <div className="absolute top-[50px] left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[60] animate-in fade-in slide-in-from-top-2">
                                                         {dropoffSuggestions.map((suggestion, sIdx) => (
                                                             <div
                                                                 key={sIdx}

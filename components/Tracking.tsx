@@ -615,7 +615,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
 
                         <div className="flex items-center space-x-2 mt-1.5 w-full overflow-hidden">
                           <span className="text-xs font-black text-gray-900 truncate max-w-[150px] sm:max-w-[300px]">
-                            {order.items.description}
+                            {order.items?.description || (order as any).itemDescription || 'Package'}
                           </span>
                           <span className="text-gray-300">•</span>
                           <span className="text-[10px] font-black text-brand-600 whitespace-nowrap">KES {order.price.toLocaleString()}</span>

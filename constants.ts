@@ -13,6 +13,8 @@ export const LOCATION_COORDINATES: Record<string, [number, number]> = {
     'Parklands': [-1.2608, 36.8248]
 };
 
+export const GOOGLE_MAPS_LIBRARIES: ("places" | "geometry")[] = ['places', 'geometry'];
+
 export const VEHICLE_TYPES = {
     BODA: 'Boda Boda',
     TUKTUK: 'Tuk Tuk',

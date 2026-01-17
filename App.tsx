@@ -32,6 +32,7 @@ const ContactUs = lazy(() => import('./components/ContactUs'));
 const VulnerabilityReport = lazy(() => import('./components/VulnerabilityReport'));
 const AutonomousFulfillment = lazy(() => import('./components/AutonomousFulfillment'));
 const UnifiedLogisticsIntelligence = lazy(() => import('./components/UnifiedLogisticsIntelligence'));
+const ApiDocumentation = lazy(() => import('./components/ApiDocumentation'));
 const PaymentCollection = lazy(() => import('./components/PaymentCollection'));
 const FleetManagement = lazy(() => import('./components/FleetManagement'));
 
@@ -286,6 +287,7 @@ const App = () => {
                 <Route path="/report-vulnerability" element={<VulnerabilityReport />} />
                 <Route path="/fulfillment" element={<AutonomousFulfillment />} />
                 <Route path="/intelligence" element={<UnifiedLogisticsIntelligence />} />
+                <Route path="/docs" element={<ApiDocumentation />} />
                 <Route path="/payments" element={<PaymentCollection />} />
                 <Route path="/fleet" element={<FleetManagement />} />
 
