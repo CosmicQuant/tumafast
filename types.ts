@@ -199,6 +199,8 @@ export interface AddressBookEntry {
   address: string;
   contactName: string;
   contactPhone: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface AIAnalysisResult {

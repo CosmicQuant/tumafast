@@ -2,9 +2,20 @@ import React from 'react';
 import { Brain, Zap, BarChart3, ArrowRight, ShieldCheck, Globe, Cpu, Network, Activity, PhoneCall } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const AutonomousFulfillment = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const isBusiness = user?.role === 'business';
+
+    const handleAction = () => {
+        if (isBusiness) {
+            navigate('/business-dashboard', { state: { initialTab: 'BULK' } });
+        } else {
+            navigate('/business');
+        }
+    };
 
     return (
         <div className="bg-[#0f172a] min-h-screen font-sans text-slate-200 overflow-hidden">
@@ -92,13 +103,13 @@ const AutonomousFulfillment = () => {
                             transition={{ delay: 0.3 }}
                             className="flex flex-col sm:flex-row justify-center gap-4"
                         >
-                            <Link
-                                to="/business"
+                            <button
+                                onClick={handleAction}
                                 className="px-10 py-5 bg-brand-600 text-white rounded-2xl font-black text-lg hover:bg-brand-700 transition-all shadow-2xl shadow-brand-900/40 flex items-center justify-center group"
                             >
-                                Start Your Integration
+                                {isBusiness ? 'Go to Fulfillment Console' : 'Start Your Integration'}
                                 <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                            </Link>
+                            </button>
                             <button
                                 onClick={() => navigate('/contact')}
                                 className="px-10 py-5 bg-slate-800 text-white rounded-2xl font-black text-lg hover:bg-slate-700 transition-all border border-slate-700 flex items-center justify-center group"

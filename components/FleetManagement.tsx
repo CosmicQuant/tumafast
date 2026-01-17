@@ -3,9 +3,20 @@ import React from 'react';
 import { Truck, Map, Activity, BarChart3, ShieldCheck, Clock, Zap, Target, ArrowRight, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 const FleetManagement: React.FC = () => {
     const navigate = useNavigate();
+    const { user, isAuthenticated } = useAuth();
+    const isBusiness = user?.role === 'business';
+
+    const handleFleetAction = () => {
+        if (isBusiness) {
+            navigate('/business-dashboard', { state: { initialTab: 'FLEET' } });
+        } else {
+            navigate('/contact');
+        }
+    };
 
     return (
         <div className="bg-[#0f172a] min-h-screen pt-32 pb-24 relative overflow-hidden font-sans text-slate-200">
@@ -99,10 +110,10 @@ const FleetManagement: React.FC = () => {
                         </p>
                         <div className="flex flex-col sm:flex-row gap-6 justify-center">
                             <button
-                                onClick={() => navigate('/contact')}
+                                onClick={handleFleetAction}
                                 className="px-10 py-5 bg-white text-brand-600 rounded-2xl font-black tracking-widest uppercase text-xs shadow-2xl hover:bg-brand-50 transition-all flex items-center justify-center gap-3"
                             >
-                                Request Demo <ArrowRight className="w-4 h-4" />
+                                {isBusiness ? 'Go to Fleet Console' : 'Request Demo'} <ArrowRight className="w-4 h-4" />
                             </button>
                             <button
                                 onClick={() => window.open('https://api.tumafast.xyz/v1/fleet/docs', '_blank')}

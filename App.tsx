@@ -67,7 +67,7 @@ const App = () => {
       '/business': 'Enterprise Fulfillment | Tuma Fast',
       '/fulfillment': 'Autonomous Fulfillment | Tuma Fast',
       '/intelligence': 'Logistics Intelligence | Tuma Fast',
-      '/payments': 'Smart Liquidity | Tuma Fast',
+      '/payments': 'Smart Settlement | Tuma Fast',
       '/fleet': 'Fleet Management | Tuma Fast',
       '/security': 'System Integrity & Security | Tuma Fast',
       '/contact': 'Enterprise Desk | Tuma Fast',
@@ -111,7 +111,8 @@ const App = () => {
     setShowAuthModal(true);
   };
 
-  // Redirect logged-in users away from public pages to their respective dashboards
+  // Redirect logged-in users away from public pages to their respective dashboards - REMOVED BY USER REQUEST
+  /*
   useEffect(() => {
     if (isAuthenticated && user) {
       const publicPaths = ['/', '/business'];
@@ -124,6 +125,7 @@ const App = () => {
       }
     }
   }, [isAuthenticated, user, location.pathname, navigate]);
+  */
 
   if (isLoading) return <SkeletonFallback />;
 
@@ -188,7 +190,10 @@ const App = () => {
                         navigate('/book', { state: { prefill } });
                       }
                     }}
-                    onBusinessClick={() => navigate('/business')}
+                    onBusinessClick={() => {
+                      if (user?.role === 'business') navigate('/business-dashboard');
+                      else navigate('/business');
+                    }}
                   />
                 } />
                 <Route path="/business" element={
@@ -208,8 +213,10 @@ const App = () => {
                       setAuthModalDesc('Access your institutional dashboard.');
                       setShowAuthModal(true);
                     }}
-                    onNavigateToDashboard={() => {
-                      if (isAuthenticated) navigate('/business-dashboard');
+                    onNavigateToDashboard={(tab) => {
+                      if (isAuthenticated) {
+                        navigate('/business-dashboard', { state: { initialTab: tab } });
+                      }
                     }}
                   />
                 } />
@@ -247,7 +254,7 @@ const App = () => {
 
                 <Route path="/driver" element={
                   <ProtectedRoute allowedRoles={['driver']}>
-                    <DriverDashboard user={user!} onGoHome={() => { }} />
+                    <DriverDashboard user={user!} onGoHome={() => navigate('/')} />
                   </ProtectedRoute>
                 } />
 
@@ -255,6 +262,7 @@ const App = () => {
                   <ProtectedRoute allowedRoles={['business']}>
                     <BusinessDashboard
                       user={user!}
+                      initialTab={location.state?.initialTab}
                       onNewRequest={(prefill) => navigate('/book', { state: { prefill } })}
                       onGoHome={() => navigate('/')}
                       onTrackOrder={(orderId) => navigate(`/track/${orderId}`)}
@@ -347,11 +355,11 @@ const App = () => {
                     </ul>
                   </div>
                   <div>
-                    <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Solutions</h4>
+                    <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6">Enterprise Solutions</h4>
                     <ul className="space-y-4 text-sm font-medium text-gray-400">
                       <li><button onClick={() => navigate('/fulfillment')} className="hover:text-white transition-colors text-left uppercase tracking-tighter">Autonomous Fulfillment</button></li>
                       <li><button onClick={() => navigate('/intelligence')} className="hover:text-white transition-colors text-left uppercase tracking-tighter">Logistics Intelligence</button></li>
-                      <li><button onClick={() => navigate('/payments')} className="hover:text-white transition-colors text-left uppercase tracking-tighter">Smart Liquidity</button></li>
+                      <li><button onClick={() => navigate('/payments')} className="hover:text-white transition-colors text-left uppercase tracking-tighter">Smart Settlement</button></li>
                       <li><button onClick={() => navigate('/fleet')} className="hover:text-white transition-colors text-left uppercase tracking-tighter">Fleet Management</button></li>
                     </ul>
                   </div>
