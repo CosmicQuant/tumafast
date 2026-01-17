@@ -140,9 +140,15 @@ const App = () => {
   const isMapPage = location.pathname === '/book' ||
     location.pathname.startsWith('/track');
 
+  // Hide BottomNav on Map pages (Book/Track) and Driver Dashboard (Active Job view)
+  // to prevent overlapping with bottom drawers/sheets
+  const shouldShowBottomNav = !location.pathname.startsWith('/book') &&
+    !location.pathname.startsWith('/track') &&
+    !location.pathname.startsWith('/driver');
+
   return (
     <ChatProvider>
-      <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900 overflow-x-hidden">
+      <div className={`min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900 overflow-x-hidden ${shouldShowBottomNav ? 'pb-20 md:pb-0' : ''}`}>
         <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#333', color: '#fff' } }} />
 
         <MapProvider>
@@ -297,7 +303,15 @@ const App = () => {
             </Suspense>
           </main>
 
-          <BottomNav />
+          {shouldShowBottomNav && (
+            <BottomNav onOpenAuth={() => {
+              setAuthModalRole('customer'); // Default to customer login
+              setAuthModalView('LOGIN');
+              setAuthModalTitle('Login Required');
+              setAuthModalDesc('Please login to access your profile and orders.');
+              setShowAuthModal(true);
+            }} />
+          )}
 
           {/* Support Chatbot (Kifaru) */}
           {!isDashboard && !isMapPage && (

@@ -7,12 +7,16 @@ import {
   sendPasswordResetEmail,
   updatePassword as firebaseUpdatePassword,
   reauthenticateWithCredential,
-  EmailAuthProvider
+  EmailAuthProvider,
+  GoogleAuthProvider,
+  signInWithCredential
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
 import type { User, SignupProfileDetails } from '../types';
 import { VehicleType } from '../types';
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 export const authService = {
   // Login with Email/Password
@@ -87,11 +91,23 @@ export const authService = {
 
   // Login/Signup with Google
   loginWithGoogle: async (role: 'customer' | 'driver' | 'business' = 'customer'): Promise<User> => {
-    console.log("Service: Starting Google Popup...");
+    console.log("Service: Starting Google Auth...");
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const firebaseUser = result.user;
-      console.log("Service: Google Popup Success. User:", firebaseUser.uid);
+      let firebaseUser;
+
+      if (Capacitor.isNativePlatform()) {
+        console.log("Service: Using Native Google Auth");
+        const googleUser = await GoogleAuth.signIn();
+        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+        const result = await signInWithCredential(auth, credential);
+        firebaseUser = result.user;
+      } else {
+        console.log("Service: Using Web Google Popup");
+        const result = await signInWithPopup(auth, googleProvider);
+        firebaseUser = result.user;
+      }
+
+      console.log("Service: Google Auth Success. User:", firebaseUser.uid);
 
       const userDocRef = doc(db, 'users', firebaseUser.uid);
       const userDoc = await getDoc(userDocRef);
