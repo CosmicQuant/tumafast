@@ -2,9 +2,19 @@ import React from 'react';
 import { CreditCard, Wallet, ArrowRight, CheckCircle2, ShieldCheck, Zap, HandCoins, PhoneCall, DollarSign, RefreshCw, Layers, Smartphone, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const PaymentCollection = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const handleAction = () => {
+        if (user?.role === 'business') {
+            navigate('/business-dashboard', { state: { initialTab: 'OVERVIEW' } });
+        } else {
+            navigate('/business');
+        }
+    };
 
     return (
         <div className="bg-[#0f172a] min-h-screen font-sans text-slate-200 overflow-hidden">
@@ -22,7 +32,7 @@ const PaymentCollection = () => {
                             className="inline-flex items-center px-4 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm font-bold mb-8 backdrop-blur-md"
                         >
                             <DollarSign className="w-4 h-4 mr-2" />
-                            Financial Layer: Instant Liquidity
+                            Smart Settlement: Instant Liquidity
                         </motion.div>
 
                         <motion.h1
@@ -30,8 +40,8 @@ const PaymentCollection = () => {
                             animate={{ opacity: 1, y: 0 }}
                             className="text-5xl md:text-7xl font-black text-white mb-8 tracking-tight leading-[1.1]"
                         >
-                            Smart Settlement <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-blue-400">& Liquidity.</span>
+                            Financial <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 to-blue-400">Settlement Layer.</span>
                         </motion.h1>
 
                         <motion.p
@@ -90,13 +100,13 @@ const PaymentCollection = () => {
                             transition={{ delay: 0.3 }}
                             className="flex flex-col sm:flex-row justify-center gap-4"
                         >
-                            <Link
-                                to="/business"
+                            <button
+                                onClick={handleAction}
                                 className="px-10 py-5 bg-brand-600 text-white rounded-2xl font-black text-lg hover:bg-brand-700 transition-all shadow-2xl shadow-brand-900/40 flex items-center justify-center group"
                             >
                                 Start Your Integration
                                 <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                            </Link>
+                            </button>
                             <button
                                 onClick={() => navigate('/contact')}
                                 className="px-10 py-5 bg-slate-800 text-white rounded-2xl font-black text-lg hover:bg-slate-700 transition-all border border-slate-700 flex items-center justify-center group"

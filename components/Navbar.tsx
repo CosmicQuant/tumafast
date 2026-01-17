@@ -72,8 +72,11 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenProfile, onLogin, isDarkBackgroun
   };
 
   const handleBusinessClick = () => {
-    // Business Landing Page is public, but if they want to click "Get Started" there, it handles auth.
-    navigate('/business');
+    if (user?.role === 'business') {
+      navigate('/business-dashboard');
+    } else {
+      navigate('/business');
+    }
   };
 
   const handleLogout = async () => {

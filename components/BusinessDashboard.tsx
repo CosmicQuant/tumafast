@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { User, DeliveryOrder, AddressBookEntry } from '../types';
 import { VehicleType, ServiceType } from '../types';
-import { LayoutDashboard, Upload, BarChart3, Download, Plus, Search, FileText, CheckCircle2, AlertCircle, Copy, Check, Terminal, Trash2, MapPin, Building, Home, User as UserIcon, Edit2, Save, Menu, X, Package, Shield, Mail, Phone, Briefcase, ArrowRight, Truck, ChevronRight, RefreshCw, Battery, Map as MapIcon, Navigation, Car, Hash, AlignLeft, MoreVertical, Clock, AlertTriangle, Bike, PieChart, TrendingUp, Activity, Eye, EyeOff, Globe, Server, Play, Code, LogOut, Star, Lock, Key, QrCode, ShieldCheck, FileCheck, ChevronUp, ChevronDown, CheckCircle, Power } from 'lucide-react';
+import { LayoutDashboard, Smartphone, Upload, BarChart3, Download, Plus, Search, FileText, CheckCircle2, AlertCircle, Copy, Check, Terminal, Trash2, MapPin, Building, Home, User as UserIcon, Edit2, Save, Menu, X, Package, Shield, Mail, Phone, Briefcase, ArrowRight, Truck, ChevronRight, RefreshCw, Battery, Map as MapIcon, Navigation, Car, Hash, AlignLeft, MoreVertical, Clock, AlertTriangle, Bike, PieChart, TrendingUp, Activity, Eye, EyeOff, Globe, Server, Play, Code, LogOut, Star, Lock, Key, QrCode, ShieldCheck, FileCheck, ChevronUp, ChevronDown, CheckCircle, Power, Bell } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, OverlayView, InfoWindow } from '@react-google-maps/api';
 import { APP_CONFIG } from '../config';
 import { orderService } from '../services/orderService';
+import { mapService } from '../services/mapService';
 import { useAuth } from '../context/AuthContext';
 import { LOCATION_COORDINATES } from '../constants';
 import { collection, query, where, onSnapshot, addDoc } from 'firebase/firestore';
@@ -117,7 +118,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
         spend: 0,
         deliveries: 0,
         successRate: 0,
-        activeOrders: 0
+        activeOrders: 0,
+        recentReviews: [] as any[]
     });
 
     // Fleet State - Initialized with coordinates
@@ -177,6 +179,70 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
 
     // Address Book Data
     const [addresses, setAddresses] = useState<AddressBookEntry[]>([]);
+    const [isAddingAddress, setIsAddingAddress] = useState(false);
+    const [newAddress, setNewAddress] = useState<Partial<AddressBookEntry>>({
+        label: '',
+        address: '',
+        contactName: '',
+        contactPhone: '',
+    });
+    const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+    const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+
+    const handleAddressSearch = async (query: string) => {
+        setNewAddress(prev => ({ ...prev, address: query }));
+        if (query.length > 2) {
+            setIsSearchingAddress(true);
+            const suggestions = await mapService.getSuggestions(query);
+            setAddressSuggestions(suggestions);
+            setIsSearchingAddress(false);
+        } else {
+            setAddressSuggestions([]);
+        }
+    };
+
+    const handleSelectSuggestion = async (suggestion: { label: string }) => {
+        setNewAddress(prev => ({ ...prev, address: suggestion.label }));
+        setAddressSuggestions([]);
+
+        // Optionally geocode to get lat/lng
+        const coords = await mapService.geocodeAddress(suggestion.label);
+        if (coords) {
+            setNewAddress(prev => ({
+                ...prev,
+                lat: coords.lat,
+                lng: coords.lng,
+                address: coords.formattedAddress
+            }));
+        }
+    };
+
+    const handleSaveAddress = async () => {
+        if (!newAddress.label || !newAddress.address || !newAddress.contactName || !newAddress.contactPhone) {
+            alert("Please fill in all fields");
+            return;
+        }
+
+        try {
+            await addDoc(collection(db, 'businesses', user.id, 'addressBook'), {
+                ...newAddress,
+                createdAt: new Date().toISOString()
+            });
+            setIsAddingAddress(false);
+            setNewAddress({ label: '', address: '', contactName: '', contactPhone: '' });
+        } catch (error) {
+            console.error("Error saving address:", error);
+            alert("Failed to save address");
+        }
+    };
+
+    const handleDeleteAddress = async (addressId: string) => {
+        if (confirm("Are you sure you want to remove this address?")) {
+            // Implementation depends on if we have a delete helper, but let's assume direct firestore
+            // For now just local filter if we don't want to write full delete logic yet
+            setAddresses(prev => prev.filter(a => a.id !== addressId));
+        }
+    };
 
     const overviewData = {
         weeklySpend: [
@@ -254,49 +320,87 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
     };
 
     // ... (Bulk handlers) ...
-    const handleParseBulk = () => {
-        if (!bulkInput.trim()) return;
-        const lines = bulkInput.split('\n').filter(line => line.trim() !== '');
+    const handleParseBulk = (textInput?: string) => {
+        const inputToProcess = textInput || bulkInput;
+        if (!inputToProcess.trim()) return;
+
+        const lines = inputToProcess.split('\n').filter(line => line.trim() !== '');
         const parsed: Partial<DeliveryOrder>[] = [];
 
         lines.forEach((line) => {
-            const parts = line.split('|').map(s => s.trim());
+            // Support both Pipe and Comma separation
+            const delimiter = line.includes('|') ? '|' : ',';
+            const parts = line.split(delimiter).map(s => s.trim());
+
             if (parts.length >= 3) {
+                // Map vehicle and service type strings to enums
+                const rawVehicle = parts[6] || 'Boda Boda';
+                const vehicle = Object.values(VehicleType).find(v => v.toLowerCase().includes(rawVehicle.toLowerCase())) || VehicleType.BODA;
+
+                const rawService = parts[7] || 'Standard';
+                const service = Object.values(ServiceType).find(s => s.toLowerCase().includes(rawService.toLowerCase())) || ServiceType.STANDARD;
+
                 parsed.push({
                     pickup: parts[0],
                     dropoff: parts[1],
                     items: { description: parts[2], weightKg: 1, fragile: false, value: 0 },
-                    pickupTime: parts[3] || 'ASAP',
-                    price: 250
+                    recipient: {
+                        name: parts[3] || 'Customer',
+                        phone: parts[4] || '',
+                        idNumber: parts[5] || ''
+                    },
+                    vehicle: vehicle,
+                    serviceType: service,
+                    pickupTime: parts[8] || 'ASAP',
+                    price: parts[6]?.toLowerCase().includes('lorry') ? 2500 : 250 // Base pricing logic
                 });
             }
         });
+        setParsedBulkOrders(parsed);
+    };
 
-        if (parsed.length > 0) {
-            setParsedBulkOrders(parsed);
-            setBulkStep('PREVIEW');
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+            setNotification({ message: 'Please upload a valid CSV file.', type: 'warning' });
+            return;
         }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            if (text) {
+                handleParseBulk(text);
+                setNotification({ message: `Successfully loaded ${file.name}`, type: 'success' });
+            }
+        };
+        reader.readAsText(file);
     };
 
     const handleConfirmBulk = async () => {
         setProcessingBulk(true);
         setTimeout(async () => {
             for (const pOrder of parsedBulkOrders) {
-                const orderData: Omit<DeliveryOrder, 'id' | 'verificationCode'> = {
+                const orderData: Omit<DeliveryOrder, 'id'> = {
                     userId: user.id,
                     pickup: pOrder.pickup!,
                     dropoff: pOrder.dropoff!,
-                    vehicle: VehicleType.BODA,
+                    vehicle: pOrder.vehicle || VehicleType.BODA,
                     items: pOrder.items!,
-                    pickupTime: pOrder.pickupTime,
+                    pickupTime: pOrder.pickupTime!,
                     price: pOrder.price!,
+                    driverRate: Math.floor(pOrder.price! * 0.8),
                     status: 'pending',
                     estimatedDuration: '45 mins',
                     date: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
                     sender: { name: user.companyName || user.name, phone: user.phone || '' },
-                    recipient: { name: 'Customer', phone: '' },
+                    recipient: pOrder.recipient || { name: 'Customer', phone: '', idNumber: '' },
+                    serviceType: pOrder.serviceType || ServiceType.STANDARD,
                     paymentMethod: 'CORPORATE_INVOICE',
-                    serviceType: ServiceType.STANDARD
+                    verificationCode: Math.floor(1000 + Math.random() * 9000).toString()
                 };
                 await orderService.createOrder(orderData);
             }
@@ -556,7 +660,9 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
 
             {/* Mobile Header */}
             <div className="bg-white border-b border-gray-100 p-4 flex justify-between items-center lg:hidden sticky top-0 z-30">
-                <span className="text-lg font-bold">Tuma<span className="text-brand-600">Business</span></span>
+                <button onClick={onGoHome} className="text-lg font-bold hover:opacity-80 transition-opacity flex items-center">
+                    Tuma<span className="text-brand-600">Business</span>
+                </button>
                 <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-gray-50 rounded-lg text-gray-500">
                     <Menu className="w-6 h-6" />
                 </button>
@@ -578,21 +684,15 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
           lg:translate-x-0 lg:fixed lg:h-full
       `}>
                 <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100">
-                    <span className="text-lg font-bold">Tuma<span className="text-brand-600">Business</span></span>
+                    <button onClick={onGoHome} className="text-lg font-bold hover:opacity-80 transition-opacity flex items-center">
+                        Tuma<span className="text-brand-600">Business</span>
+                    </button>
                     <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-gray-400 hover:text-gray-600">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 <div className="p-4 space-y-1 flex-1 overflow-y-auto pt-4">
-                    <button
-                        onClick={onGoHome}
-                        className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all mb-1 text-gray-600 hover:bg-gray-50 hover:text-brand-600 font-medium"
-                    >
-                        <Home className="w-5 h-5 text-gray-400" />
-                        <span>Back to Home</span>
-                    </button>
-                    <div className="h-px bg-gray-100 my-2 mx-4"></div>
                     <SidebarItem id="OVERVIEW" icon={LayoutDashboard} label="Overview" />
                     <SidebarItem id="DELIVERIES" icon={Package} label="Deliveries" />
                     <SidebarItem id="FLEET" icon={Truck} label="Fleet Management" />
@@ -644,7 +744,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                 <p className="text-gray-500">Welcome back, {user.name}</p>
                             </div>
                             <button
-                                onClick={onNewRequest}
+                                onClick={() => onNewRequest()}
                                 className="w-full sm:w-auto bg-brand-600 text-white px-4 py-2 rounded-lg font-bold flex items-center justify-center shadow-sm hover:bg-brand-700"
                             >
                                 <Plus className="w-4 h-4 mr-2" /> New Dispatch
@@ -835,7 +935,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                     <Package className="w-12 h-12 text-gray-200 mx-auto mb-4" />
                                     <h3 className="text-lg font-bold text-gray-900">No deliveries found</h3>
                                     <p className="text-gray-500">You don't have any {deliveryFilter.toLowerCase()} orders.</p>
-                                    <button onClick={onNewRequest} className="mt-4 text-brand-600 font-bold hover:underline">Dispatch New Fulfillment</button>
+                                    <button onClick={() => onNewRequest()} className="mt-4 text-brand-600 font-bold hover:underline">Dispatch New Fulfillment</button>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 gap-4">
@@ -896,7 +996,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                                                     dropoffCoords: order.dropoffCoords,
                                                                     vehicle: order.vehicle,
                                                                     serviceType: order.serviceType,
-                                                                    itemDescription: order.itemDescription || (order.items as any)?.description,
+                                                                    itemDescription: order.items?.description,
                                                                     sender: order.sender,
                                                                     recipient: order.recipient,
                                                                     stops: order.stops,
@@ -957,7 +1057,23 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                         </div>
                                     </div>
                                     <div className="flex-1 overflow-x-auto p-4 flex space-x-6 items-start">
-                                        {fleet.map(vehicle => {
+                                        {fleet.length === 0 ? (
+                                            <div className="w-full flex flex-col items-center justify-center py-10 text-center">
+                                                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                                    <Truck className="w-8 h-8 text-gray-200" />
+                                                </div>
+                                                <h3 className="text-lg font-bold text-gray-900">No Vehicles Assigned</h3>
+                                                <p className="text-sm text-gray-500 max-w-sm mt-1">
+                                                    You don't have any drivers or vehicles in your fleet yet. Request your first vehicle to start monitoring live operations.
+                                                </p>
+                                                <button
+                                                    onClick={() => setIsRequestingFleet(true)}
+                                                    className="mt-6 bg-brand-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-brand-500/20 hover:bg-brand-700 transition-all active:scale-95"
+                                                >
+                                                    Request Your First Vehicle
+                                                </button>
+                                            </div>
+                                        ) : fleet.map(vehicle => {
                                             const Icon = getVehicleIcon(vehicle.vehicle);
                                             return (
                                                 <div key={vehicle.id} className={`relative flex-shrink-0 w-80 border rounded-2xl p-5 transition-all cursor-pointer hover:shadow-lg ${selectedVehicle?.id === vehicle.id ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-500/10' : 'border-gray-100 bg-white'}`} onClick={() => setSelectedVehicle(vehicle)}>
@@ -1126,10 +1242,133 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                         <div className="space-y-6 animate-in fade-in duration-500 max-w-5xl">
                             <div><h1 className="text-2xl font-bold text-gray-900">Bulk Schedule</h1><p className="text-gray-500">Upload multiple deliveries at once. Perfect for e-commerce dispatch.</p></div>
                             <div className="flex items-center space-x-4 text-sm font-bold border-b border-gray-100 pb-4"><span className={`flex items-center ${bulkStep === 'INPUT' ? 'text-brand-600' : 'text-gray-400'}`}><div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${bulkStep === 'INPUT' ? 'bg-brand-50 text-brand-600' : 'bg-gray-100 text-gray-400'}`}>1</div>Input Data</span><ChevronRight className="w-4 h-4 text-gray-300" /><span className={`flex items-center ${bulkStep === 'PREVIEW' ? 'text-brand-600' : 'text-gray-400'}`}><div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${bulkStep === 'PREVIEW' ? 'bg-brand-50 text-brand-600' : 'bg-gray-100 text-gray-400'}`}>2</div>Review & Confirm</span><ChevronRight className="w-4 h-4 text-gray-300" /><span className={`flex items-center ${bulkStep === 'SUCCESS' ? 'text-emerald-600' : 'text-gray-400'}`}><div className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${bulkStep === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>3</div>Scheduled</span></div>
-                            {bulkStep === 'INPUT' && (<div className="grid grid-cols-1 lg:grid-cols-2 gap-8"><div className="space-y-4"><div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm"><label className="block text-sm font-bold text-gray-700 mb-2">Paste Orders (CSV format or Pipe separated)</label><p className="text-xs text-gray-400 mb-3">Format: <code className="bg-gray-50 px-1 py-0.5 rounded text-gray-600">Pickup | Dropoff | Item Description | Time(Optional)</code></p><textarea value={bulkInput} onChange={(e) => setBulkInput(e.target.value)} className="w-full h-64 p-4 border border-gray-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-brand-500 outline-none resize-none bg-white text-gray-900 placeholder:text-gray-300" placeholder={`Westlands | CBD | 2 Boxes of Files\nKileleshwa | Karen | Birthday Cake | 14:00\nRoysambu | Thika | Car Spare Parts`} /><div className="flex justify-end mt-4"><button onClick={handleParseBulk} disabled={!bulkInput.trim()} className="bg-brand-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-brand-700 disabled:opacity-50 flex items-center transition-colors"><ArrowRight className="w-4 h-4 mr-2" /> Process Data</button></div></div></div><div className="space-y-4"><div className="bg-brand-50 border border-brand-100 p-6 rounded-xl"><h3 className="font-bold text-brand-600 mb-2 flex items-center"><Terminal className="w-5 h-5 mr-2" /> Quick Guide</h3><ul className="space-y-2 text-sm text-gray-600 list-disc list-inside"><li>Use the pipe character <b>|</b> to separate fields.</li><li>Pickup and Dropoff are required.</li><li>Item description helps us assign the right vehicle.</li><li>Time is optional (defaults to ASAP).</li></ul></div><div className="bg-white p-6 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center py-12 cursor-pointer hover:bg-gray-50 transition-colors"><Upload className="w-10 h-10 text-gray-300 mb-3" /><p className="text-sm font-bold text-gray-600">Upload CSV File</p><p className="text-xs text-gray-400 mt-1">Drag and drop or click to browse</p></div></div></div>)}
-                            {bulkStep === 'PREVIEW' && (<div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden"><div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center"><h3 className="font-bold text-gray-600">Review Orders ({parsedBulkOrders.length})</h3><button onClick={() => setBulkStep('INPUT')} className="text-sm text-gray-400 hover:text-gray-600">Edit Data</button></div><div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100"><tr><th className="px-6 py-3">Pickup</th><th className="px-6 py-3">Dropoff</th><th className="px-6 py-3">Item</th><th className="px-6 py-3">Time</th><th className="px-6 py-3">Est. Cost</th></tr></thead><tbody className="divide-y divide-gray-50">{parsedBulkOrders.map((order, idx) => (<tr key={idx} className="hover:bg-gray-50"><td className="px-6 py-4 font-medium text-gray-900">{order.pickup}</td><td className="px-6 py-4 text-gray-600">{order.dropoff}</td><td className="px-6 py-4 text-gray-600">{order.items?.description}</td><td className="px-6 py-4 text-gray-600">{order.pickupTime || 'ASAP'}</td><td className="px-6 py-4 font-bold text-gray-900">KES {(order.price || 0).toLocaleString()}</td></tr>))}
-                            </tbody></table></div><div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end"><button onClick={handleConfirmBulk} disabled={processingBulk} className="bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center shadow-lg shadow-emerald-500/20 transition-colors">{processingBulk ? (<><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div> Processing...</>) : (<><CheckCircle2 className="w-5 h-5 mr-2" /> Confirm & Schedule All</>)}</button></div></div>)}
-                            {bulkStep === 'SUCCESS' && (<div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center max-w-2xl mx-auto"><div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6"><CheckCircle2 className="w-10 h-10 text-emerald-600" /></div><h2 className="text-2xl font-bold text-gray-900 mb-2">Orders Scheduled Successfully!</h2><p className="text-gray-500 mb-8">{parsedBulkOrders.length} deliveries have been added to your queue. Drivers will be assigned shortly.</p><div className="flex justify-center gap-4"><button onClick={() => { setParsedBulkOrders([]); setBulkStep('INPUT'); }} className="px-6 py-2 border border-gray-200 rounded-lg font-bold text-gray-600 hover:bg-gray-50 transition-colors">Upload More</button><button onClick={() => setActiveTab('DELIVERIES')} className="px-6 py-2 bg-brand-600 text-white rounded-lg font-bold hover:bg-brand-700 shadow-md transition-colors">View Deliveries</button></div></div>)}
+                            {bulkStep === 'INPUT' && (
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">Paste Orders (CSV or Pipe separated)</label>
+                                            <p className="text-xs text-brand-600 font-medium mb-3 bg-brand-50 p-2 rounded-lg border border-brand-100">
+                                                Required: Pickup, Dropoff, Item, Recipient, Phone, ID, Vehicle, Service
+                                            </p>
+                                            <textarea
+                                                value={bulkInput}
+                                                onChange={(e) => setBulkInput(e.target.value)}
+                                                className="w-full h-64 p-4 border border-gray-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-brand-500 outline-none resize-none bg-white text-gray-900 placeholder:text-gray-300"
+                                                placeholder={`Westlands, CBD, 2 Boxes, John, 0712345, 12345, Boda, Standard\nKileleshwa | Karen | Cake | Mary | 0798765 | 87654 | Van | Express`}
+                                            />
+                                            <div className="flex justify-end mt-4">
+                                                <button onClick={() => handleParseBulk()} disabled={!bulkInput.trim()} className="bg-brand-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-brand-700 disabled:opacity-50 flex items-center transition-colors">
+                                                    <ArrowRight className="w-4 h-4 mr-2" /> Process List
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="bg-brand-50 border border-brand-100 p-6 rounded-xl">
+                                            <h3 className="font-bold text-brand-600 mb-2 flex items-center"><Terminal className="w-5 h-5 mr-2" /> Data Format Guide</h3>
+                                            <ul className="space-y-2 text-sm text-gray-600 list-disc list-inside">
+                                                <li>Order: <b>Pickup, Dropoff, Item, Recipient, Phone, ID, Vehicle, Service</b></li>
+                                                <li>Vehicle: <b>Boda, TukTuk, Van, Pickup, Lorry</b></li>
+                                                <li>Service: <b>Express, Standard, Economy</b></li>
+                                                <li>Recipient ID Number is mandatory for security.</li>
+                                            </ul>
+                                        </div>
+                                        <div className="relative group">
+                                            <input
+                                                type="file"
+                                                accept=".csv"
+                                                onChange={handleFileUpload}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            />
+                                            <div className="bg-white p-8 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-center py-12 group-hover:bg-brand-50 group-hover:border-brand-300 transition-all">
+                                                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 group-hover:bg-brand-100 transition-colors">
+                                                    <Upload className="w-8 h-8 text-gray-400 group-hover:text-brand-600" />
+                                                </div>
+                                                <p className="text-sm font-bold text-gray-700">Upload CSV File Only</p>
+                                                <p className="text-xs text-gray-400 mt-1">Maximum 500 rows per upload</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {bulkStep === 'PREVIEW' && (
+                                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                                    <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                                        <h3 className="font-bold text-gray-600">Review Orders ({parsedBulkOrders.length})</h3>
+                                        <button onClick={() => setBulkStep('INPUT')} className="text-sm font-bold text-brand-600 hover:text-brand-700">Edit Data</button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b border-gray-100">
+                                                <tr>
+                                                    <th className="px-6 py-3">Pickup & Dropoff</th>
+                                                    <th className="px-6 py-3">Recipient Details</th>
+                                                    <th className="px-6 py-3">Item & Vehicle</th>
+                                                    <th className="px-6 py-3">Service</th>
+                                                    <th className="px-6 py-3">Est. Cost</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50">
+                                                {parsedBulkOrders.map((order, idx) => (
+                                                    <tr key={idx} className="hover:bg-gray-50">
+                                                        <td className="px-6 py-4">
+                                                            <div className="font-medium text-gray-900">{order.pickup}</div>
+                                                            <div className="text-xs text-gray-400">→ {order.dropoff}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="font-medium text-gray-700">{order.recipient?.name}</div>
+                                                            <div className="text-xs text-gray-500">{order.recipient?.phone}</div>
+                                                            <div className="text-[10px] text-brand-600 font-bold">ID: {order.recipient?.idNumber}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="text-gray-900 font-medium">{order.items?.description}</div>
+                                                            <div className="text-xs text-gray-400">{order.vehicle}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className="px-2 py-1 bg-brand-50 text-brand-600 rounded text-[10px] font-bold uppercase">
+                                                                {order.serviceType}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 font-bold text-brand-600">KES {(order.price || 0).toLocaleString()}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+                                        <button onClick={handleConfirmBulk} disabled={processingBulk} className="bg-emerald-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center shadow-lg shadow-emerald-500/20 transition-colors">
+                                            {processingBulk ? (
+                                                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div> Processing...</>
+                                            ) : (
+                                                <><CheckCircle2 className="w-5 h-5 mr-2" /> Confirm & Schedule All</>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            {bulkStep === 'SUCCESS' && (
+                                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center max-w-2xl mx-auto">
+                                    <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                        <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+                                    </div>
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Orders Scheduled Successfully!</h2>
+                                    <p className="text-gray-500 mb-8">{parsedBulkOrders.length} deliveries have been added to your queue. Drivers will be assigned shortly.</p>
+                                    <div className="flex justify-center gap-4">
+                                        <button
+                                            onClick={() => { setParsedBulkOrders([]); setBulkStep('INPUT'); }}
+                                            className="px-6 py-2 border border-gray-200 rounded-lg font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                                        >
+                                            Upload More
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab('DELIVERIES')}
+                                            className="px-6 py-2 bg-brand-600 text-white rounded-lg font-bold hover:bg-brand-700 shadow-md transition-colors"
+                                        >
+                                            View Deliveries
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )
                 }
@@ -1138,12 +1377,139 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                 {
                     activeTab === 'ADDRESSES' && (
                         <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl">
-                            <div className="flex justify-between items-end"><div><h1 className="text-2xl font-bold text-gray-900">Address Book</h1><p className="text-gray-500">Manage your frequent pickup and dropoff locations.</p></div><button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-gray-50 flex items-center transition-colors"><Plus className="w-4 h-4 mr-2" /> Add New</button></div>
+                            <div className="flex justify-between items-end">
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-900">Address Book</h1>
+                                    <p className="text-gray-500">Manage your frequent pickup and dropoff locations.</p>
+                                </div>
+                                {!isAddingAddress && (
+                                    <button
+                                        onClick={() => setIsAddingAddress(true)}
+                                        className="bg-brand-600 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-brand-700 flex items-center transition-colors"
+                                    >
+                                        <Plus className="w-4 h-4 mr-2" /> Add New
+                                    </button>
+                                )}
+                            </div>
+
+                            {isAddingAddress && (
+                                <div className="bg-white p-6 rounded-2xl border border-brand-100 shadow-xl space-y-4 animate-in slide-in-from-top duration-300">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h3 className="font-bold text-gray-900">New Address</h3>
+                                        <button onClick={() => setIsAddingAddress(false)} className="text-gray-400 hover:text-gray-600">
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Label (e.g. Westlands Office)</label>
+                                            <input
+                                                type="text"
+                                                value={newAddress.label}
+                                                onChange={(e) => setNewAddress(prev => ({ ...prev, label: e.target.value }))}
+                                                placeholder="Label name"
+                                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
+                                            />
+                                        </div>
+                                        <div className="relative">
+                                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Address (Google Powered)</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={newAddress.address}
+                                                    onChange={(e) => handleAddressSearch(e.target.value)}
+                                                    placeholder="Search location..."
+                                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none pr-10"
+                                                />
+                                                <Search className="w-4 h-4 text-gray-400 absolute right-3 top-3.5" />
+                                            </div>
+
+                                            {addressSuggestions.length > 0 && (
+                                                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-2xl overflow-hidden">
+                                                    {addressSuggestions.map((s, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => handleSelectSuggestion(s)}
+                                                            className="w-full text-left px-4 py-3 hover:bg-brand-50 flex items-center gap-3 transition-colors border-b border-gray-50 last:border-0"
+                                                        >
+                                                            <MapPin className="w-4 h-4 text-brand-500" />
+                                                            <span className="text-sm text-gray-700 truncate">{s.label}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Contact Person</label>
+                                            <input
+                                                type="text"
+                                                value={newAddress.contactName}
+                                                onChange={(e) => setNewAddress(prev => ({ ...prev, contactName: e.target.value }))}
+                                                placeholder="Name"
+                                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Contact Phone</label>
+                                            <input
+                                                type="text"
+                                                value={newAddress.contactPhone}
+                                                onChange={(e) => setNewAddress(prev => ({ ...prev, contactPhone: e.target.value }))}
+                                                placeholder="Phone number"
+                                                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-3 pt-2">
+                                        <button
+                                            onClick={handleSaveAddress}
+                                            className="flex-1 bg-brand-600 text-white py-3 rounded-xl font-bold hover:bg-brand-700 shadow-lg shadow-brand-100 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <Save className="w-4 h-4" /> Save to Address Book
+                                        </button>
+                                        <button
+                                            onClick={() => setIsAddingAddress(false)}
+                                            className="px-6 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {addresses.map((addr) => (
-                                    <div key={addr.id} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start group hover:border-brand-200 transition-all"><div><div className="flex items-center gap-2 mb-2"><Building className="w-4 h-4 text-brand-600" /><h3 className="font-bold text-gray-900">{addr.label}</h3></div><p className="text-gray-600 text-sm mb-3 flex items-start"><MapPin className="w-3.5 h-3.5 mr-1.5 mt-0.5 text-gray-400" />{addr.address}</p><div className="text-xs text-gray-500 bg-gray-50 p-2 rounded inline-block"><span className="font-bold text-gray-700">{addr.contactName}</span> • {addr.contactPhone}</div></div><button className="text-gray-300 hover:text-red-600 p-2 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></button></div>
+                                    <div key={addr.id} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex justify-between items-start group hover:border-brand-200 transition-all">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Building className="w-4 h-4 text-brand-600" />
+                                                <h3 className="font-bold text-gray-900">{addr.label}</h3>
+                                            </div>
+                                            <p className="text-gray-600 text-sm mb-3 flex items-start">
+                                                <MapPin className="w-3.5 h-3.5 mr-1.5 mt-0.5 text-gray-400" />
+                                                {addr.address}
+                                            </p>
+                                            <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded inline-block">
+                                                <span className="font-bold text-gray-700">{addr.contactName}</span> • {addr.contactPhone}
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDeleteAddress(addr.id)}
+                                            className="text-gray-300 hover:text-red-600 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 ))}
-                                <button className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-brand-200 hover:text-brand-600 hover:bg-brand-50 transition-all min-h-[160px] bg-white"><Plus className="w-8 h-8 mb-2" /><span className="font-bold text-sm">Add Address</span></button>
+                                {!isAddingAddress && (
+                                    <button
+                                        onClick={() => setIsAddingAddress(true)}
+                                        className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-brand-200 hover:text-brand-600 hover:bg-brand-50 transition-all min-h-[160px] bg-white"
+                                    >
+                                        <Plus className="w-8 h-8 mb-2" />
+                                        <span className="font-bold text-sm">Add New Address</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )
@@ -1681,8 +2047,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                 </div>
                                 <div>
                                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Recipient Details</h4>
-                                    <p className="text-sm font-bold text-gray-900">{viewingReceipt.recipientName}</p>
-                                    <p className="text-xs text-gray-500">{viewingReceipt.recipientPhone}</p>
+                                    <p className="text-sm font-bold text-gray-900">{viewingReceipt.recipient.name}</p>
+                                    <p className="text-xs text-gray-500">{viewingReceipt.recipient.phone}</p>
                                     <div className="mt-4">
                                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Dropoff Address</h4>
                                         <p className="text-xs text-gray-600 leading-relaxed">{viewingReceipt.dropoff}</p>
@@ -1704,7 +2070,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Item Description</span>
-                                        <span className="font-bold text-gray-900">{viewingReceipt.itemDescription || (viewingReceipt.items as any)?.description}</span>
+                                        <span className="font-bold text-gray-900">{viewingReceipt.items?.description}</span>
                                     </div>
                                     <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
                                         <span className="text-base font-black text-gray-900">Total Paid</span>

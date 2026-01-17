@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { CheckCircle2, Building2, BarChart3, Globe, ArrowRight, Zap, Layers, ChevronRight, Brain, Eye, ShieldCheck, CreditCard, Activity, Terminal, Lock, Smartphone, Microscope, ShoppingBag, PhoneCall, HeartPulse, Box, Truck } from 'lucide-react';
+import { CheckCircle2, Building2, BarChart3, Globe, ArrowRight, Zap, Layers, ChevronRight, Brain, Eye, ShieldCheck, CreditCard, Activity, Terminal, Lock, Smartphone, Microscope, ShoppingBag, PhoneCall, HeartPulse, Box, Truck, Landmark, HandHeart, Sprout, Utensils } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { User } from '../types';
@@ -83,7 +83,7 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
                         </button>
                      )}
                      <button
-                        onClick={onLogin}
+                        onClick={isBusinessLoggedIn ? () => onNavigateToDashboard('FLEET') : onLogin}
                         className="px-8 py-4 bg-black/40 hover:bg-black/60 text-white rounded-xl font-bold text-lg backdrop-blur-md transition-all border border-white/30 shadow-lg hover:border-white/50"
                      >
                         {isBusinessLoggedIn ? 'Manage Fleet' : 'Login to Dashboard'}
@@ -163,9 +163,9 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
 
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {/* Pillar 1 */}
-                  <Link
-                     to="/fulfillment"
-                     className="group bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden"
+                  <div
+                     onClick={() => isBusinessLoggedIn ? onNavigateToDashboard('BULK') : navigate('/fulfillment')}
+                     className="group bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden cursor-pointer"
                   >
                      <div className="w-12 h-12 bg-brand-500/20 rounded-2xl flex items-center justify-center text-brand-400 mb-6 group-hover:scale-110 transition-transform duration-500">
                         <Brain className="w-6 h-6" />
@@ -175,18 +175,18 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
                         AI-driven adaptive fulfillment and automatic dispatching that eliminates idle time across supply chains.
                      </p>
                      <div className="flex items-center text-brand-400 font-bold group-hover:gap-2 transition-all text-sm">
-                        <span>Explore AI Layer</span>
+                        <span>{isBusinessLoggedIn ? 'Go to Bulk Scheduler' : 'Explore AI Layer'}</span>
                         <ArrowRight className="ml-2 w-4 h-4" />
                      </div>
                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 group-hover:text-brand-400 group-hover:scale-110 group-hover:-translate-x-2 group-hover:translate-y-2 transition-all duration-700 ease-out">
                         <Brain className="w-24 h-24 -mr-6 -mt-6" />
                      </div>
-                  </Link>
+                  </div>
 
                   {/* Pillar 2 */}
-                  <Link
-                     to="/intelligence"
-                     className="group bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden"
+                  <div
+                     onClick={() => isBusinessLoggedIn ? onNavigateToDashboard('DELIVERIES') : navigate('/intelligence')}
+                     className="group bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden cursor-pointer"
                   >
                      <div className="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 mb-6 group-hover:scale-110 transition-transform duration-500">
                         <ShieldCheck className="w-6 h-6" />
@@ -196,39 +196,39 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
                         Mission-critical oversight with live tracking and immutable digital trails in one high-fidelity console.
                      </p>
                      <div className="flex items-center text-blue-400 font-bold group-hover:gap-2 transition-all text-sm">
-                        <span>Explore Tower</span>
+                        <span>{isBusinessLoggedIn ? 'View Deliveries' : 'Explore Tower'}</span>
                         <ArrowRight className="ml-2 w-4 h-4" />
                      </div>
                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 group-hover:text-blue-400 group-hover:scale-110 group-hover:-translate-x-2 group-hover:translate-y-2 transition-all duration-700 ease-out">
                         <ShieldCheck className="w-24 h-24 -mr-6 -mt-6" />
                      </div>
-                  </Link>
+                  </div>
 
                   {/* Pillar 3 */}
-                  <Link
-                     to="/payments"
-                     className="group bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden"
+                  <div
+                     onClick={() => isBusinessLoggedIn ? onNavigateToDashboard('OVERVIEW') : navigate('/payments')}
+                     className="group bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden cursor-pointer"
                   >
                      <div className="w-12 h-12 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 mb-6 group-hover:scale-110 transition-transform duration-500">
                         <CreditCard className="w-6 h-6" />
                      </div>
-                     <h3 className="text-xl font-black mb-3 tracking-tight">Smart Liquidity</h3>
+                     <h3 className="text-xl font-black mb-3 tracking-tight">Smart Settlement</h3>
                      <p className="text-slate-400 leading-relaxed mb-6 flex-grow font-medium text-xs uppercase tracking-wider">
                         Secure instant collections and settlements. Bridge the liquidity gap with automated mobile money processing.
                      </p>
                      <div className="flex items-center text-emerald-400 font-bold group-hover:gap-2 transition-all text-sm">
-                        <span>Explore FinTech</span>
+                        <span>{isBusinessLoggedIn ? 'View Financials' : 'Explore FinTech'}</span>
                         <ArrowRight className="ml-2 w-4 h-4" />
                      </div>
                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 group-hover:text-emerald-400 group-hover:scale-110 group-hover:-translate-x-2 group-hover:translate-y-2 transition-all duration-700 ease-out">
                         <CreditCard className="w-24 h-24 -mr-6 -mt-6" />
                      </div>
-                  </Link>
+                  </div>
 
                   {/* Pillar 4 */}
-                  <Link
-                     to="/fleet"
-                     className="group bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden"
+                  <div
+                     onClick={() => isBusinessLoggedIn ? onNavigateToDashboard('FLEET') : navigate('/fleet')}
+                     className="group bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all duration-500 flex flex-col h-full relative overflow-hidden cursor-pointer"
                   >
                      <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-400 mb-6 group-hover:scale-110 transition-transform duration-500">
                         <Truck className="w-6 h-6" />
@@ -238,13 +238,13 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
                         Full-stack telemetry and predictive maintenance for modern institutional fleets operating at scale.
                      </p>
                      <div className="flex items-center text-amber-400 font-bold group-hover:gap-2 transition-all text-sm">
-                        <span>Explore Fleet</span>
+                        <span>{isBusinessLoggedIn ? 'Manage Fleet' : 'Explore Fleet'}</span>
                         <ArrowRight className="ml-2 w-4 h-4" />
                      </div>
                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 group-hover:text-amber-400 group-hover:scale-110 group-hover:-translate-x-2 group-hover:translate-y-2 transition-all duration-700 ease-out">
                         <Truck className="w-24 h-24 -mr-6 -mt-6" />
                      </div>
-                  </Link>
+                  </div>
                </div>
             </div>
 
@@ -255,6 +255,73 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
             </div>
          </div>
 
+         {/* Autonomous Fulfillment - The Brain */}
+         <div className="py-32 bg-white relative">
+            <div className="max-w-7xl mx-auto px-4">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+                  <div className="order-2 lg:order-1 relative">
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-4 pt-12">
+                           <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                              <Zap className="w-8 h-8 text-brand-600 mb-4" />
+                              <h4 className="font-bold text-slate-900 mb-2">Instant Allocation</h4>
+                              <p className="text-xs text-slate-500 leading-relaxed">AI immediately matches dispatches to the most efficient courier in the zone.</p>
+                           </div>
+                           <div className="bg-slate-900 p-6 rounded-3xl shadow-xl">
+                              <Brain className="w-8 h-8 text-brand-400 mb-4" />
+                              <h4 className="font-bold text-white mb-2">Neural Routing</h4>
+                              <p className="text-xs text-slate-400 leading-relaxed">Proprietary pathfinding that adapts to unpredictable urban infrastructure in real-time.</p>
+                           </div>
+                        </div>
+                        <div className="space-y-4">
+                           <div className="bg-brand-600 p-6 rounded-3xl shadow-xl">
+                              <Box className="w-8 h-8 text-white mb-4" />
+                              <h4 className="font-bold text-white mb-2">Dynamic Load</h4>
+                              <p className="text-xs text-brand-100 leading-relaxed">Auto-optimized batching for multi-drop fulfillment to reduce cost-per-package.</p>
+                           </div>
+                           <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                              <Activity className="w-8 h-8 text-emerald-600 mb-4" />
+                              <h4 className="font-bold text-slate-900 mb-2">Self-Healing</h4>
+                              <p className="text-xs text-slate-500 leading-relaxed">Automatic re-routing and re-dispatching of stalled or delayed shipments.</p>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                  <div className="order-1 lg:order-2">
+                     <div className="inline-flex items-center space-x-2 bg-brand-50 border border-brand-100 rounded-lg px-3 py-1 mb-6">
+                        <Brain className="w-4 h-4 text-brand-600" />
+                        <span className="text-xs font-bold text-brand-600 uppercase tracking-widest">Autonomous Fulfillment</span>
+                     </div>
+                     <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 leading-tight tracking-tight">
+                        Logistics without <br />
+                        <span className="text-brand-600">Manual Friction.</span>
+                     </h2>
+                     <p className="text-xl text-slate-600 leading-relaxed mb-8">
+                        Our AI layer handles the complexity of African urban logistics. TumaFast's proprietary fulfillment engine automates the entire lifecycle—from arrival to the final mile—without needing your team's intervention.
+                     </p>
+                     <ul className="space-y-4 mb-10">
+                        <li className="flex items-center gap-3 font-bold text-slate-800">
+                           <CheckCircle2 className="w-5 h-5 text-brand-500" /> 100% Automated Courier Matching
+                        </li>
+                        <li className="flex items-center gap-3 font-bold text-slate-800">
+                           <CheckCircle2 className="w-5 h-5 text-brand-500" /> Congestion-Aware Dynamic Routing
+                        </li>
+                        <li className="flex items-center gap-3 font-bold text-slate-800">
+                           <CheckCircle2 className="w-5 h-5 text-brand-500" /> Real-time Capacity Re-balancing
+                        </li>
+                     </ul>
+
+                     <button
+                        onClick={() => navigate('/contact')}
+                        className="px-8 py-4 bg-brand-600 text-white rounded-2xl font-bold flex items-center justify-center hover:bg-brand-700 transition-all group"
+                     >
+                        <PhoneCall className="w-4 h-4 mr-2 group-hover:animate-bounce" /> Learn About AI Deployment
+                     </button>
+                  </div>
+               </div>
+            </div>
+         </div>
+
          {/* Unified Command Center */}
          <div className="py-32 bg-slate-50 relative overflow-hidden">
             <div className="max-w-7xl mx-auto px-4">
@@ -262,7 +329,7 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
                   <div>
                      <div className="inline-flex items-center space-x-2 bg-brand-50 border border-brand-100 rounded-lg px-3 py-1 mb-8">
                         <Activity className="w-4 h-4 text-brand-600" />
-                        <span className="text-xs font-bold text-brand-600 uppercase tracking-widest">Visibility Layer</span>
+                        <span className="text-xs font-bold text-brand-600 uppercase tracking-widest">Logistics Intelligence</span>
                      </div>
                      <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 leading-tight tracking-tight">
                         Complete Visibility. <br />
@@ -391,67 +458,130 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
             </div>
          </div>
 
-         {/* Autonomous Fulfillment - The Brain */}
-         <div className="py-32 bg-white relative">
+         {/* Payment & Liquidity Section */}
+         <div className="py-32 bg-white relative overflow-hidden">
             <div className="max-w-7xl mx-auto px-4">
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-                  <div className="order-2 lg:order-1 relative">
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-4 pt-12">
-                           <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                              <Zap className="w-8 h-8 text-brand-600 mb-4" />
-                              <h4 className="font-bold text-slate-900 mb-2">Instant Allocation</h4>
-                              <p className="text-xs text-slate-500 leading-relaxed">AI immediately matches dispatches to the most efficient courier in the zone.</p>
-                           </div>
-                           <div className="bg-slate-900 p-6 rounded-3xl shadow-xl">
-                              <Brain className="w-8 h-8 text-brand-400 mb-4" />
-                              <h4 className="font-bold text-white mb-2">Neural Routing</h4>
-                              <p className="text-xs text-slate-400 leading-relaxed">Proprietary pathfinding that adapts to unpredictable urban infrastructure in real-time.</p>
-                           </div>
-                        </div>
-                        <div className="space-y-4">
-                           <div className="bg-brand-600 p-6 rounded-3xl shadow-xl">
-                              <Box className="w-8 h-8 text-white mb-4" />
-                              <h4 className="font-bold text-white mb-2">Dynamic Load</h4>
-                              <p className="text-xs text-brand-100 leading-relaxed">Auto-optimized batching for multi-drop fulfillment to reduce cost-per-package.</p>
-                           </div>
-                           <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                              <Activity className="w-8 h-8 text-emerald-600 mb-4" />
-                              <h4 className="font-bold text-slate-900 mb-2">Self-Healing</h4>
-                              <p className="text-xs text-slate-500 leading-relaxed">Automatic re-routing and re-dispatching of stalled or delayed shipments.</p>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-                  <div className="order-1 lg:order-2">
-                     <div className="inline-flex items-center space-x-2 bg-brand-50 border border-brand-100 rounded-lg px-3 py-1 mb-6">
-                        <Brain className="w-4 h-4 text-brand-600" />
-                        <span className="text-xs font-bold text-brand-600 uppercase tracking-widest">Autonomous Intelligence</span>
+                  <div>
+                     <div className="inline-flex items-center space-x-2 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-1 mb-8">
+                        <CreditCard className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Smart Settlement</span>
                      </div>
                      <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 leading-tight tracking-tight">
-                        Logistics without <br />
-                        <span className="text-brand-600">Manual Friction.</span>
+                        Instant Settlements. <br />
+                        <span className="text-emerald-600">Zero Liquidity Lag.</span>
                      </h2>
                      <p className="text-xl text-slate-600 leading-relaxed mb-8">
-                        Our AI layer handles the complexity of African urban logistics. TumaFast's proprietary fulfillment engine automates the entire lifecycle—from arrival to the final mile—without needing your team's intervention.
+                        Bridge the gap between delivery and cash flow. TumaFast handles Cash-on-Delivery (COD) via mobile money and settles directly to your commercial account instantly upon fulfillment.
                      </p>
-                     <ul className="space-y-4 mb-10">
-                        <li className="flex items-center gap-3 font-bold text-slate-800">
-                           <CheckCircle2 className="w-5 h-5 text-brand-500" /> 100% Automated Courier Matching
-                        </li>
-                        <li className="flex items-center gap-3 font-bold text-slate-800">
-                           <CheckCircle2 className="w-5 h-5 text-brand-500" /> Congestion-Aware Dynamic Routing
-                        </li>
-                        <li className="flex items-center gap-3 font-bold text-slate-800">
-                           <CheckCircle2 className="w-5 h-5 text-brand-500" /> Real-time Capacity Re-balancing
-                        </li>
-                     </ul>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                           <h4 className="font-bold text-slate-900 mb-2">Secure Escrow</h4>
+                           <p className="text-xs text-slate-500">Payments are held in a secure data-layer until delivery is verified by the customer.</p>
+                        </div>
+                        <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                           <h4 className="font-bold text-slate-900 mb-2">Native M-Pesa Integration</h4>
+                           <p className="text-xs text-slate-500">Drivers don't handle cash; collections are native and digital at the point of fulfillment.</p>
+                        </div>
+                     </div>
 
                      <button
                         onClick={() => navigate('/contact')}
-                        className="px-8 py-4 bg-brand-600 text-white rounded-2xl font-bold flex items-center justify-center hover:bg-brand-700 transition-all group"
+                        className="mt-10 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center hover:bg-emerald-700 transition-all group"
                      >
-                        <PhoneCall className="w-4 h-4 mr-2 group-hover:animate-bounce" /> Learn About AI Deployment
+                        <CreditCard className="w-4 h-4 mr-2 group-hover:animate-pulse" /> Set Up Enterprise Settlement
+                     </button>
+                  </div>
+                  <div className="relative">
+                     <div className="bg-slate-900 rounded-[3rem] p-10 shadow-2xl relative z-10 overflow-hidden text-white">
+                        <div className="flex justify-between items-center mb-10">
+                           <div className="text-sm font-bold opacity-60">Settlement Report</div>
+                           <div className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">LIVE STATUS</div>
+                        </div>
+                        <div className="space-y-6">
+                           {[
+                              { label: 'Weekly Collection', val: '$42,500.00' },
+                              { label: 'Settled to Bank', val: '$38,210.00' },
+                              { label: 'In Transit Escrow', val: '$4,290.00' }
+                           ].map((stat, i) => (
+                              <div key={i} className="flex justify-between items-end border-b border-white/5 pb-4">
+                                 <span className="text-sm opacity-60 mb-1">{stat.label}</span>
+                                 <span className="text-2xl font-black">{stat.val}</span>
+                              </div>
+                           ))}
+                        </div>
+                        <div className="mt-10 bg-emerald-500 p-4 rounded-2xl text-center font-bold text-sm hover:scale-105 transition-transform cursor-pointer">
+                           Instant Settlement Triggered
+                        </div>
+                     </div>
+                     <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/20 rounded-full blur-[60px]" />
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         {/* Fleet Management Section */}
+         <div className="py-32 bg-slate-50 relative overflow-hidden">
+            <div className="max-w-7xl mx-auto px-4">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+                  <div className="relative">
+                     <div className="bg-slate-900 rounded-[3rem] p-8 shadow-2xl relative z-10 overflow-hidden border-8 border-slate-800 flex flex-col items-center justify-center aspect-video">
+                        <motion.div
+                           animate={{ scale: [1, 1.1, 1] }}
+                           transition={{ duration: 4, repeat: Infinity }}
+                           className="w-24 h-24 bg-brand-500/20 rounded-full flex items-center justify-center border border-brand-500/30"
+                        >
+                           <Truck className="w-12 h-12 text-brand-400" />
+                        </motion.div>
+                        <div className="mt-8 grid grid-cols-3 gap-4 w-full">
+                           {[65, 92, 48].map((val, i) => (
+                              <div key={i} className="bg-white/5 p-4 rounded-2xl text-center">
+                                 <div className="text-[10px] text-slate-400 uppercase font-bold mb-1">Unit {i + 1}</div>
+                                 <div className="text-xl font-black text-white">{val}%</div>
+                                 <div className="w-full h-1 bg-white/10 rounded-full mt-2">
+                                    <div className="h-full bg-brand-500 rounded-full" style={{ width: `${val}%` }}></div>
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                     </div>
+                     <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/20 rounded-full blur-[60px]" />
+                  </div>
+                  <div>
+                     <div className="inline-flex items-center space-x-2 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1 mb-8">
+                        <Truck className="w-4 h-4 text-amber-600" />
+                        <span className="text-xs font-bold text-amber-600 uppercase tracking-widest">Fleet Management</span>
+                     </div>
+                     <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 leading-tight tracking-tight">
+                        Institutional Fleet <br />
+                        <span className="text-amber-600">Command & Control.</span>
+                     </h2>
+                     <p className="text-xl text-slate-600 leading-relaxed mb-8">
+                        Scale your physical assets with the same precision as your software. TumaFast provides full-stack telemetry and predictive maintenance for modern institutional fleets operating at scale.
+                     </p>
+                     <div className="space-y-6">
+                        {[
+                           { title: "Real-time Telemetry", desc: "Precise GPS and fuel mapping for every unit in your regional network." },
+                           { title: "Predictive Maintenance", desc: "AI-driven service alerts to eliminate unexpected fulfillment downtime." },
+                           { title: "Capacity Analytics", desc: "Optimize your fleet size based on real-world delivery demand data." }
+                        ].map((item, i) => (
+                           <div key={i} className="flex gap-4">
+                              <div className="mt-1 bg-white p-1 rounded border border-slate-100 shadow-sm">
+                                 <CheckCircle2 className="w-5 h-5 text-amber-500" />
+                              </div>
+                              <div>
+                                 <h4 className="font-bold text-slate-900">{item.title}</h4>
+                                 <p className="text-slate-500 text-sm">{item.desc}</p>
+                              </div>
+                           </div>
+                        ))}
+                     </div>
+
+                     <button
+                        onClick={isBusinessLoggedIn ? () => onNavigateToDashboard('FLEET') : () => navigate('/contact')}
+                        className="mt-10 px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center hover:bg-slate-800 transition-all group"
+                     >
+                        <PhoneCall className="w-4 h-4 mr-2 group-hover:animate-bounce" /> {isBusinessLoggedIn ? 'Go to Fleet Console' : 'Scale Your Fleet'}
                      </button>
                   </div>
                </div>
@@ -530,68 +660,6 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
             </div>
          </div>
 
-         {/* Payment & Liquidity Section */}
-         <div className="py-32 bg-slate-50 relative overflow-hidden">
-            <div className="max-w-7xl mx-auto px-4">
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-                  <div>
-                     <div className="inline-flex items-center space-x-2 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-1 mb-8">
-                        <CreditCard className="w-4 h-4 text-emerald-600" />
-                        <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Financial Layer</span>
-                     </div>
-                     <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-8 leading-tight tracking-tight">
-                        Instant Settlements. <br />
-                        <span className="text-emerald-600">Zero Liquidity Lag.</span>
-                     </h2>
-                     <p className="text-xl text-slate-600 leading-relaxed mb-8">
-                        Bridge the gap between delivery and cash flow. TumaFast handles Cash-on-Delivery (COD) via mobile money and settles directly to your commercial account instantly upon fulfillment.
-                     </p>
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                           <h4 className="font-bold text-slate-900 mb-2">Secure Escrow</h4>
-                           <p className="text-xs text-slate-500">Payments are held in a secure data-layer until delivery is verified by the customer.</p>
-                        </div>
-                        <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                           <h4 className="font-bold text-slate-900 mb-2">Native M-Pesa Integration</h4>
-                           <p className="text-xs text-slate-500">Drivers don't handle cash; collections are native and digital at the point of fulfillment.</p>
-                        </div>
-                     </div>
-
-                     <button
-                        onClick={() => navigate('/contact')}
-                        className="mt-10 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center hover:bg-emerald-700 transition-all group"
-                     >
-                        <CreditCard className="w-4 h-4 mr-2 group-hover:animate-pulse" /> Set Up Enterprise Settlement
-                     </button>
-                  </div>
-                  <div className="relative">
-                     <div className="bg-slate-900 rounded-[3rem] p-10 shadow-2xl relative z-10 overflow-hidden text-white">
-                        <div className="flex justify-between items-center mb-10">
-                           <div className="text-sm font-bold opacity-60">Settlement Report</div>
-                           <div className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">LIVE STATUS</div>
-                        </div>
-                        <div className="space-y-6">
-                           {[
-                              { label: 'Weekly Collection', val: '$42,500.00' },
-                              { label: 'Settled to Bank', val: '$38,210.00' },
-                              { label: 'In Transit Escrow', val: '$4,290.00' }
-                           ].map((stat, i) => (
-                              <div key={i} className="flex justify-between items-end border-b border-white/5 pb-4">
-                                 <span className="text-sm opacity-60 mb-1">{stat.label}</span>
-                                 <span className="text-2xl font-black">{stat.val}</span>
-                              </div>
-                           ))}
-                        </div>
-                        <div className="mt-10 bg-emerald-500 p-4 rounded-2xl text-center font-bold text-sm hover:scale-105 transition-transform cursor-pointer">
-                           Instant Settlement Triggered
-                        </div>
-                     </div>
-                     <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/20 rounded-full blur-[60px]" />
-                  </div>
-               </div>
-            </div>
-         </div>
-
          {/* Reliability Section */}
          <div className="py-32 bg-slate-900 text-white relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
@@ -636,9 +704,13 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
 
                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                   {[
+                     { icon: HandHeart, label: "Non-profits & NGOs", color: "bg-pink-50 text-pink-600" },
+                     { icon: Sprout, label: "Agri-Tech & Food Systems", color: "bg-emerald-50 text-emerald-600" },
                      { icon: HeartPulse, label: "Healthcare", color: "bg-red-50 text-red-600" },
                      { icon: ShoppingBag, label: "E-Commerce", color: "bg-blue-50 text-blue-600" },
-                     { icon: Building2, label: "Manufacturing & FMCG", color: "bg-emerald-50 text-emerald-600" },
+                     { icon: Building2, label: "Manufacturing & FMCG", color: "bg-slate-50 text-slate-600" },
+                     { icon: BarChart3, label: "Financial Services", color: "bg-amber-50 text-amber-600" },
+                     { icon: Utensils, label: "Hospitality & Catering", color: "bg-orange-50 text-orange-600" },
                      { icon: Microscope, label: "Research & Labs", color: "bg-purple-50 text-purple-600" }
                   ].map((vertical, i) => (
                      <div key={i} className="flex flex-col items-center p-8 rounded-3xl border border-slate-100 hover:border-slate-200 transition-all text-center group cursor-default">

@@ -2,9 +2,20 @@ import React from 'react';
 import { Eye, Shield, BarChart3, ArrowRight, MapPin, UserCheck, Activity, Lock, Globe, Server, Terminal } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const UnifiedLogisticsIntelligence = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const isBusiness = user?.role === 'business';
+
+    const handleAction = () => {
+        if (isBusiness) {
+            navigate('/business-dashboard', { state: { initialTab: 'DELIVERIES' } });
+        } else {
+            navigate('/business');
+        }
+    };
 
     return (
         <div className="bg-[#0f172a] min-h-screen pt-24 pb-16 overflow-hidden">
@@ -40,10 +51,10 @@ const UnifiedLogisticsIntelligence = () => {
 
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
                         <button
-                            onClick={() => navigate('/business')}
+                            onClick={handleAction}
                             className="px-10 py-5 bg-brand-600 text-white rounded-2xl font-black text-lg hover:bg-brand-500 transition-all shadow-2xl shadow-brand-500/20 flex items-center justify-center group"
                         >
-                            Infrastructure Access
+                            {isBusiness ? 'Go to Visibility Console' : 'Infrastructure Access'}
                             <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
                         </button>
                         <button

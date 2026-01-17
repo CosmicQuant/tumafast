@@ -193,7 +193,7 @@ const AboutUs: React.FC<AboutUsProps> = ({ onOpenAuth }) => {
                     </button>
                 </div>
                 <div className="mt-16 text-slate-600 font-bold uppercase tracking-[0.4em] text-[10px]">
-                    Nairobi • Mombasa • Kisumu • Eldoret • Nakuru
+                    LIVE IN <span className="text-emerald-500">Nairobi</span> • <span className="text-emerald-500">Mombasa</span>
                 </div>
             </section>
         </div>
