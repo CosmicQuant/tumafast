@@ -116,7 +116,7 @@ const FleetManagement: React.FC = () => {
                                 {isBusiness ? 'Go to Fleet Console' : 'Request Demo'} <ArrowRight className="w-4 h-4" />
                             </button>
                             <button
-                                onClick={() => window.open('https://api.tumafast.xyz/v1/fleet/docs', '_blank')}
+                                onClick={() => navigate('/docs')}
                                 className="px-10 py-5 bg-brand-700/50 text-white border border-brand-500/30 rounded-2xl font-black tracking-widest uppercase text-xs hover:bg-brand-700 transition-all flex items-center justify-center gap-3"
                             >
                                 API Docs <Zap className="w-4 h-4" />
