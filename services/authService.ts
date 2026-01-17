@@ -94,7 +94,7 @@ export const authService = {
     console.log("Service: Starting Google Auth...");
     try {
       let firebaseUser;
-      
+
       const isNative = Capacitor.isNativePlatform();
       console.log("Is Native:", isNative);
 
