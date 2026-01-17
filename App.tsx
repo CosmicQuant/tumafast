@@ -12,6 +12,8 @@ import ProfileModal from './components/ProfileModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import ChatAssistant from './components/ChatAssistant';
 import { ChatProvider } from './context/ChatContext';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { Capacitor } from '@capacitor/core';
 
 // Lazy-loaded components for performance
 const Hero = lazy(() => import('./components/Hero'));
@@ -48,6 +50,12 @@ const SkeletonFallback = () => (
 
 const App = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      GoogleAuth.initialize();
+    }
+  }, []);
   const location = useLocation();
   const navigate = useNavigate();
 
