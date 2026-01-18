@@ -99,6 +99,13 @@ export const authService = {
       console.log("Is Native:", isNative);
 
       if (isNative) {
+        console.log("Service: Using Native Google Auth");
+        GoogleAuth.initialize();
+        const googleUser = await GoogleAuth.signIn();
+        const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+        const result = await signInWithCredential(auth, credential);
+        firebaseUser = result.user;
+      } else {
         console.log("Service: Using Web Google Popup");
         const result = await signInWithPopup(auth, googleProvider);
         firebaseUser = result.user;

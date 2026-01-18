@@ -56,7 +56,7 @@ const ChatAssistant: React.FC = () => {
   };
 
   return (
-    <div className={`fixed ${isOpen ? 'inset-x-0 top-16 bottom-[64px] sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-20 right-4 sm:bottom-6 sm:right-6'} z-[100] flex flex-col items-end`}>
+    <div className={`fixed ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6' : 'bottom-20 right-4 sm:bottom-6 sm:right-6'} z-[9999] flex flex-col items-end`}>
       {isOpen && (
         <div className="bg-white shadow-2xl border border-gray-100 w-full h-full sm:w-96 sm:h-[500px] sm:rounded-2xl mb-0 sm:mb-4 flex flex-col overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-10 fade-in">
           {/* Header */}

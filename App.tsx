@@ -14,6 +14,8 @@ import ChatAssistant from './components/ChatAssistant';
 import { ChatProvider } from './context/ChatContext';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Geolocation } from '@capacitor/geolocation';
 
 // Lazy-loaded components for performance
 const Hero = lazy(() => import('./components/Hero'));
@@ -54,6 +56,36 @@ const App = () => {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
       GoogleAuth.initialize();
+    } else {
+      // Initialize Native Google Auth
+      GoogleAuth.initialize();
+
+      // Request Location Permissions
+      const requestPermissions = async () => {
+        try {
+          const status = await Geolocation.checkPermissions();
+          if (status.location !== 'granted') {
+            await Geolocation.requestPermissions();
+          }
+        } catch (error) {
+          console.warn('Error requesting location permissions:', error);
+        }
+      };
+      requestPermissions();
+
+      // Configure Status Bar for Native App
+      const configureStatusBar = async () => {
+        try {
+          await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
+          await StatusBar.setStyle({ style: Style.Light });
+          await StatusBar.setOverlaysWebView({ overlay: false });
+          await StatusBar.show();
+        } catch (err) {
+          console.warn('Status bar configuration failed:', err);
+        }
+      };
+
+      configureStatusBar();
     }
   }, []);
   const location = useLocation();
