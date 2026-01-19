@@ -971,7 +971,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row relative">
+        <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row relative pb-[env(safe-area-inset-bottom)]">
             {/* ... (Previous components: Toast, Dialog, Header, Sidebar) ... */}
             {/* Toast Notification */}
             {notification && (
@@ -1058,7 +1058,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                 </div>
 
                 {/* Sidebar Footer */}
-                <div className="p-4 border-t border-gray-100 space-y-3 bg-gray-50/50 pb-24">
+                <div className="p-4 border-t border-gray-100 space-y-3 bg-gray-50/50" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
                     <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center font-bold text-brand-600 border border-brand-100">
                             {user.companyName ? user.companyName.charAt(0) : 'B'}

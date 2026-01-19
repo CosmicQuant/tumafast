@@ -506,7 +506,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
   const VehicleIcon = getVehicleIcon(order.vehicle);
 
   return (
-    <div className="flex-grow flex flex-col pointer-events-none p-4 pb-8 overflow-hidden h-full">
+    <div className="flex-grow flex flex-col pointer-events-none p-4 pb-[calc(env(safe-area-inset-bottom,0px)+2rem)] overflow-hidden h-full">
 
       <div className="mt-auto pointer-events-auto w-full max-w-2xl mx-auto">
 

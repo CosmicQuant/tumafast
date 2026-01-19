@@ -117,7 +117,8 @@ const BottomNav: React.FC<BottomNavProps> = ({ onOpenAuth }) => {
         <motion.div
             initial={{ y: 100 }}
             animate={{ y: 0 }}
-            className="md:hidden fixed bottom-1 rounded-t-3xl left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-100 z-[100] safe-area-pb"
+            className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 z-[100]"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
             <div className="flex justify-around items-center h-16 px-2">
                 {navItems.map((item) => {

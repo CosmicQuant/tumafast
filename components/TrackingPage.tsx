@@ -282,7 +282,7 @@ const TrackingPageContent: React.FC = () => {
     }
 
     return (
-        <div className="absolute inset-0 flex flex-col pointer-events-none">
+        <div className="absolute inset-0 flex flex-col pointer-events-none pb-[env(safe-area-inset-bottom)]">
             {/* Background Map Layer */}
             <div className="absolute inset-0 pointer-events-auto">
                 <MapLayer

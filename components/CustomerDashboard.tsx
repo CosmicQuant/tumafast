@@ -320,7 +320,7 @@ const CustomerDashboard: React.FC = () => {
     );
 
     return (
-        <div className="min-h-screen flex relative bg-slate-50 font-sans">
+        <div className="min-h-screen flex relative bg-slate-50 font-sans pb-[env(safe-area-inset-bottom)]">
             {/* SIDEBAR (Desktop) - Always interactive */}
             <aside className={`fixed inset-y-0 left-0 bg-white border-r border-gray-100 w-64 z-50 transform transition-transform duration-300 lg:translate-x-0 pointer-events-auto ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="h-full flex flex-col">
@@ -347,7 +347,7 @@ const CustomerDashboard: React.FC = () => {
                         <SidebarItem view="SETTINGS" icon={Settings} label="Settings" />
                     </div>
 
-                    <div className="p-4 border-t border-gray-100 bg-gray-50 pb-24">
+                    <div className="p-4 border-t border-gray-100 bg-gray-50" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
                         <div className="flex items-center space-x-3 mb-4 px-2">
                             <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600 font-bold">
                                 {user?.name?.charAt(0)}

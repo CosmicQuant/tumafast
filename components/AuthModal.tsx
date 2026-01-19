@@ -291,7 +291,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[1200] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -305,7 +305,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="relative bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[95vh] sm:max-h-[90vh] overflow-y-auto no-scrollbar border border-gray-100 flex flex-col"
+            className="relative bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] sm:max-h-[90vh] overflow-y-auto no-scrollbar border border-gray-100 flex flex-col mb-[env(safe-area-inset-bottom,0px)] pb-[calc(env(safe-area-inset-bottom,0px)+32px)]"
           >
             {/* Mobile Drag Handle */}
             <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mt-4 mb-2 sm:hidden flex-shrink-0" onClick={onClose} />

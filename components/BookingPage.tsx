@@ -80,7 +80,7 @@ const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData: propPrefi
     };
 
     return (
-        <div className="absolute inset-0 flex flex-col pointer-events-none">
+        <div className="absolute inset-0 flex flex-col pointer-events-none pb-[env(safe-area-inset-bottom)]">
             <div className="absolute inset-0 z-0 pointer-events-auto">
                 <MapLayer />
             </div>

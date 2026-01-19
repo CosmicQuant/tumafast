@@ -1103,7 +1103,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
     return (
         <div className="w-full h-full flex flex-col pointer-events-none">
-            <div className="mt-auto pointer-events-auto w-full max-w-2xl mx-auto px-4 sm:px-6 pb-4 sm:pb-8">
+            <div className="mt-auto pointer-events-auto w-full max-w-2xl mx-auto px-4 sm:px-6 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+2rem)]">
 
                 {/* Step Indicator - Removed for One-Click Flow */}
                 {/* {!isCollapsed && (
