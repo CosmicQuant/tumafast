@@ -1116,9 +1116,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
           </div>
         )} */}
 
-                {/* Main Card - Overlapping Glassmorphism */}
+                {/* Main Card - Bottom Sheet Style (60% max, sits at bottom with safe-area padding) */}
                 <div
-                    className={`bg-white/70 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/50 overflow-hidden transition-all duration-500 transform animate-in slide-in-from-bottom-10 ${isCollapsed ? (isMapSelecting ? 'max-h-[220px]' : 'max-h-[140px]') : 'max-h-[85vh]'}`}
+                    className={`bg-white/95 backdrop-blur-2xl rounded-t-[2.5rem] shadow-[0_-10px_50px_rgba(0,0,0,0.15)] border-t border-x border-white/50 overflow-hidden transition-all duration-500 transform animate-in slide-in-from-bottom-10 ${isCollapsed ? (isMapSelecting ? 'max-h-[220px]' : 'max-h-[140px]') : 'max-h-[60vh]'}`}
                 >
                     {/* Drawer Handle / Drag Zone */}
                     <div
@@ -1254,7 +1254,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
                     <div
                         ref={formContainerRef}
-                        className={`px-8 pb-8 transition-opacity duration-300 overflow-y-auto no-scrollbar ${isCollapsed ? 'opacity-0 pointer-events-none h-0' : 'opacity-100 max-h-[75vh]'}`}
+                        className={`px-8 pb-8 transition-opacity duration-300 overflow-y-auto no-scrollbar ${isCollapsed ? 'opacity-0 pointer-events-none h-0' : 'opacity-100 flex-1'}`}
+                        style={{ maxHeight: 'calc(60vh - 80px)' }}
                     >
                         <div className="space-y-6 animate-in fade-in duration-500">
                             <div className="flex justify-between items-start">

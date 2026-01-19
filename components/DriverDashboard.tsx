@@ -862,41 +862,44 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                   </button>
                </div>
 
-               <div className="p-4 space-y-2 flex-1 overflow-y-auto">
-                  {/* Home button removed for drivers */}
-                  <div className="text-xs font-bold text-gray-400 uppercase px-4 py-2">Menu</div>
-                  <SidebarItem view="OVERVIEW" icon={LayoutDashboard} label="Dashboard" />
-                  <SidebarItem view="MARKET" icon={Search} label="Marketplace" />
-                  <SidebarItem view="JOBS" icon={Package} label="Active Job" />
-                  <SidebarItem view="DELIVERIES" icon={List} label="My Deliveries" />
-                  <SidebarItem view="EARNINGS" icon={Wallet} label="Earnings" />
-                  <SidebarItem view="PROFILE" icon={UserIcon} label="Profile" />
-               </div>
+               <div className="flex-1 overflow-y-auto pb-4">
+                  <div className="p-4 space-y-2">
+                     {/* Home button removed for drivers */}
+                     <div className="text-xs font-bold text-gray-400 uppercase px-4 py-2">Menu</div>
+                     <SidebarItem view="OVERVIEW" icon={LayoutDashboard} label="Dashboard" />
+                     <SidebarItem view="MARKET" icon={Search} label="Marketplace" />
+                     <SidebarItem view="JOBS" icon={Package} label="Active Job" />
+                     <SidebarItem view="DELIVERIES" icon={List} label="My Deliveries" />
+                     <SidebarItem view="EARNINGS" icon={Wallet} label="Earnings" />
+                     <SidebarItem view="PROFILE" icon={UserIcon} label="Profile" />
+                  </div>
 
-               <div className="p-4 border-t border-gray-100 bg-gray-50" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
-                  <div className="flex items-center space-x-3 mb-4 px-2">
-                     <div className="w-10 h-10 rounded-full bg-brand-100 border border-brand-200 flex items-center justify-center text-brand-600 font-bold">
-                        {user.name.charAt(0)}
-                     </div>
-                     <div className="overflow-hidden">
-                        <p className="text-sm font-bold text-gray-900 truncate">{user.name}</p>
-                        <div className="flex items-center space-x-2">
-                           <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                           {metrics && (
-                              <div className="flex items-center text-yellow-600 text-[10px] font-bold bg-yellow-50 px-1.5 py-0.5 rounded">
-                                 <Star className="w-2.5 h-2.5 mr-0.5 fill-current" />
-                                 {metrics.performance.rating}
-                              </div>
-                           )}
+                  {/* User Info & Sign Out - INSIDE scrollable area */}
+                  <div className="p-4 mt-4 border-t border-gray-100 bg-gray-50 mx-2 rounded-2xl" style={{ marginBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
+                     <div className="flex items-center space-x-3 mb-4 px-2">
+                        <div className="w-10 h-10 rounded-full bg-brand-100 border border-brand-200 flex items-center justify-center text-brand-600 font-bold">
+                           {user.name.charAt(0)}
+                        </div>
+                        <div className="overflow-hidden">
+                           <p className="text-sm font-bold text-gray-900 truncate">{user.name}</p>
+                           <div className="flex items-center space-x-2">
+                              <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                              {metrics && (
+                                 <div className="flex items-center text-yellow-600 text-[10px] font-bold bg-yellow-50 px-1.5 py-0.5 rounded">
+                                    <Star className="w-2.5 h-2.5 mr-0.5 fill-current" />
+                                    {metrics.performance.rating}
+                                 </div>
+                              )}
+                           </div>
                         </div>
                      </div>
+                     <button
+                        onClick={logout}
+                        className="w-full flex items-center justify-center space-x-2 text-red-600 bg-white border border-red-100 hover:bg-red-50 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-sm"
+                     >
+                        <LogOut className="w-4 h-4" /> <span>Sign Out</span>
+                     </button>
                   </div>
-                  <button
-                     onClick={logout}
-                     className="w-full flex items-center justify-center space-x-2 text-red-600 bg-white border border-red-100 hover:bg-red-50 py-2 rounded-lg text-sm font-bold transition-colors"
-                  >
-                     <LogOut className="w-4 h-4" /> <span>Sign Out</span>
-                  </button>
                </div>
             </div>
          </aside>
