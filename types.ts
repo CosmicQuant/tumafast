@@ -6,7 +6,7 @@ export enum VehicleType {
   TUKTUK = 'Tuk-Tuk',
   PICKUP = 'Pickup Truck',
   VAN = 'Cargo Van',
-  LORRY = '3T Lorry',
+  LORRY = 'Truck / Lorry',
   TRAILER = 'Container Trailer'
 }
 
@@ -155,6 +155,7 @@ export interface DeliveryOrder {
   dropoffCoords?: { lat: number; lng: number };
   pickupTime?: string; // ISO string or 'ASAP'
   vehicle: VehicleType;
+  tonnage?: string;
   items: OrderItem;
   itemDescription?: string; // Legacy/Bulk field
   price: number; // Total customer price

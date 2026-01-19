@@ -9,10 +9,12 @@ import {
     Navigation, CheckCircle2, AlertCircle, LayoutDashboard,
     Bell, Lock, Eye, Trash2, ArrowRight, Smartphone,
     EyeOff, Key, ShieldCheck, FileText, Info, ChevronDown, ChevronUp,
-    RefreshCw, Check, Home, Briefcase, X as CloseIcon, Loader, AlertTriangle, Power, QrCode, Menu, Globe
+    RefreshCw, Check, Home, Briefcase, X as CloseIcon, Loader, AlertTriangle, Power, Menu, Globe
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { QRCodeCanvas } from 'qrcode.react';
+import * as OTPAuth from 'otpauth';
 
 const CustomerDashboard: React.FC = () => {
     const { user, logout, updateUser, updatePassword, deleteAccount } = useAuth();
@@ -62,6 +64,8 @@ const CustomerDashboard: React.FC = () => {
     const [show2FASetup, setShow2FASetup] = useState(false);
     const [twoFAStep, setTwoFAStep] = useState<'INTRO' | 'QR' | 'VERIFY'>('INTRO');
     const [otpValue, setOtpValue] = useState('');
+    const [tempSecret, setTempSecret] = useState<string>('');
+    const [otpUri, setOtpUri] = useState<string>('');
 
     // Danger Zone States
     const [showDeleteInput, setShowDeleteInput] = useState(false);
@@ -95,6 +99,8 @@ const CustomerDashboard: React.FC = () => {
                 idNumber: user.idNumber || ''
             });
             if (user.savedAddresses) setSavedAddresses(user.savedAddresses);
+            // Sync 2FA state from user profile
+            if (user.twoFAEnabled) setIs2FAEnabled(true);
         }
     }, [user]);
 
@@ -185,15 +191,35 @@ const CustomerDashboard: React.FC = () => {
 
     const handleToggle2FA = async () => {
         if (!is2FAEnabled) {
+            // Generate standard TOTP Secret
+            const secret = new OTPAuth.Secret({ size: 20 });
+            const secretBase32 = secret.base32;
+            setTempSecret(secretBase32);
+
+            // Create URI for QR Code
+            const totp = new OTPAuth.TOTP({
+                issuer: 'TumaFast',
+                label: user?.email || 'TumaFast User',
+                algorithm: 'SHA1',
+                digits: 6,
+                period: 30,
+                secret: secret
+            });
+
+            setOtpUri(totp.toString());
             setShow2FASetup(true);
             setTwoFAStep('INTRO');
             return;
         }
 
+        const confirmDisable = window.confirm("Are you sure you want to disable 2FA? Your account will be less secure.");
+        if (!confirmDisable) return;
+
         setIsUpdating2FA(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await updateUser({ twoFAEnabled: false, twoFASecret: null });
             setIs2FAEnabled(false);
+            setShow2FASetup(false);
             toast.success('2FA Protection Disabled');
         } catch (error) {
             toast.error('Failed to update security settings');
@@ -207,15 +233,35 @@ const CustomerDashboard: React.FC = () => {
             toast.error("Please enter a valid 6-digit code");
             return;
         }
+
         setIsUpdating2FA(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            setIs2FAEnabled(true);
-            setShow2FASetup(false);
-            setTwoFAStep('INTRO');
-            setOtpValue('');
-            toast.success('2FA Protected!', { icon: '🛡️' });
+            // Verify Code using otpauth
+            const totp = new OTPAuth.TOTP({
+                issuer: 'TumaFast',
+                label: user?.email || 'TumaFast User',
+                algorithm: 'SHA1',
+                digits: 6,
+                period: 30,
+                secret: OTPAuth.Secret.fromBase32(tempSecret)
+            });
+
+            const delta = totp.validate({ token: otpValue, window: 1 });
+
+            if (delta !== null) {
+                // Success - Save to User Profile
+                await updateUser({ twoFAEnabled: true, twoFASecret: tempSecret });
+                setIs2FAEnabled(true);
+                setShow2FASetup(false);
+                setTwoFAStep('INTRO');
+                setOtpValue('');
+                setTempSecret('');
+                toast.success('2FA Protected!', { icon: '🛡️' });
+            } else {
+                toast.error('Invalid Code. Please try again.');
+            }
         } catch (error) {
+            console.error(error);
             toast.error('Verification failed');
         } finally {
             setIsUpdating2FA(false);
@@ -301,7 +347,7 @@ const CustomerDashboard: React.FC = () => {
                         <SidebarItem view="SETTINGS" icon={Settings} label="Settings" />
                     </div>
 
-                    <div className="p-4 border-t border-gray-100 bg-gray-50">
+                    <div className="p-4 border-t border-gray-100 bg-gray-50 pb-24">
                         <div className="flex items-center space-x-3 mb-4 px-2">
                             <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600 font-bold">
                                 {user?.name?.charAt(0)}
@@ -773,10 +819,19 @@ const CustomerDashboard: React.FC = () => {
                                                             {twoFAStep === 'QR' && (
                                                                 <div className="text-center space-y-4">
                                                                     <div className="bg-white p-4 border-2 border-dashed border-gray-200 rounded-xl inline-block mx-auto">
-                                                                        <QrCode className="w-24 h-24 text-slate-800" />
+                                                                        {otpUri ? (
+                                                                            <QRCodeCanvas value={otpUri} size={160} />
+                                                                        ) : (
+                                                                            <div className="w-40 h-40 bg-gray-100 flex items-center justify-center">
+                                                                                <Loader className="w-8 h-8 animate-spin text-gray-400" />
+                                                                            </div>
+                                                                        )}
                                                                     </div>
-                                                                    <div className="bg-white p-2 rounded-lg text-[9px] font-mono font-bold text-gray-500 break-all border border-gray-100">
-                                                                        SECRET: TUMA-FAST-SECURE-KEY
+                                                                    <div className="bg-white p-2 rounded-lg text-[9px] font-mono font-bold text-gray-500 break-all border border-gray-100 select-all cursor-text" onClick={(e) => {
+                                                                        navigator.clipboard.writeText(tempSecret);
+                                                                        toast.success("Secret Copied!");
+                                                                    }}>
+                                                                        SECRET: {tempSecret}
                                                                     </div>
                                                                     <button
                                                                         onClick={() => setTwoFAStep('VERIFY')}

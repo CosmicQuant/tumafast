@@ -14,6 +14,7 @@ import ChatAssistant from './components/ChatAssistant';
 import { ChatProvider } from './context/ChatContext';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Geolocation } from '@capacitor/geolocation';
 
@@ -93,6 +94,32 @@ const App = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Handle Native Back Button
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      let backButtonListener: any;
+
+      const setupListener = async () => {
+        backButtonListener = await CapacitorApp.addListener('backButton', () => {
+          // If at root path, exit app. Otherwise go back.
+          if (location.pathname === '/' || location.pathname === '/login') {
+            CapacitorApp.exitApp();
+          } else {
+            navigate(-1);
+          }
+        });
+      };
+
+      setupListener();
+
+      return () => {
+        if (backButtonListener) {
+          backButtonListener.remove();
+        }
+      };
+    }
+  }, [location.pathname, navigate]);
+
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalRole, setAuthModalRole] = useState<'customer' | 'driver' | 'business'>('customer');
   const [authModalView, setAuthModalView] = useState<'LOGIN' | 'SIGNUP' | 'ROLE_SELECT'>('LOGIN');
@@ -131,6 +158,13 @@ const App = () => {
 
     document.title = matchingKey ? routeTitles[matchingKey] : 'Tuma Fast Kenya';
   }, [location.pathname]);
+
+  // Redirect Drivers away from Home Landing Page
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'driver' && location.pathname === '/') {
+      navigate('/driver', { replace: true });
+    }
+  }, [isAuthenticated, user, location.pathname, navigate]);
 
   // Scroll to top on route change
   useEffect(() => {
@@ -234,19 +268,31 @@ const App = () => {
                 <Route path="/" element={
                   <Hero
                     onStartBooking={(prefill) => {
-                      if (!isAuthenticated) {
-                        setAuthModalRole('customer');
-                        setAuthModalView('LOGIN'); // Or signup? 
-                        setAuthModalTitle('Start Sending');
-                        setAuthModalDesc('Login or Sign Up to book your first delivery.');
-                        setShowAuthModal(true);
-                      } else {
-                        navigate('/book', { state: { prefill } });
-                      }
+                      navigate('/book', { state: { prefill } });
                     }}
                     onBusinessClick={() => {
-                      if (user?.role === 'business') navigate('/business-dashboard');
-                      else navigate('/business');
+                      if (user?.role === 'business') {
+                        navigate('/business-dashboard');
+                      } else {
+                        // Native App: Prompt explicitly for Business Auth
+                        if (Capacitor.isNativePlatform()) {
+                          setAuthModalRole('business');
+                          setAuthModalView('LOGIN'); 
+                          setAuthModalTitle('Enterprise Access');
+                          setAuthModalDesc('Sign in or register to access enterprise solutions.');
+                          setShowAuthModal(true);
+                        } else {
+                          // Web: Go to Business Landing Page
+                          navigate('/business');
+                        }
+                      }
+                    }}
+                    onDriverClick={() => {
+                      setAuthModalRole('driver');
+                      setAuthModalView('LOGIN'); // User requested "Sign In"
+                      setAuthModalTitle('Driver Access');
+                      setAuthModalDesc('Login or Sign Up to start driving and earning.');
+                      setShowAuthModal(true);
                     }}
                   />
                 } />
@@ -368,7 +414,7 @@ const App = () => {
           )}
 
           {/* Global Footer */}
-          {!isDashboard && !isMapPage && (
+          {!isDashboard && !isMapPage && !Capacitor.isNativePlatform() && (
             <footer className="bg-slate-900 text-gray-300 py-16 border-t border-white/5 pointer-events-auto relative z-10">
               <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12">
                 <div className="flex flex-col items-center md:items-start text-center md:text-left">
