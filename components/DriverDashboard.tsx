@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import type { DeliveryOrder, Driver, DriverMetrics, User } from '../types';
 import { VehicleType } from '../types';
 import { orderService } from '../services/orderService';
@@ -14,7 +15,7 @@ import { usePrompt } from '../context/PromptContext';
 import { LOCATION_COORDINATES } from '../constants';
 import { useLocation } from 'react-router-dom';
 import {
-   LayoutDashboard, Map, Package, Wallet, User as UserIcon, LogOut,
+   LayoutDashboard, LayoutGrid, Map, Package, Wallet, User as UserIcon, LogOut,
    ChevronRight, Star, TrendingUp, Clock, MapPin, Navigation, CheckCircle,
    Truck, DollarSign, Bell, Search, Menu, X, ArrowUpRight, AlertCircle, AlertTriangle,
    FileText, Home, Phone, Mail, CreditCard, Shield, Edit2, Save, Bike, Car,
@@ -1964,7 +1965,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
             {currentView === 'JOBS' && (
                <div className="absolute inset-0 z-10 pointer-events-none">
                   {hasActiveJob ? (
-                     <div className={`absolute bottom-8 left-4 right-4 md:left-auto md:right-8 md:w-96 bg-white/10 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 transition-all duration-300 pointer-events-auto ${isDrawerCollapsed ? 'p-4' : 'p-6'}`}>
+                     <div className={`absolute left-4 right-4 md:left-auto md:right-8 md:w-96 bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 transition-all duration-300 pointer-events-auto ${Capacitor.isNativePlatform() ? 'bottom-28' : 'bottom-8'} ${isDrawerCollapsed ? 'p-4' : 'p-6'}`}>
                         <div className="flex items-center justify-between mb-4">
                            <div className="flex items-center space-x-2">
                               <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border shadow-sm ${activeJob.status === 'in_transit'
@@ -2087,9 +2088,15 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                            </>
                         ) : (
                            <div className="flex items-center justify-between animate-in fade-in slide-in-from-bottom-2">
-                              <div className="flex flex-col min-w-0">
-                                 <p className="text-sm font-bold text-gray-900 line-clamp-1 max-w-[150px]">{activeJob.items.description}</p>
-                                 <div className="flex items-center space-x-2 mt-0.5">
+                              <div className="flex flex-col min-w-0 flex-1 mr-3">
+                                 <div className="flex items-center space-x-2 mb-1">
+                                    <span className={`text-[9px] font-black uppercase tracking-widest ${nextStop?.id === 'pickup-start' ? 'text-brand-600' : nextStop?.id === 'dropoff-end' ? 'text-emerald-600' : 'text-orange-600'}`}>
+                                       {nextStop?.label || 'Next Stop'}
+                                    </span>
+                                    <Navigation className="w-3 h-3 text-brand-500 animate-pulse" />
+                                 </div>
+                                 <p className="text-sm font-bold text-gray-900 line-clamp-1">{nextStop?.address || activeJob.dropoffAddress}</p>
+                                 <div className="flex items-center space-x-2 mt-1">
                                     <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
                                        Earn: KES {(activeJob.driverRate || Math.floor((activeJob.price || 0) * 0.8)).toLocaleString()}
                                     </span>
@@ -2110,8 +2117,8 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                         )}
                      </div>
                   ) : (
-                     <div className="p-8 pointer-events-auto">
-                        <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-12 text-center border border-white/20 shadow-sm max-w-md mx-auto">
+                     <div className={`p-8 pointer-events-auto ${Capacitor.isNativePlatform() ? 'pb-32' : ''}`}>
+                        <div className="bg-white/95 backdrop-blur-xl rounded-2xl p-12 text-center border border-gray-200 shadow-sm max-w-md mx-auto">
                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                               <Package className="w-8 h-8 text-gray-400" />
                            </div>
@@ -2316,58 +2323,60 @@ const DriverDashboard: React.FC<DriverDashboardProps> = (props) => {
       <div className="relative min-h-screen bg-gray-50 pb-[env(safe-area-inset-bottom)]">
          <DriverDashboardContent {...props} onViewChange={navigateToView} currentView={currentView} />
 
-         {/* Driver Bottom Navigation - Sticky Footer */}
-         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 pb-[env(safe-area-inset-bottom)]">
-            <div className="flex justify-around items-center px-2 py-2">
+         {/* Driver Bottom Navigation - Native Apps Only */}
+         {Capacitor.isNativePlatform() && (
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 pb-[env(safe-area-inset-bottom)]">
+               <div className="flex justify-around items-center px-2 py-2">
 
-               {/* 1. HOME (Overview) */}
-               <button
-                  onClick={() => navigateToView('OVERVIEW')}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'OVERVIEW' ? 'text-brand-600' : 'text-slate-400'}`}
-               >
-                  <Home className="w-6 h-6 mb-1" />
-                  <span className="text-[10px] font-bold">Home</span>
-               </button>
-
-               {/* 2. MARKET (Marketplace) */}
-               <button
-                  onClick={() => navigateToView('MARKET')}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'MARKET' ? 'text-brand-600' : 'text-slate-400'}`}
-               >
-                  <LayoutGrid className="w-6 h-6 mb-1" />
-                  <span className="text-[10px] font-bold">Market</span>
-               </button>
-
-               {/* 3. CENTER ACTION (Active Jobs) */}
-               <div className="relative -mt-8">
-                  <div className={`absolute inset-0 bg-brand-200 rounded-full blur-lg opacity-40 ${currentView === 'JOBS' ? 'animate-pulse' : ''}`}></div>
+                  {/* 1. HOME (Overview) */}
                   <button
-                     onClick={() => navigateToView('JOBS')}
-                     className={`relative bg-gradient-to-br ${currentView === 'JOBS' ? 'from-brand-500 to-brand-700 ring-4 ring-brand-100' : 'from-brand-400 to-brand-600'} p-4 rounded-full shadow-2xl shadow-brand-500/40 border-4 border-white active:scale-95 transition-all hover:shadow-brand-500/60`}
+                     onClick={() => navigateToView('OVERVIEW')}
+                     className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'OVERVIEW' ? 'text-brand-600' : 'text-slate-400'}`}
                   >
-                     <Car className="w-7 h-7 text-white" />
+                     <Home className="w-6 h-6 mb-1" />
+                     <span className="text-[10px] font-bold">Home</span>
+                  </button>
+
+                  {/* 2. MARKET (Marketplace) */}
+                  <button
+                     onClick={() => navigateToView('MARKET')}
+                     className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'MARKET' ? 'text-brand-600' : 'text-slate-400'}`}
+                  >
+                     <LayoutGrid className="w-6 h-6 mb-1" />
+                     <span className="text-[10px] font-bold">Market</span>
+                  </button>
+
+                  {/* 3. CENTER ACTION (Active Jobs) */}
+                  <div className="relative -mt-8">
+                     <div className={`absolute inset-0 bg-brand-200 rounded-full blur-lg opacity-40 ${currentView === 'JOBS' ? 'animate-pulse' : ''}`}></div>
+                     <button
+                        onClick={() => navigateToView('JOBS')}
+                        className={`relative bg-gradient-to-br ${currentView === 'JOBS' ? 'from-brand-500 to-brand-700 ring-4 ring-brand-100' : 'from-brand-400 to-brand-600'} p-4 rounded-full shadow-2xl shadow-brand-500/40 border-4 border-white active:scale-95 transition-all hover:shadow-brand-500/60`}
+                     >
+                        <Car className="w-7 h-7 text-white" />
+                     </button>
+                  </div>
+
+                  {/* 4. EARNINGS */}
+                  <button
+                     onClick={() => navigateToView('EARNINGS')}
+                     className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'EARNINGS' ? 'text-brand-600' : 'text-slate-400'}`}
+                  >
+                     <Wallet className="w-6 h-6 mb-1" />
+                     <span className="text-[10px] font-bold">Earnings</span>
+                  </button>
+
+                  {/* 5. PROFILE */}
+                  <button
+                     onClick={() => navigateToView('PROFILE')}
+                     className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'PROFILE' ? 'text-brand-600' : 'text-slate-400'}`}
+                  >
+                     <UserIcon className="w-6 h-6 mb-1" />
+                     <span className="text-[10px] font-bold">Profile</span>
                   </button>
                </div>
-
-               {/* 4. EARNINGS */}
-               <button
-                  onClick={() => navigateToView('EARNINGS')}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'EARNINGS' ? 'text-brand-600' : 'text-slate-400'}`}
-               >
-                  <Wallet className="w-6 h-6 mb-1" />
-                  <span className="text-[10px] font-bold">Earnings</span>
-               </button>
-
-               {/* 5. PROFILE */}
-               <button
-                  onClick={() => navigateToView('PROFILE')}
-                  className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'PROFILE' ? 'text-brand-600' : 'text-slate-400'}`}
-               >
-                  <UserIcon className="w-6 h-6 mb-1" />
-                  <span className="text-[10px] font-bold">Profile</span>
-               </button>
             </div>
-         </div>
+         )}
       </div>
    );
 };
