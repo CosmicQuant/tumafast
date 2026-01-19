@@ -1102,8 +1102,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
     };
 
     return (
-        <div className="w-full h-full flex flex-col justify-end pointer-events-none">
-            <div className="pointer-events-auto w-full max-w-2xl mx-auto px-4 sm:px-6 pb-[env(safe-area-inset-bottom,0px)]">
+        <div className="absolute inset-x-0 bottom-0 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-2xl mx-auto px-4 sm:px-6">
 
                 {/* Step Indicator - Removed for One-Click Flow */}
                 {/* {!isCollapsed && (
@@ -1118,7 +1118,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
                 {/* Main Card - Professional Bottom Sheet (75% max when expanded) */}
                 <div
-                    className={`bg-white backdrop-blur-2xl rounded-t-[2rem] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] border-t border-x border-gray-200 overflow-hidden transition-all duration-500 transform ${isCollapsed ? (isMapSelecting ? 'max-h-[200px]' : 'max-h-[150px]') : 'max-h-[75vh]'}`}
+                    className={`bg-white backdrop-blur-2xl rounded-t-[2rem] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] border-t border-x border-gray-200 overflow-hidden transition-all duration-500 transform pb-[env(safe-area-inset-bottom,0px)] ${isCollapsed ? (isMapSelecting ? 'max-h-[220px]' : 'max-h-[170px]') : 'max-h-[75vh]'}`}
                 >
                     {/* Drawer Handle / Drag Zone */}
                     <div
