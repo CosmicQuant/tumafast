@@ -36,7 +36,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onProfile, onLogin
     };
 
     return (
-        <div className="fixed inset-0 z-[200] flex">
+        <div className="fixed inset-0 z-[1000] flex">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
@@ -44,7 +44,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onProfile, onLogin
             ></div>
 
             {/* Menu Content */}
-            <div className="relative w-full max-w-sm bg-white h-full shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-300 pb-32">
+            <div className="relative w-full max-w-sm bg-white h-full shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-300 pb-40">
 
                 {/* Close Button */}
                 <button

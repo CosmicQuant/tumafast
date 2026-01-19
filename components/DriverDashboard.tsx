@@ -29,14 +29,36 @@ interface DriverDashboardProps {
 
 type DashboardView = 'OVERVIEW' | 'MARKET' | 'JOBS' | 'DELIVERIES' | 'EARNINGS' | 'PROFILE';
 
-const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome }) => {
+interface DashboardContentProps extends DriverDashboardProps {
+   onViewChange?: (view: DashboardView) => void;
+   currentView?: DashboardView;
+}
+
+
+const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHome, onViewChange, currentView: propCurrentView }) => {
    const { logout, updateUser, deleteAccount } = useAuth();
    const { showAlert } = usePrompt();
    const { isLoaded, setPickupCoords, setDropoffCoords, setWaypointCoords, setOrderState, fitBounds, setDriverCoords, setDriverBearing, setDriverVehicleType, setRoutePolyline, requestUserLocation, driverCoords } = useMapState();
-   const [currentView, setCurrentView] = useState<DashboardView>('OVERVIEW');
+
+   // Internal state if not controlled
+   const [internalView, setInternalView] = useState<DashboardView>('OVERVIEW');
+
+   // Use prop if available, otherwise internal state
+   const currentView = propCurrentView || internalView;
+
+   const setCurrentView = (view: DashboardView) => {
+      if (onViewChange) {
+         onViewChange(view);
+      } else {
+         setInternalView(view);
+      }
+   };
+
    const location = useLocation();
 
    useEffect(() => {
+      if (propCurrentView) return; // Skip URL parsing if controlled
+
       const params = new URLSearchParams(location.search);
       const view = params.get('view') as DashboardView;
       const openMenu = params.get('menu');
@@ -48,7 +70,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
       if (openMenu === 'open') {
          setIsSidebarOpen(true);
       }
-   }, [location.search]);
+   }, [location.search, propCurrentView]);
 
    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile toggle
    const [isOnline, setIsOnline] = useState(true);
@@ -2280,8 +2302,70 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
 };
 
 const DriverDashboard: React.FC<DriverDashboardProps> = (props) => {
+   const [currentView, setCurrentView] = useState<DashboardView>('OVERVIEW');
+
+   // Navigation Handler
+   const navigateToView = (view: DashboardView) => {
+      setCurrentView(view);
+   };
+
    return (
-      <DriverDashboardContent {...props} />
+      <div className="relative min-h-screen bg-gray-50 pb-[env(safe-area-inset-bottom)]">
+         <DriverDashboardContent {...props} onViewChange={navigateToView} currentView={currentView} />
+
+         {/* Driver Bottom Navigation - Sticky Footer */}
+         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 pb-[env(safe-area-inset-bottom)]">
+            <div className="flex justify-around items-center px-2 py-2">
+
+               {/* 1. HOME (Overview) */}
+               <button
+                  onClick={() => navigateToView('OVERVIEW')}
+                  className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'OVERVIEW' ? 'text-brand-600' : 'text-slate-400'}`}
+               >
+                  <Home className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-bold">Home</span>
+               </button>
+
+               {/* 2. MARKET (Marketplace) */}
+               <button
+                  onClick={() => navigateToView('MARKET')}
+                  className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'MARKET' ? 'text-brand-600' : 'text-slate-400'}`}
+               >
+                  <LayoutGrid className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-bold">Market</span>
+               </button>
+
+               {/* 3. CENTER ACTION (Active Jobs) */}
+               <div className="relative -mt-8">
+                  <div className={`absolute inset-0 bg-brand-200 rounded-full blur-lg opacity-40 ${currentView === 'JOBS' ? 'animate-pulse' : ''}`}></div>
+                  <button
+                     onClick={() => navigateToView('JOBS')}
+                     className={`relative bg-gradient-to-br ${currentView === 'JOBS' ? 'from-brand-500 to-brand-700 ring-4 ring-brand-100' : 'from-brand-400 to-brand-600'} p-4 rounded-full shadow-2xl shadow-brand-500/40 border-4 border-white active:scale-95 transition-all hover:shadow-brand-500/60`}
+                  >
+                     <Car className="w-7 h-7 text-white" />
+                  </button>
+               </div>
+
+               {/* 4. EARNINGS */}
+               <button
+                  onClick={() => navigateToView('EARNINGS')}
+                  className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'EARNINGS' ? 'text-brand-600' : 'text-slate-400'}`}
+               >
+                  <Wallet className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-bold">Earnings</span>
+               </button>
+
+               {/* 5. PROFILE */}
+               <button
+                  onClick={() => navigateToView('PROFILE')}
+                  className={`flex flex-col items-center justify-center p-2 rounded-xl active:scale-95 transition-all ${currentView === 'PROFILE' ? 'text-brand-600' : 'text-slate-400'}`}
+               >
+                  <UserIcon className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-bold">Profile</span>
+               </button>
+            </div>
+         </div>
+      </div>
    );
 };
 
