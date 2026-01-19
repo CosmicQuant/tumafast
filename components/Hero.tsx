@@ -516,33 +516,33 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                      <>
                         <div className="grid grid-cols-3 gap-3">
                            {/* Express */}
-                           <div onClick={() => onStartBooking?.({ serviceType: ServiceType.EXPRESS })} className="bg-brand-600 p-3.5 rounded-[1.5rem] shadow-xl border border-brand-500 flex flex-col justify-between h-24 cursor-pointer hover:bg-brand-700 hover:-translate-y-1 transition-all group">
+                           <div onClick={() => onStartBooking?.({ serviceType: ServiceType.EXPRESS })} className="bg-brand-600 p-3 rounded-[1.5rem] shadow-xl border border-brand-500 flex flex-col justify-between h-28 cursor-pointer hover:bg-brand-700 hover:-translate-y-1 transition-all group">
                               <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-white backdrop-blur-sm group-hover:bg-white/30 transition-colors">
                                  <Rocket className="w-4 h-4" />
                               </div>
                               <div>
-                                 <h3 className="text-sm font-black text-white leading-tight">Express<br />Delivery</h3>
-                                 <p className="text-[9px] text-brand-100 font-bold mt-1 uppercase tracking-tight">Instant Pickup & Delivery</p>
+                                 <h3 className="text-xs sm:text-sm font-black text-white leading-tight mb-1">Express<br />Delivery</h3>
+                                 <p className="text-[8px] sm:text-[9px] text-brand-100 font-bold uppercase tracking-tight leading-tight">Instant Pickup & Delivery</p>
                               </div>
                            </div>
                            {/* Standard */}
-                           <div onClick={() => onStartBooking?.({ serviceType: ServiceType.STANDARD })} className="bg-blue-600 p-3.5 rounded-[1.5rem] shadow-xl border border-blue-500 flex flex-col justify-between h-24 cursor-pointer hover:bg-blue-700 hover:-translate-y-1 transition-all group">
+                           <div onClick={() => onStartBooking?.({ serviceType: ServiceType.STANDARD })} className="bg-blue-600 p-3 rounded-[1.5rem] shadow-xl border border-blue-500 flex flex-col justify-between h-28 cursor-pointer hover:bg-blue-700 hover:-translate-y-1 transition-all group">
                               <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-white backdrop-blur-sm group-hover:bg-white/30 transition-colors">
                                  <Package className="w-4 h-4" />
                               </div>
                               <div>
-                                 <h3 className="text-sm font-black text-white leading-tight">Standard<br />Parcel</h3>
-                                 <p className="text-[9px] text-blue-100 font-bold mt-1 uppercase tracking-tight">Same Day Delivery</p>
+                                 <h3 className="text-xs sm:text-sm font-black text-white leading-tight mb-1">Standard<br />Parcel</h3>
+                                 <p className="text-[8px] sm:text-[9px] text-blue-100 font-bold uppercase tracking-tight leading-tight">Same Day Delivery</p>
                               </div>
                            </div>
                            {/* Economy */}
-                           <div onClick={() => onStartBooking?.({ serviceType: ServiceType.ECONOMY })} className="bg-slate-900 p-3.5 rounded-[1.5rem] shadow-xl border border-slate-700 flex flex-col justify-between h-24 cursor-pointer hover:bg-slate-800 hover:-translate-y-1 transition-all group">
+                           <div onClick={() => onStartBooking?.({ serviceType: ServiceType.ECONOMY })} className="bg-slate-900 p-3 rounded-[1.5rem] shadow-xl border border-slate-700 flex flex-col justify-between h-28 cursor-pointer hover:bg-slate-800 hover:-translate-y-1 transition-all group">
                               <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-white backdrop-blur-sm group-hover:bg-white/30 transition-colors">
                                  <ShieldCheck className="w-4 h-4" />
                               </div>
                               <div>
-                                 <h3 className="text-sm font-black text-white leading-tight">Economy<br />Saver</h3>
-                                 <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-tight">Next Day Delivery</p>
+                                 <h3 className="text-xs sm:text-sm font-black text-white leading-tight mb-1">Economy<br />Saver</h3>
+                                 <p className="text-[8px] sm:text-[9px] text-slate-400 font-bold uppercase tracking-tight leading-tight">Next Day Delivery</p>
                               </div>
                            </div>
                         </div>
