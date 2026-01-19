@@ -13,20 +13,21 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // Make the Window edge-to-edge
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        // STANDARD PRO APPROACH: Fit content nicely between the bars (No overlap)
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
 
-        // Explicitly set transparent colors for system bars
         Window window = getWindow();
-        window.setStatusBarColor(Color.TRANSPARENT);
-        window.setNavigationBarColor(Color.TRANSPARENT);
+        
+        // Set the system bars to White to blend with the app background
+        window.setStatusBarColor(Color.WHITE);
+        window.setNavigationBarColor(Color.WHITE);
 
-        // Ensure icons are visible on light backgrounds (requires API 26+)
+        // Ensure the system icons (Time, Battery, Back, Home) are Dark Grey so they are visible on White
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             View decorView = window.getDecorView();
             int flags = decorView.getSystemUiVisibility();
-            flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR; // Dark buttons for nav bar
-            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;    // Dark icons for status bar
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;     // Dark icons on top
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR; // Dark buttons on bottom
             decorView.setSystemUiVisibility(flags);
         }
     }
