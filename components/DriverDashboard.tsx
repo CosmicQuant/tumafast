@@ -841,14 +841,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                </div>
 
                <div className="p-4 space-y-2 flex-1 overflow-y-auto">
-                  <button
-                     onClick={onGoHome}
-                     className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all mb-2 text-gray-600 hover:bg-gray-50 hover:text-brand-600 font-medium border border-transparent"
-                  >
-                     <Home className="w-5 h-5 text-gray-400" />
-                     <span>Back to Home</span>
-                  </button>
-                  <div className="h-px bg-gray-100 my-2 mx-4"></div>
+                  {/* Home button removed for drivers */}
                   <div className="text-xs font-bold text-gray-400 uppercase px-4 py-2">Menu</div>
                   <SidebarItem view="OVERVIEW" icon={LayoutDashboard} label="Dashboard" />
                   <SidebarItem view="MARKET" icon={Search} label="Marketplace" />
@@ -858,7 +851,7 @@ const DriverDashboardContent: React.FC<DriverDashboardProps> = ({ user, onGoHome
                   <SidebarItem view="PROFILE" icon={UserIcon} label="Profile" />
                </div>
 
-               <div className="p-4 border-t border-gray-100 bg-gray-50">
+               <div className="p-4 border-t border-gray-100 bg-gray-50 pb-24">
                   <div className="flex items-center space-x-3 mb-4 px-2">
                      <div className="w-10 h-10 rounded-full bg-brand-100 border border-brand-200 flex items-center justify-center text-brand-600 font-bold">
                         {user.name.charAt(0)}

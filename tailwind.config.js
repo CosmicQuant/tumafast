@@ -29,6 +29,10 @@ export default {
                 secondary: {
                     900: '#111827',
                 }
+            },
+            spacing: {
+                '38': '9.5rem',
+                '42': '10.5rem',
             }
         },
     },

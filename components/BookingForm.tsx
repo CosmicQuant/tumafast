@@ -135,6 +135,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
     // Step 2: Vehicle
     const [selectedVehicle, setSelectedVehicle] = useState<VehicleType>(prefillData?.vehicle || VehicleType.BODA);
+    const [tonnage, setTonnage] = useState<string>(''); // New Tonnage State
     const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
 
     // Sync selected vehicle to map state
@@ -292,6 +293,15 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         }
     }, [distance, serviceType, pickupTime, isScheduled]);
 
+    // Update sender details when user logs in (e.g. after auth prompt)
+    useEffect(() => {
+        if (user) {
+            if (!senderName && user.name) setSenderName(user.name);
+            if (!senderPhone && user.phone) setSenderPhone(user.phone);
+            // Also update M-PESA number if empty
+            if (!mpesaNumber && user.phone) setMpesaNumber(user.phone);
+        }
+    }, [user]);
 
     // Desktop Scroll & Drag Handler
     useEffect(() => {
@@ -978,6 +988,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             distance: distance, // Store distance in meters
             status: 'pending',
             serviceType: serviceType,
+            tonnage: tonnage, // Add Tonnage
             estimatedDuration: estArrival ? `${estArrival.arrivalTime}, ${estArrival.arrivalDate}` : (aiResult?.estimatedDuration || '1 hour'),
             packagingAdvice: aiResult?.packagingAdvice || null,
             aiAnalysis: aiResult?.riskAssessment || null,
@@ -994,7 +1005,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         { type: VehicleType.TUKTUK, icon: Car, label: 'Tuk-Tuk', desc: 'Medium items & boxes', maxDist: 100, maxWeight: '100kg' },
         { type: VehicleType.PICKUP, icon: Truck, label: 'Pickup Truck', desc: 'Furniture & Appliances', maxDist: 1000, maxWeight: '1000kg' },
         { type: VehicleType.VAN, icon: Truck, label: 'Cargo Van', desc: 'Large item moves', maxDist: 1000, maxWeight: '2000kg' },
-        { type: VehicleType.LORRY, icon: Truck, label: '3T Lorry', desc: 'Commercial loads', maxDist: 2000, maxWeight: '3000kg' },
+        { type: VehicleType.LORRY, icon: Truck, label: 'Truck / Lorry', desc: 'Commercial loads', maxDist: 2000, maxWeight: '3000kg+' },
         { type: VehicleType.TRAILER, icon: Truck, label: 'Container Trailer', desc: 'Containers & Heavy Freight', maxDist: 5000, maxWeight: '28000kg' },
     ];
 
@@ -1270,44 +1281,44 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                             {/* Professional Service Mode Selection */}
                             <div className="grid grid-cols-3 gap-3">
                                 {[
-                                    { type: ServiceType.EXPRESS, label: 'Express Instant', icon: Zap, color: 'blue', desc: 'Direct & Fast' },
-                                    { type: ServiceType.STANDARD, label: 'Standard', icon: Rocket, color: 'green', desc: 'Same Day' },
+                                    { type: ServiceType.EXPRESS, label: 'Express Delivery', icon: Zap, color: 'green', desc: 'Instant Pickup' },
+                                    { type: ServiceType.STANDARD, label: 'Standard Parcel', icon: Rocket, color: 'blue', desc: 'Same Day' },
                                     { type: ServiceType.ECONOMY, label: 'Economy', icon: Shield, color: 'slate', desc: 'Next Day' }
                                 ].map((mode) => {
                                     const Icon = mode.icon;
                                     const isActive = serviceType === mode.type;
                                     const colorMap: any = {
-                                        blue: isActive ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-400',
-                                        green: isActive ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400',
-                                        slate: isActive ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-400'
+                                        blue: isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400',
+                                        green: isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400',
+                                        slate: isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
                                     };
                                     const borderMap: any = {
-                                        blue: isActive ? 'border-brand-600 bg-brand-50/30' : 'border-gray-100 bg-white',
-                                        green: isActive ? 'border-green-600 bg-green-50/30' : 'border-gray-100 bg-white',
-                                        slate: isActive ? 'border-slate-800 bg-slate-50/30' : 'border-gray-100 bg-white'
+                                        blue: isActive ? 'border-blue-600 bg-blue-600 shadow-md' : 'border-gray-100 bg-white hover:border-blue-200',
+                                        green: isActive ? 'border-brand-600 bg-brand-600 shadow-md' : 'border-gray-100 bg-white hover:border-brand-200',
+                                        slate: isActive ? 'border-slate-800 bg-slate-900 shadow-md' : 'border-gray-100 bg-white hover:border-slate-200'
                                     };
                                     const textMap: any = {
-                                        blue: isActive ? 'text-brand-700' : 'text-gray-400',
-                                        green: isActive ? 'text-green-700' : 'text-gray-400',
-                                        slate: isActive ? 'text-slate-800' : 'text-gray-400'
+                                        blue: isActive ? 'text-white' : 'text-gray-400',
+                                        green: isActive ? 'text-white' : 'text-gray-400',
+                                        slate: isActive ? 'text-white' : 'text-gray-400'
                                     };
 
                                     return (
                                         <button
                                             key={mode.type}
                                             onClick={() => setServiceType(mode.type)}
-                                            className={`relative flex flex-col items-center p-4 rounded-3xl border-2 transition-all duration-300 ${borderMap[mode.color]} ${isActive ? 'shadow-xl -translate-y-1' : 'hover:border-gray-200 shadow-sm'}`}
+                                            className={`relative flex flex-col items-center p-4 rounded-3xl border-2 transition-all duration-300 ${borderMap[mode.color]} ${isActive ? '-translate-y-1' : 'shadow-sm'}`}
                                         >
-                                            <div className={`p-2.5 rounded-2xl mb-1.5 transition-colors ${colorMap[mode.color]}`}>
+                                            <div className={`p-2.5 rounded-2xl mb-1.5 transition-colors backdrop-blur-sm ${colorMap[mode.color]}`}>
                                                 <Icon className="w-5 h-5" />
                                             </div>
-                                            <span className={`text-[11px] font-black uppercase tracking-tight ${textMap[mode.color]}`}>
+                                            <span className={`text-[11px] font-black uppercase tracking-tight leading-tight ${textMap[mode.color]}`}>
                                                 {mode.label}
                                             </span>
-                                            <span className="text-[8px] text-gray-400 font-bold tracking-wider">{mode.desc}</span>
+                                            <span className={`text-[8px] font-bold tracking-wider mt-0.5 ${isActive ? 'text-white/80' : 'text-gray-400'}`}>{mode.desc}</span>
                                             {isActive && (
                                                 <div className="absolute top-2 right-2 flex space-x-0.5">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-current opacity-20 animate-ping" />
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-white opacity-40 animate-ping" />
                                                 </div>
                                             )}
                                         </button>
@@ -1842,6 +1853,32 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                     </div>
                                 )}
 
+                                {/* Tonnage Selector for Truck/Lorry/Trailer */}
+                                {(selectedVehicle === VehicleType.LORRY || selectedVehicle === VehicleType.TRAILER) && (
+                                    <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-lg mb-4 animate-in slide-in-from-top-4 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                                            <Truck className="w-24 h-24 text-gray-500" />
+                                        </div>
+                                        <label className="block text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4 relative z-10">
+                                            Select Load Capacity
+                                        </label>
+                                        <div className="grid grid-cols-3 gap-3 relative z-10">
+                                            {['3 Ton', '4 Ton', '5 Ton', '8 Ton', '12 Ton', '15 Ton', '20ft', '40ft'].map((t) => (
+                                                <button
+                                                    key={t}
+                                                    onClick={() => setTonnage(t)}
+                                                    className={`py-3 px-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-tight transition-all border flex items-center justify-center ${tonnage === t
+                                                        ? 'bg-brand-600 text-white border-brand-600 shadow-md transform scale-105'
+                                                        : 'bg-gray-50 text-gray-600 border-gray-100 hover:border-brand-200 hover:bg-white'
+                                                        }`}
+                                                >
+                                                    {t.includes('ft') ? <span className='mr-1'>🚢</span> : <span className='mr-1'>⚖️</span>} {t}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Smart Logic Badge / Summary */}
                                 {pickupCoords && dropoffCoords && (
                                     <div className="bg-brand-50/50 rounded-2xl p-5 border border-brand-100 flex items-start space-x-4 animate-in fade-in duration-700">
@@ -1923,8 +1960,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                 </div>
                             </div>
 
-                            {/* Sender Section (For Guests) */}
-                            {!user && (
+                            {/* Sender Section (For Guests) - HIDDEN to force login at end */
+                            /* !user && (
                                 <div className="bg-white rounded-[2rem] p-6 border border-gray-100 space-y-4 shadow-sm">
                                     <div className="flex items-center space-x-2 px-2">
                                         <div className="w-1.5 h-4 bg-gray-400 rounded-full"></div>
@@ -1948,7 +1985,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                     </div>
                                     <p className="text-[10px] text-gray-400 font-bold px-2 italic">We need this to contact you regarding the pickup.</p>
                                 </div>
-                            )}
+                            ) */}
 
                             {/* Recipient Section */}
                             <div className="bg-brand-50/30 rounded-[2rem] p-6 border border-brand-100/50 space-y-4">
@@ -2061,8 +2098,15 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                         )}
 
                                         <button
-                                            onClick={handleBook}
-                                            disabled={loading || !recipientName || !recipientPhone || !recipientId || (paymentMethod === 'MPESA' && !mpesaNumber) || (!user && (!senderName || !senderPhone))}
+                                            onClick={() => {
+                                                if (!user) {
+                                                    // Trigger Auth Prompt from BookingPage
+                                                    onRequireAuth?.('Authentication Required', 'Please log in or sign up to complete your booking.');
+                                                    return;
+                                                }
+                                                handleBook();
+                                            }}
+                                            disabled={loading || !recipientName || !recipientPhone || !recipientId || (paymentMethod === 'MPESA' && !mpesaNumber) /* || (!user && (!senderName || !senderPhone)) */}
                                             className="w-full bg-gray-900 text-white py-6 rounded-[2rem] font-black text-xl shadow-2xl hover:bg-black disabled:opacity-50 transition-all flex items-center justify-center space-x-3"
                                         >
                                             {loading ? (
