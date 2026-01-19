@@ -44,7 +44,10 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onProfile, onLogin
             ></div>
 
             {/* Menu Content */}
-            <div className="relative w-full max-w-sm bg-white h-full shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-300 pb-40">
+            <div className="relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
+                
+                {/* Scrollable Area */}
+                <div className="flex-1 overflow-y-auto pb-48">
 
                 {/* Close Button */}
                 <button
@@ -110,6 +113,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onProfile, onLogin
                         variant="danger"
                     />
 
+                </div>
                 </div>
             </div>
         </div>
