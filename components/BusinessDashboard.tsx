@@ -1047,42 +1047,44 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                     </button>
                 </div>
 
-                <div className="p-4 space-y-1 flex-1 overflow-y-auto pt-4">
-                    <SidebarItem id="OVERVIEW" icon={LayoutDashboard} label="Overview" />
-                    <SidebarItem id="DELIVERIES" icon={Package} label="Deliveries" />
-                    <SidebarItem id="FLEET" icon={Truck} label="Fleet Management" />
-                    <SidebarItem id="BULK" icon={Upload} label="Bulk Schedule" />
-                    <SidebarItem id="ADDRESSES" icon={Building} label="Address Book" />
-                    <SidebarItem id="API" icon={Terminal} label="API & Integration" />
-                    <SidebarItem id="PROFILE" icon={UserIcon} label="Business Profile" />
-                </div>
-
-                {/* Sidebar Footer */}
-                <div className="p-4 border-t border-gray-100 space-y-3 bg-gray-50/50" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
-                    <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center font-bold text-brand-600 border border-brand-100">
-                            {user.companyName ? user.companyName.charAt(0) : 'B'}
-                        </div>
-                        <div className="overflow-hidden">
-                            <p className="text-sm font-bold truncate text-gray-900">{user.companyName || 'Business Inc.'}</p>
-                            <p className="text-xs text-gray-500 truncate">Enterprise Plan</p>
-                        </div>
+                <div className="flex-1 overflow-y-auto pb-4">
+                    <div className="p-4 space-y-1 pt-4">
+                        <SidebarItem id="OVERVIEW" icon={LayoutDashboard} label="Overview" />
+                        <SidebarItem id="DELIVERIES" icon={Package} label="Deliveries" />
+                        <SidebarItem id="FLEET" icon={Truck} label="Fleet Management" />
+                        <SidebarItem id="BULK" icon={Upload} label="Bulk Schedule" />
+                        <SidebarItem id="ADDRESSES" icon={Building} label="Address Book" />
+                        <SidebarItem id="API" icon={Terminal} label="API & Integration" />
+                        <SidebarItem id="PROFILE" icon={UserIcon} label="Business Profile" />
                     </div>
-                    <div className="space-y-2">
-                        <button
-                            onClick={onGoHome}
-                            className="w-full flex items-center justify-center space-x-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 py-2 rounded-lg text-xs font-bold transition-colors"
-                        >
-                            <Home className="w-3.5 h-3.5" />
-                            <span>Back to Site</span>
-                        </button>
-                        <button
-                            onClick={logout}
-                            className="w-full flex items-center justify-center space-x-2 text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 py-2 rounded-lg text-xs font-bold transition-colors"
-                        >
-                            <LogOut className="w-3.5 h-3.5" />
-                            <span>Sign Out</span>
-                        </button>
+
+                    {/* Sidebar Footer - INSIDE scrollable area */}
+                    <div className="p-4 mt-4 border-t border-gray-100 space-y-3 bg-gray-50 mx-2 rounded-2xl" style={{ marginBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center font-bold text-brand-600 border border-brand-100">
+                                {user.companyName ? user.companyName.charAt(0) : 'B'}
+                            </div>
+                            <div className="overflow-hidden">
+                                <p className="text-sm font-bold truncate text-gray-900">{user.companyName || 'Business Inc.'}</p>
+                                <p className="text-xs text-gray-500 truncate">Enterprise Plan</p>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <button
+                                onClick={onGoHome}
+                                className="w-full flex items-center justify-center space-x-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 py-2.5 rounded-xl text-xs font-bold transition-colors shadow-sm"
+                            >
+                                <Home className="w-3.5 h-3.5" />
+                                <span>Back to Site</span>
+                            </button>
+                            <button
+                                onClick={logout}
+                                className="w-full flex items-center justify-center space-x-2 text-red-600 bg-white border border-red-100 hover:bg-red-50 py-2.5 rounded-xl text-xs font-bold transition-colors shadow-sm"
+                            >
+                                <LogOut className="w-3.5 h-3.5" />
+                                <span>Sign Out</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </aside>

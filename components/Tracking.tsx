@@ -510,9 +510,9 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
 
       <div className="mt-auto pointer-events-auto w-full max-w-2xl mx-auto">
 
-        {/* Main Collapsible Card */}
+        {/* Main Collapsible Card - Bottom Sheet Style (60% max, sits at bottom with safe-area padding) */}
         <div
-          className={`bg-white/70 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-white/50 overflow-hidden transition-all duration-500 transform animate-in slide-in-from-bottom-10 ${isCollapsed ? (isMapSelecting ? 'max-h-[220px]' : 'max-h-[100px]') : 'max-h-[85vh] overflow-y-auto no-scrollbar'}`}
+          className={`bg-white/95 backdrop-blur-2xl rounded-t-[2.5rem] shadow-[0_-10px_50px_rgba(0,0,0,0.15)] border-t border-x border-white/50 overflow-hidden transition-all duration-500 transform animate-in slide-in-from-bottom-10 ${isCollapsed ? (isMapSelecting ? 'max-h-[220px]' : 'max-h-[100px]') : 'max-h-[60vh] overflow-y-auto no-scrollbar'}`}
         >
           {/* Drawer Handle / Drag Zone */}
           <div

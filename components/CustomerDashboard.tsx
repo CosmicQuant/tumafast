@@ -333,36 +333,39 @@ const CustomerDashboard: React.FC = () => {
                         </button>
                     </div>
 
-                    <div className="p-4 space-y-2 flex-1 overflow-y-auto">
-                        <button
-                            onClick={() => navigate('/')}
-                            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all mb-2 text-gray-600 hover:bg-gray-50 hover:text-emerald-600 font-medium border border-transparent"
-                        >
-                            <Home className="w-5 h-5 text-gray-400" />
-                            <span>Back to Home</span>
-                        </button>
-                        <div className="h-px bg-gray-100 my-2 mx-4"></div>
-                        <div className="text-xs font-bold text-gray-400 uppercase px-4 py-2">Menu</div>
-                        <SidebarItem view="DELIVERIES" icon={Package} label="My Deliveries" />
-                        <SidebarItem view="SETTINGS" icon={Settings} label="Settings" />
-                    </div>
-
-                    <div className="p-4 border-t border-gray-100 bg-gray-50" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
-                        <div className="flex items-center space-x-3 mb-4 px-2">
-                            <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600 font-bold">
-                                {user?.name?.charAt(0)}
-                            </div>
-                            <div className="overflow-hidden">
-                                <p className="text-sm font-bold text-gray-900 truncate">{user?.name}</p>
-                                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-                            </div>
+                    <div className="flex-1 overflow-y-auto pb-4">
+                        <div className="p-4 space-y-2">
+                            <button
+                                onClick={() => navigate('/')}
+                                className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all mb-2 text-gray-600 hover:bg-gray-50 hover:text-emerald-600 font-medium border border-transparent"
+                            >
+                                <Home className="w-5 h-5 text-gray-400" />
+                                <span>Back to Home</span>
+                            </button>
+                            <div className="h-px bg-gray-100 my-2 mx-4"></div>
+                            <div className="text-xs font-bold text-gray-400 uppercase px-4 py-2">Menu</div>
+                            <SidebarItem view="DELIVERIES" icon={Package} label="My Deliveries" />
+                            <SidebarItem view="SETTINGS" icon={Settings} label="Settings" />
                         </div>
-                        <button
-                            onClick={handleLogout}
-                            className="w-full flex items-center justify-center space-x-2 text-red-600 bg-white border border-red-100 hover:bg-red-50 py-2 rounded-lg text-sm font-bold transition-colors"
-                        >
-                            <LogOut className="w-4 h-4" /> <span>Sign Out</span>
-                        </button>
+
+                        {/* User Info & Sign Out - INSIDE scrollable area */}
+                        <div className="p-4 mt-4 border-t border-gray-100 bg-gray-50 mx-2 rounded-2xl" style={{ marginBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>
+                            <div className="flex items-center space-x-3 mb-4 px-2">
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600 font-bold">
+                                    {user?.name?.charAt(0)}
+                                </div>
+                                <div className="overflow-hidden">
+                                    <p className="text-sm font-bold text-gray-900 truncate">{user?.name}</p>
+                                    <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center justify-center space-x-2 text-red-600 bg-white border border-red-100 hover:bg-red-50 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-sm"
+                            >
+                                <LogOut className="w-4 h-4" /> <span>Sign Out</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </aside>
