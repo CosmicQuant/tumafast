@@ -873,7 +873,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                   <SidebarItem view="PROFILE" icon={UserIcon} label="Profile" />
                </div>
 
-               <div className="p-4 border-t border-gray-100 bg-gray-50 pb-24">
+               <div className="p-4 border-t border-gray-100 bg-gray-50" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
                   <div className="flex items-center space-x-3 mb-4 px-2">
                      <div className="w-10 h-10 rounded-full bg-brand-100 border border-brand-200 flex items-center justify-center text-brand-600 font-bold">
                         {user.name.charAt(0)}

@@ -19,7 +19,7 @@ const Layout: React.FC<LayoutProps> = ({ onOpenProfile, onLogin }) => {
     const isDarkPage = ['/business', '/fulfillment', '/intelligence', '/payments', '/security', '/contact', '/about', '/privacy', '/terms', '/fleet'].includes(location.pathname);
 
     return (
-        <div className={`relative min-h-screen min-h-[100dvh] flex flex-col font-sans ${!isMapPage ? (isDarkPage ? 'bg-[#0f172a]' : 'bg-slate-50') : 'overflow-hidden'}`}>
+        <div className={`relative min-h-screen min-h-[100dvh] flex flex-col font-sans pb-[env(safe-area-inset-bottom)] ${!isMapPage ? (isDarkPage ? 'bg-[#0f172a]' : 'bg-slate-50') : 'overflow-hidden'}`}>
             {/* UI Layer */}
             <div className={`relative z-10 flex flex-col min-h-screen min-h-[100dvh] ${isMapPage ? 'pointer-events-none' : ''}`}>
                 {!isDashboard && (

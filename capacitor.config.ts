@@ -10,6 +10,11 @@ const config: CapacitorConfig = {
       serverClientId: '672048373138-ja58begjt0ieksollh1lmqacos65luus.apps.googleusercontent.com',
       forceCodeForRefreshToken: true,
     },
+    StatusBar: {
+      overlaysWebView: false,
+      style: "light",
+      backgroundColor: "#FFFFFF"
+    },
   },
 };
 

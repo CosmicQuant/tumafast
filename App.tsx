@@ -81,6 +81,7 @@ const App = () => {
         try {
           await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
           await StatusBar.setStyle({ style: Style.Light });
+          // Use overlaysWebView: false to ensure app content starts below status bar
           await StatusBar.setOverlaysWebView({ overlay: false });
           await StatusBar.show();
         } catch (err) {
@@ -227,7 +228,7 @@ const App = () => {
 
   return (
     <ChatProvider>
-      <div className={`min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900 overflow-x-hidden ${shouldShowBottomNav ? 'pb-20 md:pb-0' : ''}`}>
+      <div className={`min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900 overflow-x-hidden ${shouldShowBottomNav ? 'pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0' : 'pb-[env(safe-area-inset-bottom,0px)]'}`}>
         <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#333', color: '#fff' } }} />
 
         <MapProvider>
