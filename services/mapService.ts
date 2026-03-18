@@ -450,9 +450,13 @@ export const mapService = {
         });
 
         // Reorder waypoints based on Google's optimization
+        console.log("Axon Map Engine: Waypoint Order Response:", route?.waypoint_order);
+        
         const waypointOrder = (route?.waypoint_order && route.waypoint_order.length > 0) 
             ? route.waypoint_order 
             : waypoints.map((_, i) => i);
+            
+        console.log("Axon Map Engine: Final Waypoint Order to use:", waypointOrder);
 
         waypointOrder.forEach((originalIndex: number, newIndex: number) => {
             const wp = waypoints[originalIndex];
@@ -471,6 +475,8 @@ export const mapService = {
                 });
             }
         });
+        
+        console.log("Axon Map Engine: Waypoints processed into stops. Count:", optimizedStops.length - 1); // -1 for pickup
 
         // Dropoff is always last
         optimizedStops.push({

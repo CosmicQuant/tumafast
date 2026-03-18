@@ -1090,7 +1090,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                 </div>
             </aside>
 
-            <main className="flex-1 lg:ml-64 p-4 sm:p-8 w-full overflow-hidden">
+            <main className="flex-1 lg:ml-64 p-4 sm:p-8 w-full">
 
                 {/* ... (Previous tabs content: OVERVIEW, DELIVERIES, FLEET, BULK, ADDRESSES) ... */}
                 {activeTab === 'OVERVIEW' && (

@@ -920,7 +920,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
          )}
 
          {/* MAIN CONTENT */}
-         <main className={`flex-1 lg:ml-64 flex flex-col min-h-screen transition-all relative overflow-y-auto ${currentView === 'JOBS' ? 'bg-transparent' : ''}`}>
+         <main className={`flex-1 lg:ml-64 flex flex-col transition-all relative ${currentView === 'JOBS' ? 'bg-transparent' : ''}`}>
             {/* Map Layer - Now inside main and relative to it */}
             {hasActiveJob && currentView === 'JOBS' && (
                <div className="absolute inset-0 z-0 pointer-events-auto">
@@ -1703,7 +1703,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                                        </div>
                                        <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50">
                                           <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center">
-                                             <ImageIcon className="w-3 h-3 mr-1.5" /> License No
+                                             <Image className="w-3 h-3 mr-1.5" /> License No
                                           </label>
                                           <p className="text-gray-900 font-bold text-sm tracking-tight">{user.licenseNumber || '---'}</p>
                                        </div>

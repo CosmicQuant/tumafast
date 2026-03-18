@@ -573,11 +573,22 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             } else if (activeInput === 'dropoff' && dropoff.length > 5 && dropoffChanged) {
                 const coords = await mapService.geocodeAddress(dropoff);
                 if (coords) setDropoffCoords(coords);
+            } else if (activeInput?.startsWith('waypoint-')) {
+                const idx = parseInt(activeInput.split('-')[1]);
+                const wp = waypoints[idx];
+                if (wp && wp.address.length > 5) {
+                    const coords = await mapService.geocodeAddress(wp.address);
+                    if (coords) {
+                        const newWaypoints = [...waypoints];
+                        newWaypoints[idx].coords = coords;
+                        setWaypoints(newWaypoints);
+                    }
+                }
             }
         }, 1500);
 
         return () => clearTimeout(timer);
-    }, [pickup, dropoff, activeInput, isMapSelecting, isPanning, setPickupCoords, setDropoffCoords, isLoaded]);
+    }, [pickup, dropoff, waypoints, activeInput, isMapSelecting, isPanning, setPickupCoords, setDropoffCoords, isLoaded]);
 
     // Effect to sync coordinate changes from Map Context (e.g. marker dragging) back to local waypoints
     useEffect(() => {
@@ -788,49 +799,77 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         }
 
         // Before creating orderData, ensure all waypoints with addresses are geocoded
+        // --- Geocoding Phase ---
+        // Ensure all manual addresses are geocoded before creating the order
+        console.log("Axon Booking Engine: Verifying coordinates for all stops...");
+
         const geocodedWaypoints = await Promise.all(waypoints.map(async (w) => {
             if (w.address && !w.coords && w.address.length > 2) {
                 try {
+                    console.log(`Axon Geocoder: Resolving waypoint: ${w.address}`);
                     const result = await mapService.geocodeAddress(w.address);
-                    if (result) {
-                        return { ...w, coords: { lat: result.lat, lng: result.lng } };
+                    if (!result) {
+                        console.warn(`Axon Geocoder: Failed to resolve waypoint: ${w.address}`);
+                        return w;
                     }
+                    return { ...w, coords: { lat: result.lat, lng: result.lng } };
                 } catch (e) {
-                    console.warn("Auto-geocoding failed for waypoint:", w.address, e);
+                    console.warn("Axon Geocoder: Exception resolving waypoint:", w.address, e);
+                    return w;
                 }
             }
             return w;
         }));
 
+        // Final verification of all waypoint coordinates
+        const missingCoordsIndex = geocodedWaypoints.findIndex(w => !w.coords);
+        if (missingCoordsIndex !== -1) {
+            console.error(`Axon Booking Engine: ABORTED - Waypoint ${missingCoordsIndex + 1} has no coordinates.`);
+            setLoading(false);
+            showAlert('Location Required', `We couldn't find the location for Stop ${missingCoordsIndex + 1}. Please select a correct address from the suggestions.`, 'error');
+            return;
+        }
+
         // Also geocode pickup and dropoff if coordinates are missing
         let finalPickupCoords = pickupCoords;
         if (pickup && !finalPickupCoords && pickup.length > 2) {
             try {
+                console.log("Axon Geocoder: Resolving pickup:", pickup);
                 const result = await mapService.geocodeAddress(pickup);
                 if (result) {
                     finalPickupCoords = { lat: result.lat, lng: result.lng };
                     setPickupCoords(finalPickupCoords);
                 }
             } catch (e) {
-                console.warn("Auto-geocoding failed for pickup:", pickup, e);
+                console.warn("Axon Geocoder: Failed to resolve pickup:", pickup, e);
             }
         }
 
         let finalDropoffCoords = dropoffCoords;
         if (dropoff && !finalDropoffCoords && dropoff.length > 2) {
             try {
+                console.log("Axon Geocoder: Resolving dropoff:", dropoff);
                 const result = await mapService.geocodeAddress(dropoff);
                 if (result) {
                     finalDropoffCoords = { lat: result.lat, lng: result.lng };
                     setDropoffCoords(finalDropoffCoords);
                 }
             } catch (e) {
-                console.warn("Auto-geocoding failed for dropoff:", dropoff, e);
+                console.warn("Axon Geocoder: Failed to resolve dropoff:", dropoff, e);
             }
         }
 
-        // Update local waypoints state with geocoded ones to keep them in sync
+        if (!finalPickupCoords || !finalDropoffCoords) {
+            console.error("Axon Booking Engine: ABORTED - Primary coordinates missing.", { pickup: !!finalPickupCoords, dropoff: !!finalDropoffCoords });
+            setLoading(false);
+            showAlert('Location Required', "Please ensure both Pickup and Dropoff locations are valid.", 'error');
+            return;
+        }
+
+        // Update local state to keep UI in sync
         setWaypoints(geocodedWaypoints);
+        setPickupCoords(finalPickupCoords);
+        setDropoffCoords(finalDropoffCoords);
 
         const formatPhone = (p: string) => {
             let cleaned = p.replace(/[\s\-()]/g, '');
@@ -842,13 +881,13 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             return cleaned;
         };
 
-        const orderData = {
+        const orderData: any = {
             userId: user?.id,
             userRole: user?.role,
             pickup,
             dropoff,
-            pickupCoords: finalPickupCoords || undefined,
-            dropoffCoords: finalDropoffCoords || undefined,
+            pickupCoords: finalPickupCoords,
+            dropoffCoords: finalDropoffCoords,
             pickupTime: isScheduled ? pickupTime : 'ASAP',
             vehicle: selectedVehicle,
             items: {
@@ -886,6 +925,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                 instructions: w.instructions
             }))
         };
+
+        console.log("Axon Booking Engine: Final Order Data for Submission:", JSON.stringify(orderData, null, 2));
 
         if (!user) {
             if (onRequireAuth) {
@@ -1539,7 +1580,24 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                                         className={`w-full bg-white border border-gray-100 rounded-xl py-3 pl-3 pr-24 text-sm font-bold text-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-brand-500/10 transition-all ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'ring-2 ring-brand-500' : ''}`}
                                                         placeholder={`Stop Location...`}
                                                     />
-                                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                                                        <button
+                                                            onClick={async () => {
+                                                                const coords = await requestUserLocation();
+                                                                if (coords) {
+                                                                    const address = await mapService.reverseGeocode(coords.lat, coords.lng);
+                                                                    const newWaypoints = [...waypoints];
+                                                                    newWaypoints[idx] = { ...newWaypoints[idx], coords, address: address || newWaypoints[idx].address };
+                                                                    setWaypoints(newWaypoints);
+                                                                    if (pickupCoords && dropoffCoords) {
+                                                                        fitBounds([pickupCoords, dropoffCoords, coords]);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="p-1.5 bg-white hover:bg-gray-50 rounded-lg text-brand-600 transition-all shadow-sm active:scale-95"
+                                                            title="Use Current Location"
+                                                        >
+                                                            <Navigation className="w-4 h-4" />
+                                                        </button>
                                                         <button
                                                             onClick={() => {
                                                                 setActiveInput(`waypoint-${idx}`);
@@ -1562,7 +1620,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                                         >
                                                             <X className="w-4 h-4" />
                                                         </button>
-                                                    </div>
                                                 </div>
 
                                                 {/* DETAILS INPUTS */}
