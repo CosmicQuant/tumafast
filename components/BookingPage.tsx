@@ -62,17 +62,12 @@ const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData: propPrefi
 
         try {
             const newOrder = await createOrderMutation.mutateAsync(orderWithUser);
-
-            if (user?.role === 'business') {
-                toast.success('Order created successfully!');
-                onClearPrefill?.();
-                navigate('/business-dashboard');
-            } else {
-                if (user) await refetchOrders();
-                toast.success('Order created successfully!');
-                onClearPrefill?.();
-                navigate(`/tracking/${newOrder.id}`);
-            }
+            
+            toast.success('Order created successfully!');
+            onClearPrefill?.();
+            
+            // Redirect everyone to tracking page as requested
+            navigate(`/track/${newOrder.id}`);
         } catch (error) {
             console.error("Failed to create order", error);
             toast.error("Failed to create order. Please try again.");

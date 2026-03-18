@@ -1,4 +1,4 @@
-package com.Axon.kenya;
+package com.axon.kenya;
 
 import android.os.Bundle;
 import android.graphics.Color;

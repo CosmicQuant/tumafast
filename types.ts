@@ -92,8 +92,10 @@ export interface User {
   };
   savedAddresses?: AddressBookEntry[];
   twoFAEnabled?: boolean;
+  twoFASecret?: string;
   status?: 'active' | 'suspended' | 'pending';
   photoURL?: string;
+  onboarded?: boolean;
 }
 
 export interface SignupProfileDetails {

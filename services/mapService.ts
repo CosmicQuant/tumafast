@@ -450,7 +450,9 @@ export const mapService = {
         });
 
         // Reorder waypoints based on Google's optimization
-        const waypointOrder = route?.waypoint_order || waypoints.map((_, i) => i);
+        const waypointOrder = (route?.waypoint_order && route.waypoint_order.length > 0) 
+            ? route.waypoint_order 
+            : waypoints.map((_, i) => i);
 
         waypointOrder.forEach((originalIndex: number, newIndex: number) => {
             const wp = waypoints[originalIndex];

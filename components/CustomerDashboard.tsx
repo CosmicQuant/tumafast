@@ -274,7 +274,7 @@ const CustomerDashboard: React.FC = () => {
 
         setIsSaving(true);
         try {
-            await updateUser({ status: 'deactivated' });
+            await updateUser({ status: 'suspended' });
             toast.success('Account deactivated successfully.');
             await logout();
             navigate('/');

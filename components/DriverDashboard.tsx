@@ -920,7 +920,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
          )}
 
          {/* MAIN CONTENT */}
-         <main className={`flex-1 lg:ml-64 flex flex-col min-h-screen transition-all relative ${currentView === 'JOBS' ? 'bg-transparent' : ''}`}>
+         <main className={`flex-1 lg:ml-64 flex flex-col min-h-screen transition-all relative overflow-y-auto ${currentView === 'JOBS' ? 'bg-transparent' : ''}`}>
             {/* Map Layer - Now inside main and relative to it */}
             {hasActiveJob && currentView === 'JOBS' && (
                <div className="absolute inset-0 z-0 pointer-events-auto">
@@ -1603,8 +1603,12 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                         <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
                            <div className="relative group/avatar">
                               <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-50 border-4 border-white/30 overflow-hidden shadow-2xl transform group-hover/avatar:scale-105 transition-all duration-500">
-                                 {user.photoURL ? (
-                                    <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                                 {(user.photoURL || user.avatar || user.profileImage) ? (
+                                    <img 
+                                       src={user.photoURL || user.avatar || user.profileImage} 
+                                       alt="Profile" 
+                                       className="w-full h-full object-cover" 
+                                    />
                                  ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-indigo-50">
                                        <UserIcon className="w-16 h-16 text-brand-300" />
@@ -1687,6 +1691,28 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                                        ) : (
                                           <p className="text-gray-900 font-bold ml-5.5 text-lg">{user.phone || 'N/A'}</p>
                                        )}
+                                    </div>
+
+                                    {/* Read-only verification details */}
+                                    <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                       <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50">
+                                          <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center">
+                                             <FileText className="w-3 h-3 mr-1.5" /> National ID
+                                          </label>
+                                          <p className="text-gray-900 font-bold text-sm tracking-tight">{user.idNumber || '---'}</p>
+                                       </div>
+                                       <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50">
+                                          <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center">
+                                             <ImageIcon className="w-3 h-3 mr-1.5" /> License No
+                                          </label>
+                                          <p className="text-gray-900 font-bold text-sm tracking-tight">{user.licenseNumber || '---'}</p>
+                                       </div>
+                                       <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50 sm:col-span-2">
+                                          <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center">
+                                             <ShieldCheck className="w-3 h-3 mr-1.5" /> KRA PIN Number
+                                          </label>
+                                          <p className="text-gray-900 font-bold text-sm tracking-tight uppercase leading-none">{user.kraPin || '---'}</p>
+                                       </div>
                                     </div>
                                  </div>
 

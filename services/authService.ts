@@ -292,6 +292,7 @@ export const authService = {
       if (updates.name !== undefined) driverUpdates.name = updates.name;
       if (updates.phone !== undefined) driverUpdates.phone = updates.phone;
       if (updates.avatar !== undefined) driverUpdates.avatar = updates.avatar;
+      if (updates.photoURL !== undefined) driverUpdates.photoURL = updates.photoURL;
       if (updates.idNumber !== undefined) driverUpdates.idNumber = updates.idNumber;
       if (updates.licenseNumber !== undefined) driverUpdates.licenseNumber = updates.licenseNumber;
       if (updates.plateNumber !== undefined) driverUpdates.plateNumber = updates.plateNumber;

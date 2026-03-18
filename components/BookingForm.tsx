@@ -111,8 +111,10 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
     // Suggestions State
     const [pickupSuggestions, setPickupSuggestions] = useState<Array<{ label: string, lat: number, lng: number }>>([]);
     const [dropoffSuggestions, setDropoffSuggestions] = useState<Array<{ label: string, lat: number, lng: number }>>([]);
+    const [waypointSuggestions, setWaypointSuggestions] = useState<Array<{ label: string, lat: number, lng: number }>>([]);
     const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
     const [showDropoffSuggestions, setShowDropoffSuggestions] = useState(false);
+    const [showWaypointSuggestions, setShowWaypointSuggestions] = useState(false);
 
     // New Fields
     const [isFragile, setIsFragile] = useState(prefillData?.items?.fragile || false);
@@ -785,6 +787,51 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             return;
         }
 
+        // Before creating orderData, ensure all waypoints with addresses are geocoded
+        const geocodedWaypoints = await Promise.all(waypoints.map(async (w) => {
+            if (w.address && !w.coords && w.address.length > 2) {
+                try {
+                    const result = await mapService.geocodeAddress(w.address);
+                    if (result) {
+                        return { ...w, coords: { lat: result.lat, lng: result.lng } };
+                    }
+                } catch (e) {
+                    console.warn("Auto-geocoding failed for waypoint:", w.address, e);
+                }
+            }
+            return w;
+        }));
+
+        // Also geocode pickup and dropoff if coordinates are missing
+        let finalPickupCoords = pickupCoords;
+        if (pickup && !finalPickupCoords && pickup.length > 2) {
+            try {
+                const result = await mapService.geocodeAddress(pickup);
+                if (result) {
+                    finalPickupCoords = { lat: result.lat, lng: result.lng };
+                    setPickupCoords(finalPickupCoords);
+                }
+            } catch (e) {
+                console.warn("Auto-geocoding failed for pickup:", pickup, e);
+            }
+        }
+
+        let finalDropoffCoords = dropoffCoords;
+        if (dropoff && !finalDropoffCoords && dropoff.length > 2) {
+            try {
+                const result = await mapService.geocodeAddress(dropoff);
+                if (result) {
+                    finalDropoffCoords = { lat: result.lat, lng: result.lng };
+                    setDropoffCoords(finalDropoffCoords);
+                }
+            } catch (e) {
+                console.warn("Auto-geocoding failed for dropoff:", dropoff, e);
+            }
+        }
+
+        // Update local waypoints state with geocoded ones to keep them in sync
+        setWaypoints(geocodedWaypoints);
+
         const formatPhone = (p: string) => {
             let cleaned = p.replace(/[\s\-()]/g, '');
             if (cleaned.startsWith('0')) {
@@ -800,8 +847,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             userRole: user?.role,
             pickup,
             dropoff,
-            pickupCoords: pickupCoords || undefined,
-            dropoffCoords: dropoffCoords || undefined,
+            pickupCoords: finalPickupCoords || undefined,
+            dropoffCoords: finalDropoffCoords || undefined,
             pickupTime: isScheduled ? pickupTime : 'ASAP',
             vehicle: selectedVehicle,
             items: {
@@ -824,7 +871,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             },
             paymentMethod,
             itemImage: itemImage || null,
-            stops: waypoints.map((w, idx) => ({
+            stops: geocodedWaypoints.map((w, idx) => ({
                 id: w.id,
                 address: w.address,
                 lat: w.coords?.lat || 0,
@@ -945,24 +992,22 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         // Optimize stops and generate verification codes
         let optimizedStops: any[] = [];
 
-        if (pickupCoords && dropoffCoords) {
-            const waypointData = waypoints
-                .filter(w => w.coords)
-                .map(w => ({
-                    id: w.id,
-                    lat: w.coords!.lat,
-                    lng: w.coords!.lng,
-                    address: w.address,
-                    contact: (w.recipientName && w.recipientPhone) ? {
-                        name: w.recipientName,
-                        phone: w.recipientPhone
-                    } : orderData.recipient,
-                    instructions: w.instructions || ''
+        if (orderData.pickupCoords && orderData.dropoffCoords) {
+            // Use waypoints from orderData.stops to avoid async state issues
+            const waypointData = (orderData.stops || [])
+                .filter((s: any) => s.type === 'waypoint' && s.lat && s.lng)
+                .map((s: any) => ({
+                    id: s.id,
+                    lat: s.lat,
+                    lng: s.lng,
+                    address: s.address,
+                    contact: s.recipient || orderData.recipient,
+                    instructions: s.instructions || ''
                 }));
 
             const optimizationResult = await mapService.optimizeStops(
-                { lat: pickupCoords.lat, lng: pickupCoords.lng, address: pickup },
-                { lat: dropoffCoords.lat, lng: dropoffCoords.lng, address: dropoff },
+                { lat: orderData.pickupCoords.lat, lng: orderData.pickupCoords.lng, address: orderData.pickup },
+                { lat: orderData.dropoffCoords.lat, lng: orderData.dropoffCoords.lng, address: orderData.dropoff },
                 waypointData
             );
 
@@ -991,11 +1036,11 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         } else {
             // Fallback: map waypoints AND the final dropoff with generated codes
             optimizedStops = [
-                ...waypoints.map((w, idx) => ({
-                    id: w.id,
-                    address: w.address,
-                    lat: w.coords?.lat || 0,
-                    lng: w.coords?.lng || 0,
+                ...(orderData.stops || []).map((s: any, idx: number) => ({
+                    id: s.id,
+                    address: s.address,
+                    lat: s.lat,
+                    lng: s.lng,
                     type: 'waypoint' as const,
                     status: 'pending' as const,
                     verificationCode: Math.floor(1000 + Math.random() * 9000).toString(),
@@ -1003,13 +1048,13 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                 })),
                 {
                     id: 'dropoff-end',
-                    address: dropoff,
-                    lat: dropoffCoords?.lat || 0,
-                    lng: dropoffCoords?.lng || 0,
+                    address: orderData.dropoff,
+                    lat: orderData.dropoffCoords?.lat || 0,
+                    lng: orderData.dropoffCoords?.lng || 0,
                     type: 'dropoff' as const,
                     status: 'pending' as const,
                     verificationCode: Math.floor(1000 + Math.random() * 9000).toString(),
-                    sequenceOrder: waypoints.length + 1
+                    sequenceOrder: (orderData.stops?.length || 0) + 1
                 }
             ];
 
@@ -1075,12 +1120,11 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             updateWaypoint(index, value);
             if (value.length > 2) {
                 const results = await mapService.getSuggestions(value);
-                // We share the dropoff suggestions bank for waypoints to save state variables
-                setDropoffSuggestions(results); 
-                setShowDropoffSuggestions(true);
+                setWaypointSuggestions(results); 
+                setShowWaypointSuggestions(true);
                 setActiveWaypointIndex(index);
             } else {
-                setShowDropoffSuggestions(false);
+                setShowWaypointSuggestions(false);
             }
         }
     };
@@ -1123,7 +1167,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             newWaypoints[activeWaypointIndex].address = suggestion.label;
             newWaypoints[activeWaypointIndex].coords = coords;
             setWaypoints(newWaypoints);
-            setShowDropoffSuggestions(false);
+            setShowWaypointSuggestions(false);
+            setWaypointSuggestions([]);
             setActiveWaypointIndex(null);
         }
     };
@@ -1539,9 +1584,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                                 </div>
 
                                                 {/* Waypoint Suggestions Dropdown */}
-                                                {showDropoffSuggestions && activeWaypointIndex === idx && dropoffSuggestions.length > 0 && (
+                                                {showWaypointSuggestions && activeWaypointIndex === idx && waypointSuggestions.length > 0 && (
                                                     <div className="absolute top-[50px] left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[60] animate-in fade-in slide-in-from-top-2">
-                                                        {dropoffSuggestions.map((suggestion, sIdx) => (
+                                                        {waypointSuggestions.map((suggestion, sIdx) => (
                                                             <div
                                                                 key={sIdx}
                                                                 onClick={() => handleSuggestionSelect('waypoint', suggestion)}

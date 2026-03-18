@@ -2,7 +2,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
 
 export const storageService = {
-    uploadFile: async (file: File, path: string): Promise<string> => {
+    uploadFile: async (file: File | Blob, path: string): Promise<string> => {
         try {
             const storageRef = ref(storage, path);
             const snapshot = await uploadBytes(storageRef, file);

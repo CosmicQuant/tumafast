@@ -1,14 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
     X, User, Truck, Briefcase, FileText, Phone, MapPin,
     ArrowRight, Loader, CheckCircle, Shield, Building2, LogOut, AlertTriangle,
-    Camera, Upload, Image as ImageIcon
+    Camera, Upload, Image as ImageIcon, Navigation
 } from 'lucide-react';
 import { VehicleType } from '../types';
 import { storageService } from '../services/storageService';
+import { mapService } from '../services/mapService';
+import { compressImage } from '../utils/imageUtils';
 
 interface OnboardingModalProps {
     isOpen?: boolean;
@@ -52,6 +54,46 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
     const [licensePreview, setLicensePreview] = useState<string>('');
     const [idFile, setIdFile] = useState<File | null>(null);
     const [idPreview, setIdPreview] = useState<string>('');
+
+    // Address Autocomplete
+    const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+    const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+    const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleAddressInput = (val: string) => {
+        setAddress(val);
+        setAddressSuggestions([]);
+        if (addressDebounceRef.current) clearTimeout(addressDebounceRef.current);
+        if (val.length > 2) {
+            addressDebounceRef.current = setTimeout(async () => {
+                const results = await mapService.getSuggestions(val);
+                setAddressSuggestions(results);
+            }, 350);
+        }
+    };
+
+    const handleUseCurrentLocation = () => {
+        setIsLoadingLocation(true);
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    const { latitude: lat, longitude: lng } = pos.coords;
+                    const results = await mapService.getSuggestions(`${lat},${lng}`);
+                    if (results.length > 0) {
+                        setAddress(results[0].label);
+                    } else {
+                        setAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+                    }
+                } catch {
+                    setAddress('');
+                } finally {
+                    setIsLoadingLocation(false);
+                }
+            },
+            () => setIsLoadingLocation(false),
+            { enableHighAccuracy: true, timeout: 8000 }
+        );
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'license' | 'id') => {
         const file = e.target.files?.[0];
@@ -159,21 +201,43 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
                 onboarded: true
             };
 
-            // Handle File Uploads
+            // Parallelize File Uploads for better performance (with compression)
+            const uploadPromises: Promise<void>[] = [];
+
             if (profileFile) {
-                const profileUrl = await storageService.uploadFile(profileFile, `users/${user.id}/profile_${Date.now()}`);
-                updates.profileImage = profileUrl;
-                updates.avatar = profileUrl; // Sync avatar
+                uploadPromises.push(
+                    compressImage(profileFile)
+                        .then(compressedBlob => storageService.uploadFile(compressedBlob, `users/${user.id}/profile_${Date.now()}`))
+                        .then(url => {
+                            updates.profileImage = url;
+                            updates.avatar = url;
+                            updates.photoURL = url;
+                        })
+                );
             }
 
             if (licenseFile) {
-                const licenseUrl = await storageService.uploadFile(licenseFile, `users/${user.id}/license_${Date.now()}`);
-                updates.licenseImage = licenseUrl;
+                uploadPromises.push(
+                    compressImage(licenseFile)
+                        .then(compressedBlob => storageService.uploadFile(compressedBlob, `users/${user.id}/license_${Date.now()}`))
+                        .then(url => {
+                            updates.licenseImage = url;
+                        })
+                );
             }
 
             if (idFile) {
-                const idUrl = await storageService.uploadFile(idFile, `users/${user.id}/id_${Date.now()}`);
-                updates.idImage = idUrl;
+                uploadPromises.push(
+                    compressImage(idFile)
+                        .then(compressedBlob => storageService.uploadFile(compressedBlob, `users/${user.id}/id_${Date.now()}`))
+                        .then(url => {
+                            updates.idImage = url;
+                        })
+                );
+            }
+
+            if (uploadPromises.length > 0) {
+                await Promise.all(uploadPromises);
             }
 
             if (user.role !== 'customer') {
@@ -336,17 +400,44 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
                                         {user.role === 'driver' ? 'Home Location' : 'Physical Address'}
                                     </label>
                                     <div className="relative group">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-600 transition-colors">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-600 transition-colors z-10">
                                             <MapPin className="w-5 h-5" />
                                         </div>
                                         <input
                                             type="text"
                                             required
                                             value={address}
-                                            onChange={(e) => setAddress(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-200 bg-gray-50 text-gray-900 focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all outline-none font-medium text-sm placeholder:text-gray-400"
+                                            onChange={(e) => handleAddressInput(e.target.value)}
+                                            className="w-full pl-12 pr-12 py-3.5 rounded-2xl border border-gray-200 bg-gray-50 text-gray-900 focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all outline-none font-medium text-sm placeholder:text-gray-400"
                                             placeholder="e.g. Westlands, Nairobi"
+                                            autoComplete="off"
                                         />
+                                        <button
+                                            type="button"
+                                            onClick={handleUseCurrentLocation}
+                                            title="Use current location"
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-xl text-brand-600 hover:bg-brand-50 transition-colors"
+                                        >
+                                            {isLoadingLocation
+                                                ? <Loader className="w-4 h-4 animate-spin" />
+                                                : <Navigation className="w-4 h-4" />}
+                                        </button>
+                                        {addressSuggestions.length > 0 && (
+                                            <ul className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden">
+                                                {addressSuggestions.map((s, i) => (
+                                                    <li key={i}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { setAddress(s.label); setAddressSuggestions([]); }}
+                                                            className="w-full text-left px-5 py-3 text-sm font-medium text-gray-700 hover:bg-brand-50 hover:text-brand-700 flex items-center gap-3 border-b border-gray-50 last:border-0"
+                                                        >
+                                                            <MapPin className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                                                            {s.label}
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
                                     </div>
                                 </div>
                             </div>
