@@ -800,17 +800,21 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
         // Before creating orderData, ensure all waypoints with addresses are geocoded
         // --- Geocoding Phase ---
-        // Ensure all manual addresses are geocoded before creating the order
+        console.log("[Diagnostic: User Input] Axon Booking Engine: Initial waypoints:", JSON.stringify(waypoints));
+
+        // 1. Filter out completely empty waypoints to prevent them from causing silent errors
+        const activeWaypoints = waypoints.filter(w => w.address && w.address.trim().length > 0);
+
         console.log("Axon Booking Engine: Verifying coordinates for all stops...");
 
-        const geocodedWaypoints = await Promise.all(waypoints.map(async (w) => {
-            if (w.address && !w.coords && w.address.length > 2) {
+        const geocodedWaypoints = await Promise.all(activeWaypoints.map(async (w) => {
+            if (!w.coords) {
                 try {
                     console.log(`Axon Geocoder: Resolving waypoint: ${w.address}`);
                     const result = await mapService.geocodeAddress(w.address);
                     if (!result) {
                         console.warn(`Axon Geocoder: Failed to resolve waypoint: ${w.address}`);
-                        return w;
+                        return w; // will be caught by missingCoords validation
                     }
                     return { ...w, coords: { lat: result.lat, lng: result.lng } };
                 } catch (e) {
@@ -821,12 +825,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             return w;
         }));
 
-        // Final verification of all waypoint coordinates
-        const missingCoordsIndex = geocodedWaypoints.findIndex(w => !w.coords);
-        if (missingCoordsIndex !== -1) {
-            console.error(`Axon Booking Engine: ABORTED - Waypoint ${missingCoordsIndex + 1} has no coordinates.`);
+        // Strict Validation: Ensure 100% of active addresses have valid lat/lng pairs
+        const invalidWaypointIndex = geocodedWaypoints.findIndex(w => !w.coords || (w.coords.lat === 0 && w.coords.lng === 0));
+        if (invalidWaypointIndex !== -1) {
+            console.error(`Axon Booking Engine: ABORTED - Waypoint ${invalidWaypointIndex + 1} has no coordinates.`);
             setLoading(false);
-            showAlert('Location Required', `We couldn't find the location for Stop ${missingCoordsIndex + 1}. Please select a correct address from the suggestions.`, 'error');
+            showAlert('Location Required', `We couldn't find the exact location for Stop ${invalidWaypointIndex + 1}. Please select a valid address from the suggestions.`, 'error');
             return;
         }
 
@@ -1116,6 +1120,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             itemImage: itemImage || null,
             stops: optimizedStops
         };
+
+        console.log("[Diagnostic: Pre-Persistence] Axon Booking Engine: Persisting Order Data:", JSON.stringify(newOrder, null, 2));
+
         // Pass the order data to the parent component to handle creation
         onOrderComplete(newOrder);
         setLoading(false);
@@ -1161,7 +1168,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             updateWaypoint(index, value);
             if (value.length > 2) {
                 const results = await mapService.getSuggestions(value);
-                setWaypointSuggestions(results); 
+                setWaypointSuggestions(results);
                 setShowWaypointSuggestions(true);
                 setActiveWaypointIndex(index);
             } else {
@@ -1174,14 +1181,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         // Because the New Places API AutocompleteSuggestion format only returns the string, the lat/lng is 0,0
         // We must geocode the selected string to get the actual coordinates before feeding it to the map
         let coords = { lat: suggestion.lat, lng: suggestion.lng };
-        
+
         if (coords.lat === 0 && coords.lng === 0) {
             const resolved = await mapService.geocodeAddress(suggestion.label);
             if (resolved) {
                 coords = { lat: resolved.lat, lng: resolved.lng };
             } else {
-                 showAlert('Location Not Found', 'Could not locate the exact coordinates for this suggestion.', 'warning');
-                 return; // Do not proceed if geocoding fails on the suggestion
+                showAlert('Location Not Found', 'Could not locate the exact coordinates for this suggestion.', 'warning');
+                return; // Do not proceed if geocoding fails on the suggestion
             }
         }
 
@@ -1580,46 +1587,46 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                                         className={`w-full bg-white border border-gray-100 rounded-xl py-3 pl-3 pr-24 text-sm font-bold text-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-brand-500/10 transition-all ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'ring-2 ring-brand-500' : ''}`}
                                                         placeholder={`Stop Location...`}
                                                     />
-                                                        <button
-                                                            onClick={async () => {
-                                                                const coords = await requestUserLocation();
-                                                                if (coords) {
-                                                                    const address = await mapService.reverseGeocode(coords.lat, coords.lng);
-                                                                    const newWaypoints = [...waypoints];
-                                                                    newWaypoints[idx] = { ...newWaypoints[idx], coords, address: address || newWaypoints[idx].address };
-                                                                    setWaypoints(newWaypoints);
-                                                                    if (pickupCoords && dropoffCoords) {
-                                                                        fitBounds([pickupCoords, dropoffCoords, coords]);
-                                                                    }
+                                                    <button
+                                                        onClick={async () => {
+                                                            const coords = await requestUserLocation();
+                                                            if (coords) {
+                                                                const address = await mapService.reverseGeocode(coords.lat, coords.lng);
+                                                                const newWaypoints = [...waypoints];
+                                                                newWaypoints[idx] = { ...newWaypoints[idx], coords, address: address || newWaypoints[idx].address };
+                                                                setWaypoints(newWaypoints);
+                                                                if (pickupCoords && dropoffCoords) {
+                                                                    fitBounds([pickupCoords, dropoffCoords, coords]);
                                                                 }
-                                                            }}
-                                                            className="p-1.5 bg-white hover:bg-gray-50 rounded-lg text-brand-600 transition-all shadow-sm active:scale-95"
-                                                            title="Use Current Location"
-                                                        >
-                                                            <Navigation className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                setActiveInput(`waypoint-${idx}`);
-                                                                setActiveWaypointIndex(idx);
-                                                                const nextState = !isMapSelecting;
-                                                                setIsMapSelecting(nextState);
-                                                                if (nextState) {
-                                                                    setIsCollapsed(true);
-                                                                    if (wp.coords) setMapCenter(wp.coords.lat, wp.coords.lng);
-                                                                }
-                                                            }}
-                                                            className={`p-1.5 rounded-lg transition-all shadow-sm active:scale-95 ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'bg-brand-600 text-white' : 'bg-white text-gray-400 hover:text-brand-600'}`}
-                                                            title="Set on Map"
-                                                        >
-                                                            <Map className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => removeWaypoint(wp.id)}
-                                                            className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
-                                                        >
-                                                            <X className="w-4 h-4" />
-                                                        </button>
+                                                            }
+                                                        }}
+                                                        className="p-1.5 bg-white hover:bg-gray-50 rounded-lg text-brand-600 transition-all shadow-sm active:scale-95"
+                                                        title="Use Current Location"
+                                                    >
+                                                        <Navigation className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setActiveInput(`waypoint-${idx}`);
+                                                            setActiveWaypointIndex(idx);
+                                                            const nextState = !isMapSelecting;
+                                                            setIsMapSelecting(nextState);
+                                                            if (nextState) {
+                                                                setIsCollapsed(true);
+                                                                if (wp.coords) setMapCenter(wp.coords.lat, wp.coords.lng);
+                                                            }
+                                                        }}
+                                                        className={`p-1.5 rounded-lg transition-all shadow-sm active:scale-95 ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'bg-brand-600 text-white' : 'bg-white text-gray-400 hover:text-brand-600'}`}
+                                                        title="Set on Map"
+                                                    >
+                                                        <Map className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => removeWaypoint(wp.id)}
+                                                        className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
                                                 </div>
 
                                                 {/* DETAILS INPUTS */}

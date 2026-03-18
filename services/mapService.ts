@@ -94,7 +94,7 @@ export const mapService = {
                 input: translatedQuery,
                 includedRegionCodes: ['ke']
             };
-            
+
             // Cast to any since standard @types/google.maps might not be fully updated to the 2026 API spec
             const AutocompleteSuggestion = (google.maps.places as any).AutocompleteSuggestion;
 
@@ -148,10 +148,10 @@ export const mapService = {
                     const validResults = results.filter(r => !r.types.includes('plus_code'));
 
                     // Prioritize specific location types to get the most human-readable option
-                    const bestResult = validResults.find(r => r.types.includes('route') || r.types.includes('street_address')) 
+                    const bestResult = validResults.find(r => r.types.includes('route') || r.types.includes('street_address'))
                         || validResults.find(r => r.types.includes('point_of_interest') || r.types.includes('establishment'))
                         || validResults.find(r => r.types.includes('neighborhood') || r.types.includes('sublocality'))
-                        || validResults[0] 
+                        || validResults[0]
                         || results[0]; // Absolute fallback
 
                     resolve(bestResult.formatted_address);
@@ -269,7 +269,7 @@ export const mapService = {
                     routingPreference: 'TRAFFIC_AWARE',
                     computeAlternativeRoutes: false,
                     routeModifiers: { avoidTolls: false, avoidHighways: false, avoidFerries: true },
-                    optimizeWaypointOrder: true, // Reorders the waypoints for fastest route
+                    optimizeWaypointOrder: requestWaypoints.length > 1, // Only optimize if > 1 waypoint to prevent API errors
                     // JS SDK field mask uses flat property names, not REST dot-notation
                     fields: [
                         'distanceMeters',
@@ -280,7 +280,7 @@ export const mapService = {
                 };
 
                 const response = await RouteClass.computeRoutes(request);
-                
+
                 if (response && response.routes && response.routes.length > 0) {
                     const route = response.routes[0];
                     // route.path may contain LatLng instances (with .lat() method) or plain objects
@@ -290,11 +290,14 @@ export const mapService = {
                             lng: typeof p.lng === 'function' ? p.lng() : p.lng
                         }))
                         : [];
+
+                    const indices = route.optimizedIntermediateWaypointIndices;
+
                     return {
                         geometry: pathArray, // MapLayer handles Array<{lat, lng}> format
                         distance: route.distanceMeters || 0,
                         duration: Math.round((route.durationMillis || 0) / 1000), // Convert ms to seconds
-                        waypoint_order: route.optimizedIntermediateWaypointIndices || waypoints.map((_, i) => i)
+                        waypoint_order: (indices && indices.length > 0) ? indices : waypoints.map((_, i) => i)
                     };
                 }
                 return null;
@@ -450,13 +453,26 @@ export const mapService = {
         });
 
         // Reorder waypoints based on Google's optimization
-        console.log("Axon Map Engine: Waypoint Order Response:", route?.waypoint_order);
-        
-        const waypointOrder = (route?.waypoint_order && route.waypoint_order.length > 0) 
-            ? route.waypoint_order 
-            : waypoints.map((_, i) => i);
-            
-        console.log("Axon Map Engine: Final Waypoint Order to use:", waypointOrder);
+        console.log("[Diagnostic: Post-Optimization] Axon Map Engine: Raw Waypoint Order Response:", route?.waypoint_order);
+
+        let waypointOrder = waypoints.map((_, i) => i);
+
+        // Safely determine the final sequence order. 
+        // If Google Routes API returns an empty reorder array (e.g. for a single waypoint) 
+        // or omits it entirely, preserve the original sequence to prevent dropping the waypoint.
+        if (route && Array.isArray(route.waypoint_order) && route.waypoint_order.length === waypoints.length) {
+            waypointOrder = route.waypoint_order;
+        } else if (route?.waypoint_order && Array.isArray(route.waypoint_order) && route.waypoint_order.length === 0 && waypoints.length > 0) {
+            console.warn("Axon Map Engine: Google returned empty waypoint order but waypoints exist. Preserving original sequence.");
+            // Preserve original sequence
+            waypointOrder = waypoints.map((_, i) => i);
+        } else if (!route || !route.waypoint_order) {
+            console.warn("Axon Map Engine: No route or missing waypoint_order. Preserving original sequence.");
+            // Fallback for null route (failed calculation due to 1-waypoint optimization restriction)
+            waypointOrder = waypoints.map((_, i) => i);
+        }
+
+        console.log("[Diagnostic: Post-Optimization] Axon Map Engine: Final Waypoint Order to use:", waypointOrder);
 
         waypointOrder.forEach((originalIndex: number, newIndex: number) => {
             const wp = waypoints[originalIndex];
@@ -475,7 +491,7 @@ export const mapService = {
                 });
             }
         });
-        
+
         console.log("Axon Map Engine: Waypoints processed into stops. Count:", optimizedStops.length - 1); // -1 for pickup
 
         // Dropoff is always last

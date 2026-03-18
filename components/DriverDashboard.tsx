@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import type { DeliveryOrder, Driver, DriverMetrics, User } from '../types';
@@ -133,6 +132,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
    const [routeDuration, setRouteDuration] = useState<number | null>(null);
    const [routeDistance, setRouteDistance] = useState<number | null>(null);
    const [isDrawerCollapsed, setIsDrawerCollapsed] = useState(false);
+   const lastValidCoordsRef = React.useRef<{ lat: number, lng: number } | null>(null);
 
    // Track Driver Online Status & Time
    useEffect(() => {
@@ -301,8 +301,39 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
 
          const watchId = navigator.geolocation.watchPosition(
             async (position) => {
-               const { latitude, longitude, heading } = position.coords;
-               const currentCoords = { lat: latitude, lng: longitude };
+               const { latitude, longitude, heading, accuracy } = position.coords;
+
+               // 1. Accuracy Filter: Ignore highly inaccurate GPS bounces (e.g. > 50 meters)
+               // This prevents the marker from jumping wildly when signal is poor
+               if (accuracy && accuracy > 50) {
+                  return;
+               }
+
+               let currentCoords = { lat: latitude, lng: longitude };
+
+               // 2. Deadband Filter (Minimum Displacement)
+               // Only process the update if the driver actually moved > 10 meters. 
+               // This kills stationary jitter perfectly.
+               if (lastValidCoordsRef.current) {
+                  const distFromLast = mapService.calculateDistance(lastValidCoordsRef.current, currentCoords);
+                  if (distFromLast < 0.01) { // 0.01 km = 10 meters
+                     return;
+                  }
+               }
+
+               // 3. Proximity Geofencing (Tight Radius Stabilization)
+               // If within 30m (0.03km) of the next stop, snap to the stop's exact coordinates.
+               // We reduced this from 200m so it only happens exactly when arriving, not blocks away.
+               if (nextStop?.coords) {
+                  const distanceToStop = mapService.calculateDistance(currentCoords, nextStop.coords);
+                  if (distanceToStop <= 0.03) {
+                     currentCoords = nextStop.coords;
+                  }
+               }
+
+               // Update last known valid coords
+               lastValidCoordsRef.current = currentCoords;
+
                setDriverCoords(currentCoords);
                if (heading) setDriverBearing(heading);
 
@@ -338,8 +369,8 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                   }
 
                   orderService.updateDriverLocation(activeJob.id, {
-                     lat: latitude,
-                     lng: longitude,
+                     lat: currentCoords.lat,
+                     lng: currentCoords.lng,
                      bearing: heading || 0
                   }, remDist, remDur, currentRouteGeometry);
                }
@@ -724,7 +755,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
             setShowPasswordFields(false);
             setPasswords({ new: '', confirm: '' });
          } else {
-             showAlert("You must be logged in to update your password.", 'error');
+            showAlert("You must be logged in to update your password.", 'error');
          }
       } catch (error: any) {
          showAlert(error.message || "Failed to update password", 'error');
@@ -1484,7 +1515,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                      {filteredOrders.length === 0 ? (
                         <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
                            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                              <Search className="w-8 h-8 text-gray-300" />
+                              <Search className="w-8 h-8 text-gray-400" />
                            </div>
                            <h3 className="font-bold text-gray-900 text-lg">No matching jobs found</h3>
                            <p className="text-gray-400 mt-2">Try searching for a different location or item description.</p>
@@ -1604,10 +1635,10 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                            <div className="relative group/avatar">
                               <div className="w-32 h-32 rounded-[2.5rem] bg-indigo-50 border-4 border-white/30 overflow-hidden shadow-2xl transform group-hover/avatar:scale-105 transition-all duration-500">
                                  {(user.photoURL || user.avatar || user.profileImage) ? (
-                                    <img 
-                                       src={user.photoURL || user.avatar || user.profileImage} 
-                                       alt="Profile" 
-                                       className="w-full h-full object-cover" 
+                                    <img
+                                       src={user.photoURL || user.avatar || user.profileImage}
+                                       alt="Profile"
+                                       className="w-full h-full object-cover"
                                     />
                                  ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-indigo-50">
