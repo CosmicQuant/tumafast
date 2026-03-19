@@ -101,7 +101,7 @@ export const authService = {
       if (isNative) {
         console.log("Service: Using Native Google Auth");
         GoogleAuth.initialize({
-          clientId: '672048373138-ja58begjt0ieksollh1lmqacos65luus.apps.googleusercontent.com',
+          clientId: '770691922911-bcibeedoho5qfm1na7di312rsom4iv6d.apps.googleusercontent.com',
           scopes: ['profile', 'email'],
           grantOfflineAccess: true,
         });

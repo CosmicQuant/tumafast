@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -9,7 +9,7 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    
+
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
@@ -51,10 +51,10 @@ service cloud.firestore {
     match /orders/{orderId} {
       // Create: Any authenticated user
       allow create: if request.auth != null;
-      
+
       // Read access:
       allow read: if request.auth != null && (
-        resource.data.userId == request.auth.uid || 
+        resource.data.userId == request.auth.uid ||
         (resource.data.driver != null && resource.data.driver.id == request.auth.uid) ||
         (resource.data.status == 'pending' && isDriver())
       );
@@ -64,8 +64,8 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         (resource.data.driver != null && resource.data.driver.id == request.auth.uid) ||
         (
-          resource.data.status == 'pending' && 
-          isDriver() && 
+          resource.data.status == 'pending' &&
+          isDriver() &&
           get(/databases/$(database)/documents/drivers/$(request.auth.uid)).data.vehicleType == resource.data.vehicle
         )
       );

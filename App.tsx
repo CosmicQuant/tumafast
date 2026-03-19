@@ -45,9 +45,9 @@ const SkeletonFallback = () => (
   <div className="flex h-screen w-full items-center justify-center bg-white">
     <div className="flex flex-col items-center gap-4 animate-pulse">
       <img
-        src="/truck.png"
+        src="/icon.svg"
         alt="Loading..."
-        className="w-72 h-72 object-contain drop-shadow-lg"
+        className="w-32 h-32 object-contain drop-shadow-lg"
       />
     </div>
   </div>
@@ -60,7 +60,7 @@ const App = () => {
     if (Capacitor.isNativePlatform()) {
       // Initialize Native Google Auth
       GoogleAuth.initialize({
-        clientId: '672048373138-ja58begjt0ieksollh1lmqacos65luus.apps.googleusercontent.com',
+        clientId: '770691922911-bcibeedoho5qfm1na7di312rsom4iv6d.apps.googleusercontent.com',
         scopes: ['profile', 'email'],
         grantOfflineAccess: true,
       });

@@ -1,4 +1,3 @@
-
 // This file acts as the environment configuration.
 // In a real production app, these would come from process.env
 
@@ -13,8 +12,8 @@ export const APP_CONFIG = {
   // Google Gemini API Key
   GEMINI_API_KEY: import.meta.env.VITE_GEMINI_API_KEY || '',
 
-  // Google Maps API Key
-  GOOGLE_MAPS_API_KEY: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+  // Google Maps API Key (Fall back to Firebase API key if Maps specific key is missing)
+  GOOGLE_MAPS_API_KEY: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY || ''
 };
 
 // Helper to simulate network latency for realistic feel in Mock mode
