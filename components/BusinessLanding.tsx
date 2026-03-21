@@ -22,34 +22,9 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
          {/* Hero Section */}
          <div className="relative bg-slate-900 text-white overflow-hidden min-h-[650px] flex items-center">
 
-            {/* Video Background */}
-            <div className="absolute inset-0 z-0">
-               {/* 
-              === VEO PROMPT FOR GENERATION ===
-              Use this prompt in Google Veo to generate your background:
-              
-              "A bright, vibrant, high-energy cinematic sequence in Nairobi Kenya. 
-              The camera glides smoothly showing different sectors: 
-              1) A modern pharmacy counter handing a package. 
-              2) A busy restaurant kitchen packing food. 
-              3) An online fashion shop owner boxing an item. 
-              4) A large well-lit warehouse. 
-              Connecting them all is a professional delivery rider on a bodaboda (motorcycle) 
-              driving through sunny city traffic. 4k resolution, commercial lighting, 
-              optimistic atmosphere, photorealistic."
-           */}
-               <video
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="auto"
-                  className="w-full h-full object-cover scale-105"
-               >
-                  <source src="https://storage.googleapis.com/AXON/video_20251215_161601_edit.mp4" type="video/mp4" />
-               </video>
-
-               {/* Dark overlay removed as requested */}
+            {/* Video Background Removed */}
+            <div className="absolute inset-0 z-0 bg-slate-900">
+               {/* Left as a dark slate-900 background as requested */}
             </div>
 
             {/* Gradient Overlay removed as requested */}
@@ -96,52 +71,54 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
          {/* Trust Bar */}
          <div className="border-b border-gray-100 bg-white py-14">
             <div className="max-w-7xl mx-auto px-4 text-center">
-               <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-12">Trusted by industry leaders</p>
+               <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-12">Built on Enterprise-Grade Infrastructure</p>
                <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-12">
-                  {/* KOKO Networks */}
+                  
+                  {/* Google Cloud */}
                   <div className="group flex flex-col items-center justify-center">
                      <img
-                        src="https://storage.googleapis.com/AXON/koko.png"
-                        alt="KOKO Networks"
-                        className="h-16 w-auto object-contain transition-transform duration-300 hover:scale-105"
+                        src="https://upload.wikimedia.org/wikipedia/commons/5/51/Google_Cloud_logo.svg"
+                        alt="Google Cloud"
+                        className="h-12 w-auto object-contain transition-transform duration-300 hover:scale-105 opacity-80 hover:opacity-100"
                      />
                   </div>
 
-                  {/* Jumia Kenya */}
+                  {/* Gemini AI */}
                   <div className="group flex flex-col items-center justify-center">
                      <img
-                        src="https://storage.googleapis.com/AXON/jumia.jpg"
-                        alt="JUMIA"
-                        className="h-16 w-auto object-contain transition-transform duration-300 hover:scale-105 mix-blend-multiply"
+                        src="https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg"
+                        alt="Google Gemini"
+                        className="h-10 w-auto object-contain transition-transform duration-300 hover:scale-105 grayscale hover:grayscale-0 opacity-80 hover:opacity-100"
                      />
                   </div>
 
-                  {/* Naivas Supermarkets */}
+                  {/* Google Maps */}
                   <div className="group flex flex-col items-center justify-center">
                      <img
-                        src="https://storage.googleapis.com/AXON/naivas.png"
-                        alt="NAIVAS"
-                        className="h-20 w-auto object-contain transition-transform duration-300 hover:scale-105"
+                        src="https://upload.wikimedia.org/wikipedia/commons/b/bd/Google_Maps_Logo_2020.svg"
+                        alt="Google Maps"
+                        className="h-8 w-auto object-contain transition-transform duration-300 hover:scale-105 opacity-80 hover:opacity-100"
                      />
                   </div>
 
-                  {/* Copia Kenya */}
+                  {/* M-PESA */}
                   <div className="group flex flex-col items-center justify-center">
-                     <img
-                        src="https://storage.googleapis.com/AXON/copia.png"
-                        alt="COPIA"
-                        className="h-16 w-auto object-contain transition-transform duration-300 hover:scale-105"
-                     />
+                     <div className="h-16 flex items-center transition-transform duration-300 hover:scale-105 opacity-90 hover:opacity-100 cursor-default select-none">
+                        <span className="text-2xl font-black tracking-tight" style={{ color: '#5cb85c' }}>
+                           M<span style={{ color: '#d9534f' }}>-</span>PESA
+                        </span>
+                     </div>
                   </div>
 
-                  {/* Twiga Foods */}
+                  {/* Firebase */}
                   <div className="group flex flex-col items-center justify-center">
                      <img
-                        src="https://storage.googleapis.com/AXON/twiga.jpg"
-                        alt="TWIGA"
-                        className="h-16 w-auto object-contain transition-transform duration-300 hover:scale-105 mix-blend-multiply"
+                        src="https://upload.wikimedia.org/wikipedia/commons/3/37/Firebase_Logo.svg"
+                        alt="Firebase"
+                        className="h-12 w-auto object-contain transition-transform duration-300 hover:scale-105 opacity-80 hover:opacity-100"
                      />
                   </div>
+                  
                </div>
             </div>
          </div>
