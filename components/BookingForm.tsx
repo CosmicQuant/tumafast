@@ -520,16 +520,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                         setDistance(route.distance);
                         setRouteDuration(route.duration);
 
-                        // Set real-time ETA from Google + Business Buffers
-                        if (route.duration > 0) {
-                            const estimation = orderService.estimateDeliveryTime(
-                                route.distance,
-                                serviceType,
-                                isScheduled ? pickupTime : 'ASAP',
-                                route.duration
-                            );
-                            setEstArrival(estimation);
-                        }
+                        // Real-time ETA is updated through the fetchPriceAndETA effect
 
                         // 3. Handle Full Reordering if optimized (Waypoints + Dropoff)
                         if (route.full_optimized_order && Array.isArray(route.full_optimized_order) && route.full_optimized_order.length === allStops.length) {
@@ -716,7 +707,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
     };
 
     useEffect(() => {
-        const fetchPrice = async () => {
+        const fetchPriceAndETA = async () => {
             if (!pickupCoords || !dropoffCoords) return;
             if (distance > 0) {
                 const p = await orderService.calculatePrice({
@@ -727,10 +718,21 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                     stopCount: waypoints.length + 1 // + dropoff
                 });
                 setPriceQuote(p);
+
+                // Dynamically update ETA based on selected serviceType
+                if (routeDuration > 0) {
+                   const estimation = orderService.estimateDeliveryTime(
+                       distance,
+                       serviceType,
+                       isScheduled ? pickupTime : 'ASAP',
+                       routeDuration
+                   );
+                   setEstArrival(estimation);
+                }
             }
         };
-        fetchPrice();
-    }, [selectedVehicle, distance, routeDuration, pickupCoords, dropoffCoords, serviceType, waypoints.length]);
+        fetchPriceAndETA();
+    }, [selectedVehicle, distance, routeDuration, pickupCoords, dropoffCoords, serviceType, waypoints.length, isScheduled, pickupTime]);
 
     // Auto-select vehicle based on Item & Distance
     useEffect(() => {

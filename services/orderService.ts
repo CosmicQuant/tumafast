@@ -425,61 +425,83 @@ export const orderService = {
       stopCount = 0
     } = details;
 
+    // distance is in meters from API, convert to km
+    const distanceKm = distance / 1000;
+
+    // ECONOMY Service Logic
+    // Highly discounted rates for inter-county or next-day grouped delivery
+    if (serviceType === ServiceType.ECONOMY) {
+      const economyBases: Record<string, number> = {
+        [VehicleType.BODA]: 150,
+        [VehicleType.TUKTUK]: 200,
+        [VehicleType.PICKUP]: 250,
+        [VehicleType.VAN]: 300,
+        [VehicleType.LORRY]: 300, // Small documents grouped on a truck
+        [VehicleType.TRAILER]: 500
+      };
+      // Base fee + 0.1 KES per km for economy shipping (drastically lower distance penalty)
+      const baseEco = economyBases[vehicleType] || 200;
+      let ecoTotal = baseEco + (distanceKm * 0.1);
+      
+      // Safety minimums for economy
+      const ecoMin = 200;
+      if (ecoTotal < ecoMin) ecoTotal = ecoMin;
+      
+      // Round to nearest 10 KES
+      return Math.round(ecoTotal / 10) * 10;
+    }
+
     // Base rates in KES (Includes the first 2km free)
     const baseRates: Record<string, number> = {
-      [VehicleType.BODA]: 120, // 120 base
-      [VehicleType.TUKTUK]: 250,
-      [VehicleType.PICKUP]: 800,
+      [VehicleType.BODA]: 180, // 180 base
+      [VehicleType.TUKTUK]: 300,
+      [VehicleType.PICKUP]: 1000,
       [VehicleType.VAN]: 1500,
-      [VehicleType.LORRY]: 3500,
-      [VehicleType.TRAILER]: 12000
+      [VehicleType.LORRY]: 4000,
+      [VehicleType.TRAILER]: 15000
     };
 
     // Per Stop Surcharge (Handling fee)
     const stopSurcharges: Record<string, number> = {
-      [VehicleType.BODA]: 50,
-      [VehicleType.TUKTUK]: 80,
-      [VehicleType.PICKUP]: 250,
-      [VehicleType.VAN]: 350,
-      [VehicleType.LORRY]: 1000,
-      [VehicleType.TRAILER]: 2500
+      [VehicleType.BODA]: 10,
+      [VehicleType.TUKTUK]: 20,
+      [VehicleType.PICKUP]: 100,
+      [VehicleType.VAN]: 150,
+      [VehicleType.LORRY]: 500,
+      [VehicleType.TRAILER]: 1000
     };
 
     // Per KM rates in KES (Applied after the first 2 base km)
     const perKmRates: Record<string, number> = {
-      [VehicleType.BODA]: 10,
-      [VehicleType.TUKTUK]: 60,
-      [VehicleType.PICKUP]: 120,
-      [VehicleType.VAN]: 180,
-      [VehicleType.LORRY]: 350,
-      [VehicleType.TRAILER]: 850
+      [VehicleType.BODA]: 20,
+      [VehicleType.TUKTUK]: 30,
+      [VehicleType.PICKUP]: 70,
+      [VehicleType.VAN]: 90,
+      [VehicleType.LORRY]: 150,
+      [VehicleType.TRAILER]: 300
     };
 
     // Time-based pricing (Traffic factor) per minute
     const perMinuteRates: Record<string, number> = {
-      [VehicleType.BODA]: 1.5, // 1.5 KES per minute in traffic
-      [VehicleType.TUKTUK]: 2.5,
-      [VehicleType.PICKUP]: 5,
-      [VehicleType.VAN]: 6,
-      [VehicleType.LORRY]: 10,
-      [VehicleType.TRAILER]: 15
+      [VehicleType.BODA]: 4, // 4 KES per minute in traffic
+      [VehicleType.TUKTUK]: 8,
+      [VehicleType.PICKUP]: 15,
+      [VehicleType.VAN]: 20,
+      [VehicleType.LORRY]: 30,
+      [VehicleType.TRAILER]: 50
     };
 
-    // Service Multipliers
+    // Service Multipliers (Economy handled separately above)
     const serviceMultipliers: Record<string, number> = {
       [ServiceType.EXPRESS]: 1.0,
-      [ServiceType.STANDARD]: 0.8,
-      [ServiceType.ECONOMY]: 0.6
+      [ServiceType.STANDARD]: 0.8
     };
 
-    const base = baseRates[vehicleType] || 120;
-    const perKm = perKmRates[vehicleType] || 10;
-    const perMinute = perMinuteRates[vehicleType] || 1.5;
+    const base = baseRates[vehicleType] || 180;
+    const perKm = perKmRates[vehicleType] || 20;
+    const perMinute = perMinuteRates[vehicleType] || 4;
     const stopFee = stopSurcharges[vehicleType] || 50;
     const multiplier = serviceMultipliers[serviceType] || 1.0;
-
-    // distance is in meters from API, convert to km
-    const distanceKm = distance / 1000;
 
     // Duration is in seconds, convert to minutes
     // If API failed to return duration (0), we guess 35km/h
@@ -500,19 +522,19 @@ export const orderService = {
 
     // Safety minimums
     const minimums: Record<string, number> = {
-      [VehicleType.BODA]: 100,
-      [VehicleType.TUKTUK]: 250,
+      [VehicleType.BODA]: 150,
+      [VehicleType.TUKTUK]: 300,
       [VehicleType.PICKUP]: 1000,
       [VehicleType.VAN]: 2000,
       [VehicleType.LORRY]: 5000,
       [VehicleType.TRAILER]: 15000
     };
 
-    const min = (minimums[vehicleType] || 100) * (serviceType === ServiceType.ECONOMY ? 0.8 : 1);
+    const min = (minimums[vehicleType] || 150);
     if (total < min) total = min;
 
-    // Round to nearest 50 for a professional "quoted" feel
-    return Math.ceil(total / 50) * 50;
+    // Round to nearest 10 KES
+    return Math.round(total / 10) * 10;
   },
 
   /**
@@ -540,8 +562,8 @@ export const orderService = {
       // Direct pickup immediately
       estimatedArrival = new Date(estimatedArrival.getTime());
     } else if (serviceType === ServiceType.STANDARD) {
-      // 2 hour window for bundling logic
-      estimatedArrival = new Date(estimatedArrival.getTime() + (2 * 60 * 60 * 1000));
+      // 4 hour window for bundling logic
+      estimatedArrival = new Date(estimatedArrival.getTime() + (4 * 60 * 60 * 1000));
       // If result is after 6 PM, push to tomorrow 10 AM
       if (estimatedArrival.getHours() >= 18) {
         estimatedArrival.setDate(estimatedArrival.getDate() + 1);
