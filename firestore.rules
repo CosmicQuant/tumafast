@@ -24,8 +24,9 @@ service cloud.firestore {
     }
 
     match /drivers/{driverId} {
-      // SECURED: Only authenticated users can read driver data.
-      allow read: if isAuthenticated();
+      // SECURED: Only authenticated users can read sensitive driver data.
+      // However, we allow public read for 'online' status to show availability on the map.
+      allow read: if isAuthenticated() || resource.data.status == 'online';
       // Only driver can write to their own profile
       allow write: if isOwner(driverId);
     }

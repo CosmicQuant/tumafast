@@ -22,7 +22,8 @@ interface AuthContextType {
   isLoading: boolean;
   switchRole: (role: 'customer' | 'driver' | 'business') => Promise<void>;
   login: (email: string, password: string) => Promise<User>;
-  loginWithGoogle: (role?: 'customer' | 'driver' | 'business') => Promise<User>;
+  loginWithGoogle: (role?: 'customer' | 'driver' | 'business') => Promise<User | { isNew: true; firebaseUser: any }>;
+  finalizeGoogleProfile: (firebaseUser: any, role: 'customer' | 'driver' | 'business') => Promise<User>;
   signup: (name: string, email: string, password: string, role?: 'customer' | 'driver' | 'business', profileDetails?: ProfileDetails) => Promise<User>;
   updateUser: (updates: Partial<User>) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
@@ -63,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else {
             // Fallback if firestore doc doesn't exist yet (e.g. just created)
             // This might happen if onAuthStateChanged fires before signup completes writing to DB
-            console.warn("User authenticated but no profile found in Firestore");
+            console.warn("User authenticated but no profile found in Firestore. This is expected for new Google users before role selection.");
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
@@ -93,24 +94,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (email: string, password: string): Promise<User> => {
-    setIsLoading(true);
     try {
       const loggedUser = await authService.login(email, password);
       setUser(loggedUser);
       return loggedUser;
     } catch (error) {
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const loginWithGoogle = async (role: 'customer' | 'driver' | 'business' = 'customer'): Promise<User> => {
+  const loginWithGoogle = async (role?: 'customer' | 'driver' | 'business'): Promise<User | { isNew: true; firebaseUser: any }> => {
+    try {
+      const result = await authService.loginWithGoogle(role);
+      if (result && !('isNew' in result)) {
+        setUser(result as User);
+      }
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const finalizeGoogleProfile = async (firebaseUser: any, role: 'customer' | 'driver' | 'business'): Promise<User> => {
     setIsLoading(true);
     try {
-      const loggedUser = await authService.loginWithGoogle(role);
-      setUser(loggedUser);
-      return loggedUser;
+      const result = await authService.finalizeGoogleProfile(firebaseUser, role);
+      setUser(result);
+      return result;
     } catch (error) {
       throw error;
     } finally {
@@ -119,15 +129,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signup = async (name: string, email: string, password: string, role: 'customer' | 'driver' | 'business' = 'customer', profileDetails?: ProfileDetails): Promise<User> => {
-    setIsLoading(true);
     try {
       const newUser = await authService.signup(name, email, password, role, profileDetails);
       setUser(newUser);
       return newUser;
     } catch (error) {
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -153,14 +160,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    setIsLoading(true);
     try {
       await authService.logout();
       setUser(null);
     } catch (error) {
       console.error("Logout failed", error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -186,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       switchRole,
       login,
       loginWithGoogle,
+      finalizeGoogleProfile,
       signup,
       updateUser,
       updatePassword,

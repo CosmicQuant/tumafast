@@ -540,7 +540,7 @@ export const orderService = {
   /**
    * Estimate Delivery Time based on distance and service type
    */
-  estimateDeliveryTime: (distanceMeters: number, serviceType: ServiceType, scheduledTime?: string, durationSeconds?: number): { arrivalTime: string, arrivalDate: string } => {
+  estimateDeliveryTime: (distanceMeters: number, serviceType: ServiceType, scheduledTime?: string, durationSeconds?: number, pickupDurationSeconds?: number): { arrivalTime: string, arrivalDate: string } => {
     const now = (scheduledTime && scheduledTime !== 'ASAP') ? new Date(scheduledTime) : new Date();
 
     let travelTimeMs = 0;
@@ -555,11 +555,14 @@ export const orderService = {
       travelTimeMs = travelTimeHours * 60 * 60 * 1000;
     }
 
-    let estimatedArrival = new Date(now.getTime() + travelTimeMs);
+    // Add pickup duration if provided (e.g. time for driver to reach pickup)
+    const pickupMs = (pickupDurationSeconds || 0) * 1000;
+
+    let estimatedArrival = new Date(now.getTime() + travelTimeMs + pickupMs);
 
     // Add processing/pickup buffer based on service
     if (serviceType === ServiceType.EXPRESS) {
-      // Direct pickup immediately
+      // Direct pickup immediately (pickupMs already included above)
       estimatedArrival = new Date(estimatedArrival.getTime());
     } else if (serviceType === ServiceType.STANDARD) {
       // 4 hour window for bundling logic

@@ -21,18 +21,17 @@ const VehicleIcon = ({ type, bearing = 0, color = "blue", isDriver = false }: { 
                 className="absolute transition-transform duration-700 ease-in-out"
                 style={{ transform: `rotate(${bearing}deg)` }}
             >
-                <div className={`w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[12px] ${color === 'blue' ? 'border-b-blue-500' : 'border-b-brand-500'} -translate-y-7 shadow-lg`} />
+                <div className={`w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[12px] opacity-80 ${color === 'blue' ? 'border-b-blue-500' : 'border-b-brand-500'} -translate-y-8 shadow-lg`} />
             </div>
 
-            {/* Main Icon Circle (Not Rotated) */}
+            {/* Main Icon (Not Rotated) - Removed white background circle */}
             <div
-                className={`relative p-2.5 rounded-full bg-white shadow-2xl border-2 transition-all duration-300 ${color === 'blue' ? 'border-blue-500 text-blue-600' : 'border-brand-500 text-brand-600'
-                    } ${isDriver ? 'scale-110 ring-4 ring-brand-500/20' : 'scale-100'}`}
+                className={`transition-all duration-300 drop-shadow-[0_4px_4px_rgba(0,0,0,0.25)] ${color === 'blue' ? 'text-blue-600' : 'text-brand-600'} ${isDriver ? 'scale-125' : 'scale-100'}`}
             >
                 {isDriver && (
-                    <div className="absolute inset-0 rounded-full animate-ping bg-brand-500/40 -z-10" />
+                    <div className="absolute inset-0 rounded-full animate-ping bg-brand-500/20 -z-10" />
                 )}
-                <Icon size={20} className="relative z-10" />
+                <Icon size={isDriver ? 32 : 24} className="relative z-10" />
             </div>
         </div>
     );

@@ -37,7 +37,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         waypointCoords, setWaypointCoords,
         requestUserLocation,
         userLocation,
-        setDriverVehicleType
+        setDriverVehicleType,
+        nearbyVehicles
     } = useMapState();
 
     const [step, setStep] = useState(() => {
@@ -719,20 +720,51 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                 });
                 setPriceQuote(p);
 
-                // Dynamically update ETA based on selected serviceType
+                // 1. Find nearest vehicle for pickup estimation
+                let pickupDurationSeconds = 900; // 15 min fallback
+                if (nearbyVehicles && nearbyVehicles.length > 0) {
+                    const vehiclesOfType = nearbyVehicles.filter(v => {
+                        const vType = v.type.toLowerCase();
+                        const sType = selectedVehicle.toLowerCase();
+                        if (vType === sType) return true;
+                        if (sType === 'boda' && vType.includes('boda')) return true;
+                        if (sType === 'tuktuk' && (vType.includes('tuk') || vType.includes('car'))) return true;
+                        if (sType === 'lorry' && (vType.includes('truck') || vType.includes('lorry') || vType.includes('trailer'))) return true;
+                        if (sType === 'pickup' && (vType.includes('pickup') || vType.includes('van'))) return true;
+                        return vType.includes(sType);
+                    });
+
+                    if (vehiclesOfType.length > 0) {
+                        // Find closest by Haversine
+                        let minDistance = Infinity;
+                        vehiclesOfType.forEach(v => {
+                            const d = mapService.calculateDistance(v.position, pickupCoords);
+                            if (d < minDistance) minDistance = d;
+                        });
+
+                        // Estimate time: distance / 25km/h (city traffic) * 3600s
+                        pickupDurationSeconds = Math.round((minDistance / 25) * 3600);
+                        
+                        // Add 3 min base for driver to react and start moving
+                        pickupDurationSeconds += 180;
+                    }
+                }
+
+                // Dynamically update ETA based on selected serviceType and pickup buffer
                 if (routeDuration > 0) {
                    const estimation = orderService.estimateDeliveryTime(
                        distance,
                        serviceType,
                        isScheduled ? pickupTime : 'ASAP',
-                       routeDuration
+                       routeDuration,
+                       pickupDurationSeconds
                    );
                    setEstArrival(estimation);
                 }
             }
         };
         fetchPriceAndETA();
-    }, [selectedVehicle, distance, routeDuration, pickupCoords, dropoffCoords, serviceType, waypoints.length, isScheduled, pickupTime]);
+    }, [selectedVehicle, distance, routeDuration, pickupCoords, dropoffCoords, serviceType, waypoints.length, isScheduled, pickupTime, nearbyVehicles]);
 
     // Auto-select vehicle based on Item & Distance
     useEffect(() => {

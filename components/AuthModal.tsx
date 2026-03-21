@@ -17,12 +17,13 @@ interface AuthModalProps {
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'LOGIN', preselectedRole, customTitle, customDescription }) => {
-  const { login, signup, loginWithGoogle } = useAuth();
+  const { login, signup, loginWithGoogle, finalizeGoogleProfile } = useAuth();
   const navigate = useNavigate();
   const [view, setView] = useState<'LOGIN' | 'SIGNUP' | 'FORGOT_PASSWORD' | 'ROLE_SELECT'>(defaultView);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  const [tempFirebaseUser, setTempFirebaseUser] = useState<any>(null);
 
   // Common Fields
   const [name, setName] = useState('');
@@ -49,15 +50,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
 
   useEffect(() => {
-    // If default is signup, we might want to start at role select if no role preselected, 
-    // but the user might have clicked "Sign up" generic button. 
-    // Let's default SIGNUP request to show role select first if generic.
-    if (defaultView === 'SIGNUP' && !preselectedRole) {
-      setView('ROLE_SELECT');
-    } else {
-      setView(defaultView);
+    // Only reset the view if the modal was just opened (previously closed)
+    // and if we're not currently in the middle of a Google Auth transition (tempFirebaseUser exists)
+    if (isOpen && !tempFirebaseUser) {
+      if (defaultView === 'SIGNUP' && !preselectedRole) {
+        setView('ROLE_SELECT');
+      } else {
+        setView(defaultView);
+      }
     }
-  }, [defaultView, isOpen, preselectedRole]);
+  }, [isOpen, defaultView, preselectedRole]);
 
   useEffect(() => {
     if (preselectedRole) setRole(preselectedRole);
@@ -69,17 +71,45 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
     console.log("Modal: Google Auth Clicked. Role Selected:", role);
     setLoading(true);
     try {
-      const gUser = await loginWithGoogle(role);
+      const result = await loginWithGoogle(view === 'ROLE_SELECT' ? role : undefined);
+
+      if (result && 'isNew' in result) {
+        console.log("Modal: New Google user, switching to role selection");
+        setTempFirebaseUser(result.firebaseUser);
+        setView('ROLE_SELECT');
+        return;
+      }
+
+      const gUser = result as any;
       console.log("Modal: Google Login Success");
       onClose(); // Close modal on success
       if (gUser?.role === 'driver') navigate('/driver');
-      if (gUser?.role === 'business') navigate('/business-dashboard');
+      else if (gUser?.role === 'business') navigate('/business-dashboard');
+      else navigate('/dashboard'); // Default
     } catch (err: any) {
       console.error("Google Auth Error:", err);
       setError(err.message || 'Google authentication failed');
     } finally {
       console.log("Modal: Auth Finished. Setting loading false.");
       setLoading(false);
+    }
+  };
+
+  const finalizeGoogleSignup = async (selectedRole: 'customer' | 'driver' | 'business') => {
+    if (!tempFirebaseUser) return;
+    setLoading(true);
+    try {
+      // Now call loginWithGoogle again WITH the role to create the firestore doc
+      const user = await finalizeGoogleProfile(tempFirebaseUser, selectedRole);
+      onClose();
+      if (selectedRole === 'driver') navigate('/driver');
+      else if (selectedRole === 'business') navigate('/business-dashboard');
+      else navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Failed to complete signup');
+    } finally {
+      setLoading(false);
+      setTempFirebaseUser(null);
     }
   };
 
@@ -238,10 +268,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
 
   const renderRoleSelection = () => (
     <div className="px-8 py-6 space-y-4">
-      <h3 className="text-xl font-bold text-gray-900 text-center mb-6">Choose account type</h3>
+      <h3 className="text-xl font-bold text-gray-900 text-center mb-6">
+        {tempFirebaseUser ? `Welcome, ${tempFirebaseUser.displayName}! How will you use AXON?` : "Choose account type"}
+      </h3>
 
       <button
-        onClick={() => { setRole('customer'); setView('SIGNUP'); }}
+        onClick={() => {
+          if (tempFirebaseUser) finalizeGoogleSignup('customer');
+          else { setRole('customer'); setView('SIGNUP'); }
+        }}
         className="w-full flex items-center p-4 rounded-xl border-2 border-gray-100 hover:border-brand-500/50 hover:bg-brand-50 transition-all group text-left"
       >
         <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center text-green-600 group-hover:bg-brand-500/30 group-hover:text-brand-600 mr-4 transition-colors">
@@ -254,7 +289,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
       </button>
 
       <button
-        onClick={() => { setRole('driver'); setView('SIGNUP'); }}
+        onClick={() => {
+          if (tempFirebaseUser) finalizeGoogleSignup('driver');
+          else { setRole('driver'); setView('SIGNUP'); }
+        }}
         className="w-full flex items-center p-4 rounded-xl border-2 border-gray-100 hover:border-yellow-400/50 hover:bg-yellow-50 transition-all group text-left"
       >
         <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-600 group-hover:bg-yellow-500/30 group-hover:text-yellow-600 mr-4 transition-colors">
@@ -267,7 +305,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
       </button>
 
       <button
-        onClick={() => { setRole('business'); setView('SIGNUP'); }}
+        onClick={() => {
+          if (tempFirebaseUser) finalizeGoogleSignup('business');
+          else { setRole('business'); setView('SIGNUP'); }
+        }}
         className="w-full flex items-center p-4 rounded-xl border-2 border-gray-100 hover:border-blue-500/50 hover:bg-blue-50 transition-all group text-left"
       >
         <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 group-hover:bg-blue-500/30 group-hover:text-blue-600 mr-4 transition-colors">
@@ -278,6 +319,35 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
           <p className="text-sm text-gray-500">I want to manage deliveries for my company.</p>
         </div>
       </button>
+
+      {/* Google Auth in Role Selection - Only show if NOT already in Google flow */}
+      {!tempFirebaseUser && (
+        <>
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-100"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-4 text-gray-400 font-bold">Or continue with</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleAuth}
+            className="w-full flex items-center justify-center bg-white border border-gray-200 text-gray-900 font-bold py-3 rounded-xl hover:bg-gray-50 transition-all shadow-sm group"
+          >
+            <img
+              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+              alt="Google"
+              className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform"
+            />
+            <span className="text-gray-700 font-bold text-sm">
+              Sign up as {role.charAt(0).toUpperCase() + role.slice(1)} with Google
+            </span>
+          </button>
+        </>
+      )}
 
       <div className="pt-4 text-center">
         <p className="text-sm text-gray-500">
@@ -561,10 +631,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
                             <label className="text-[10px] font-bold text-gray-400 uppercase">ID Card (Front)</label>
                             <div
                               onClick={() => document.getElementById('id-card-upload')?.click()}
-                              className={`w-full h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${idCardImage ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-gray-50 hover:border-brand-500/50'}`}
+                              className={`w-full h-48 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${idCardImage ? 'border-emerald-500 bg-white' : 'border-gray-200 bg-gray-50 hover:border-brand-500/50'}`}
                             >
                               {idCardImage ? (
-                                <img src={idCardImage} alt="ID Card" className="w-full h-full object-cover" />
+                                <img src={idCardImage} alt="ID Card" className="w-full h-full object-contain" />
                               ) : (
                                 <>
                                   <Camera className="w-5 h-5 text-gray-300 mb-1" />
@@ -595,10 +665,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
                             <label className="text-[10px] font-bold text-gray-400 uppercase">Driving License</label>
                             <div
                               onClick={() => document.getElementById('license-upload')?.click()}
-                              className={`w-full h-24 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${licenseImage ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-gray-50 hover:border-brand-500/50'}`}
+                              className={`w-full h-48 rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${licenseImage ? 'border-emerald-500 bg-white' : 'border-gray-200 bg-gray-50 hover:border-brand-500/50'}`}
                             >
                               {licenseImage ? (
-                                <img src={licenseImage} alt="License" className="w-full h-full object-cover" />
+                                <img src={licenseImage} alt="License" className="w-full h-full object-contain" />
                               ) : (
                                 <>
                                   <Upload className="w-5 h-5 text-gray-300 mb-1" />

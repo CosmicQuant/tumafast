@@ -218,27 +218,9 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
       return false; // Not a driver
    };
 
-   const handleSendAnything = async () => {
+   const handleSendAnything = () => {
       if (checkDriverRole()) return;
-      // Populate the search bar immediately for instant feedback
-      setQuickInput('Send a package from my current location');
-
-      setIsAnalyzing(true);
-      const coords = await requestUserLocation();
-      let pickup = '';
-      if (coords) {
-         const address = await mapService.reverseGeocode(coords.lat, coords.lng);
-         if (address) {
-            pickup = address;
-            // Update with the actual address once resolved
-            setQuickInput(`Send a package from ${address}`);
-         }
-      }
-
-      setIsAnalyzing(false);
       const prefill = {
-         pickup: pickup,
-         pickupCoords: coords,
          itemDescription: 'Package'
       };
 
@@ -249,22 +231,13 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
       }
    };
 
-   const handleVehicleSelect = async (vehicleType: VehicleType) => {
+   const handleVehicleSelect = (vehicleType: VehicleType) => {
       if (checkDriverRole()) return;
 
-      setIsAnalyzing(true);
-      const coords = await requestUserLocation();
-      let pickup = '';
-      if (coords) {
-         const address = await mapService.reverseGeocode(coords.lat, coords.lng);
-         if (address) pickup = address;
-      }
-      setIsAnalyzing(false);
-
       const prefill = {
-         pickup: pickup,
-         pickupCoords: coords,
-         vehicle: vehicleType
+         vehicle: vehicleType,
+         itemDescription: vehicleType === VehicleType.BODA ? "Boda Boda Delivery" : 
+                          vehicleType === VehicleType.TUKTUK ? "Tuktuk Small Load" : "Vehicle Delivery"
       };
 
       if (onStartBooking) {
@@ -274,26 +247,12 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
       }
    };
 
-   const handleQuickTap = async (destination: string) => {
+   const handleQuickTap = (destination: string) => {
       if (checkDriverRole()) return;
 
-      setIsAnalyzing(true);
-      // Update input for feedback
-      setQuickInput(`Sending package to ${destination}...`);
-
-      const coords = await requestUserLocation();
-      let pickup = '';
-      if (coords) {
-         const address = await mapService.reverseGeocode(coords.lat, coords.lng);
-         if (address) pickup = address;
-      }
-      setIsAnalyzing(false);
-
       const prefill = {
-         pickup: pickup,
-         pickupCoords: coords,
          dropoff: destination,
-         itemDescription: 'Package' // Hardcoded as requested
+         itemDescription: 'Package'
       };
 
       if (onStartBooking) {

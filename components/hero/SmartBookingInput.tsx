@@ -80,7 +80,7 @@ export const SmartBookingInput: React.FC<SmartBookingInputProps> = ({ onStartBoo
         });
     };
 
-    // Typing Effect Logic
+    // Placeholder Typing Effect Logic
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout>;
         const i = loopNum % PLACEHOLDERS.length;
@@ -107,6 +107,30 @@ export const SmartBookingInput: React.FC<SmartBookingInputProps> = ({ onStartBoo
         }
         return () => clearTimeout(timer);
     }, [placeholder, isDeleting, loopNum]);
+
+    // Value Typing Effect (One-time on mount)
+    useEffect(() => {
+        const heroSentence = "I want to send 5 boxes of electronics to Westlands";
+        let currentIndex = 0;
+        let typingTimer: ReturnType<typeof setTimeout>;
+
+        // Delay start slightly for better UX
+        const startTimeout = setTimeout(() => {
+            const typeNextChar = () => {
+                if (currentIndex < heroSentence.length) {
+                    setQuickInput(heroSentence.slice(0, currentIndex + 1));
+                    currentIndex++;
+                    typingTimer = setTimeout(typeNextChar, 50);
+                }
+            };
+            typeNextChar();
+        }, 1000);
+
+        return () => {
+            clearTimeout(startTimeout);
+            clearTimeout(typingTimer);
+        };
+    }, []);
 
     // Auto-grow effect
     useEffect(() => {

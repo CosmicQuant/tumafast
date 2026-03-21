@@ -90,7 +90,7 @@ export const authService = {
   },
 
   // Login/Signup with Google
-  loginWithGoogle: async (role: 'customer' | 'driver' | 'business' = 'customer'): Promise<User> => {
+  loginWithGoogle: async (role?: 'customer' | 'driver' | 'business'): Promise<User | { isNew: true; firebaseUser: any }> => {
     console.log("Service: Starting Google Auth...");
     try {
       let firebaseUser;
@@ -125,8 +125,7 @@ export const authService = {
         console.log("Service: User profile exists in 'users'. Fetching extended data...");
         let userData = { id: firebaseUser.uid, email: firebaseUser.email!, ...userDoc.data() } as User;
 
-        // Ensure local consistency - if role in DB is different, maybe update or respect DB?
-        // For now, let's fetch the specific doc based on the DB role (source of truth)
+        // Ensure local consistency
         const currentRole = userData.role;
 
         if (currentRole === 'driver') {
@@ -135,7 +134,7 @@ export const authService = {
           if (driverDoc.exists()) {
             userData = { ...userData, ...driverDoc.data() };
           } else {
-            // Repair: Driver role but no driver doc? Create it.
+            // Repair
             console.log("Service: Driver doc missing, repairing...");
             await setDoc(docRef, {
               userId: firebaseUser.uid,
@@ -165,25 +164,29 @@ export const authService = {
         }
         return userData;
       } else {
-        console.log("Service: New user. Creating profile...");
-        // Create a profile for new Google users with the specified role
+        // If no role provided and user is new, return special signal for UI to handle role selection
+        if (!role) {
+          console.log("Service: New Google user, but no role specified. Returning isNew flag.");
+          return { isNew: true, firebaseUser };
+        }
+
+        console.log("Service: New user. Creating profile with role:", role);
         const newUserProfile = {
           name: firebaseUser.displayName || 'Google User',
           email: firebaseUser.email,
           role: role,
           avatar: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName}`,
-          phone: ''
+          phone: '',
+          createdAt: new Date().toISOString()
         };
         await setDoc(userDocRef, newUserProfile);
 
-        // Create specific collection doc if needed
         if (role === 'driver') {
           await setDoc(doc(db, 'drivers', firebaseUser.uid), {
             userId: firebaseUser.uid,
             status: 'offline',
             rating: 5.0,
             totalTrips: 0,
-            // Defaults, user must update profile later
             vehicleType: VehicleType.BODA,
             plateNumber: '',
             licenseNumber: '',
@@ -204,6 +207,50 @@ export const authService = {
       throw error;
     }
   },
+  
+  // Finalize Google Signup for an already authenticated user
+  finalizeGoogleProfile: async (firebaseUser: any, role: 'customer' | 'driver' | 'business'): Promise<User> => {
+    console.log("Service: Finalizing Google profile with role:", role);
+    try {
+      const userDocRef = doc(db, 'users', firebaseUser.uid);
+      
+      const newUserProfile = {
+        name: firebaseUser.displayName || 'Google User',
+        email: firebaseUser.email,
+        role: role,
+        avatar: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName}`,
+        phone: '',
+        createdAt: new Date().toISOString()
+      };
+      
+      await setDoc(userDocRef, newUserProfile);
+
+      if (role === 'driver') {
+        await setDoc(doc(db, 'drivers', firebaseUser.uid), {
+          userId: firebaseUser.uid,
+          status: 'offline',
+          rating: 5.0,
+          totalTrips: 0,
+          vehicleType: VehicleType.BODA,
+          plateNumber: '',
+          licenseNumber: '',
+          idNumber: ''
+        });
+      } else if (role === 'business') {
+        await setDoc(doc(db, 'businesses', firebaseUser.uid), {
+          userId: firebaseUser.uid,
+          companyName: newUserProfile.name,
+          verified: false
+        });
+      }
+
+      return { id: firebaseUser.uid, ...newUserProfile } as User;
+    } catch (error) {
+      console.error("Service: Profile Finalization Failed", error);
+      throw error;
+    }
+  },
+
 
   // Signup
   signup: async (
