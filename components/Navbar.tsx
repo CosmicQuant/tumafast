@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Truck, Clock, User, ChevronDown, Repeat, LayoutDashboard, LogOut, Briefcase, Settings, Menu, X, Shield, Lock, Home, Globe, Bell, Calendar, Trash2, ArrowLeft, Activity } from 'lucide-react';
+import { Truck, Clock, User, ChevronDown, Repeat, LayoutDashboard, LogOut, Briefcase, Settings, Menu, X, Shield, Lock, Home, Globe, Bell, Calendar, Trash2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePrompt } from '../context/PromptContext';
 import DropdownMenu from './DropdownMenu';
+import Logo from './Logo';
 
 interface NavbarProps {
   onOpenProfile?: () => void;
@@ -103,8 +104,8 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenProfile, onLogin, isDarkBackgroun
             className="flex items-center space-x-2 cursor-pointer group"
             onClick={handleLogoClick}
           >
-            <div className="bg-gradient-to-br from-brand-500 to-brand-600 p-2 rounded-xl shadow-lg group-hover:shadow-brand-300 transition-all duration-300">
-              <Activity className="text-white w-5 h-5" />
+            <div className="bg-gradient-to-br from-brand-500 to-brand-600 p-1.5 rounded-xl shadow-lg group-hover:shadow-brand-300 transition-all duration-300">
+              <Logo className="text-white w-6 h-6" />
             </div>
             <span className={`font-black text-2xl tracking-tight transition-colors duration-300 ${isDarkBackground ? 'text-white' : 'text-slate-900'}`}>Axon</span>
           </div>

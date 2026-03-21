@@ -233,134 +233,158 @@ export const mapService = {
     /**
      * Get routing data between points using Google Maps Directions Service (JS SDK)
      */
-    getRoute: async (start: Coordinates, end: Coordinates, waypoints: Coordinates[] = []): Promise<any> => {
+    getRoute: async (start: Coordinates, end: Coordinates, waypoints: Coordinates[] = [], vehicleType?: string, optimize: boolean = false): Promise<any> => {
+        console.log("[Diagnostic: mapService.getRoute] Called with:", { start, end, waypointsCount: waypoints.length, vehicleType, optimize });
         if (typeof google === 'undefined' || !google.maps) {
             console.warn("Google Maps not loaded yet");
             return null;
         }
 
+        // Validate Coordinates
+        const isValid = (c: any) => c && typeof c.lat !== 'undefined' && typeof c.lng !== 'undefined' && !isNaN(parseFloat(c.lat)) && !isNaN(parseFloat(c.lng));
+
+        if (!isValid(start) || !isValid(end)) {
+            console.error("Invalid start or end coordinates provided to getRoute", { start, end });
+            return null;
+        }
+
         try {
-            // First try dynamic import for modern library access (Routes API)
-            let RouteClass: any = null;
-            if (google.maps.importLibrary) {
-                try {
-                    const routesLib = await google.maps.importLibrary("routes") as any;
-                    RouteClass = routesLib.Route;
-                } catch (e) {
-                    console.warn("Failed to dynamically import routes library", e);
-                }
-            }
-            if (!RouteClass) {
-                RouteClass = (google.maps as any).routes?.Route;
+            // New Plan: EXCLUSIVELY use Routes API (V2) for all specialized routing (Boda, Trucks)
+            // Directions Service (V1) is deprecated as of Feb 2026 and should not even be initialized to avoid warnings.
+            return await mapService.getRouteV2(start, end, waypoints, vehicleType, optimize);
+        } catch (error) {
+            console.error("Axon Routing Error (V2):", error);
+            return null;
+        }
+    },
+
+    /**
+     * Fallback routing using Google Routes API (V2)
+     */
+    getRouteV2: async (start: Coordinates, end: Coordinates, waypoints: Coordinates[] = [], vehicleType?: string, optimize: boolean = false): Promise<any> => {
+        console.log("[Diagnostic: mapService.getRouteV2] Using REST API (fetch) for Routes V2...");
+        try {
+            // Map vehicle type to V2 travel mode and routing preferences
+            let travelMode = 'DRIVE';
+            let routingPreference = 'TRAFFIC_AWARE_OPTIMAL';
+            let vehicleInfo: any = undefined;
+            let speedMultiplier = 1.0;
+
+            const normalizedVehicle = vehicleType?.toLowerCase();
+
+            if (normalizedVehicle?.includes('boda') || normalizedVehicle?.includes('moto') || normalizedVehicle?.includes('bike') || normalizedVehicle?.includes('tuk')) {
+                travelMode = 'TWO_WHEELER';
+                routingPreference = 'TRAFFIC_AWARE';
+                speedMultiplier = 1.0;
+            } else if (normalizedVehicle?.includes('lorry') || normalizedVehicle?.includes('truck') || normalizedVehicle?.includes('trailer')) {
+                travelMode = 'DRIVE';
+                routingPreference = 'TRAFFIC_AWARE_OPTIMAL';
+                // User requested raw Google ETA, so we remove the 1.25x manual factor
+                speedMultiplier = 1.0;
+                // Standard Routes API V2 only supports emissionType in vehicleInfo
+                vehicleInfo = { emissionType: 'DIESEL' };
+            } else if (normalizedVehicle?.includes('van') || normalizedVehicle?.includes('pickup')) {
+                travelMode = 'DRIVE';
+                routingPreference = 'TRAFFIC_AWARE_OPTIMAL';
+                speedMultiplier = 1.0;
             }
 
-            if (RouteClass && RouteClass.computeRoutes) {
-                // Formatting for New Routes API, strictly casting string coords to numbers
-                // JS SDK expects plain LatLngLiteral ({lat, lng}), not the REST API nested {location: {latLng: ...}} format
-                const requestWaypoints = waypoints.map(w => ({
-                    location: { lat: parseFloat(w.lat as any), lng: parseFloat(w.lng as any) }
-                }));
+            if (optimize && waypoints.length > 1 && routingPreference === 'TRAFFIC_AWARE_OPTIMAL') {
+                routingPreference = 'TRAFFIC_AWARE';
+                // vehicleInfo (emissionType) is only supported with TRAFFIC_AWARE_OPTIMAL
+                vehicleInfo = undefined;
+            }
 
-                const request = {
-                    origin: { lat: parseFloat(start.lat as any), lng: parseFloat(start.lng as any) },
-                    destination: { lat: parseFloat(end.lat as any), lng: parseFloat(end.lng as any) },
-                    intermediates: requestWaypoints,
-                    travelMode: 'DRIVING',
-                    routingPreference: 'TRAFFIC_AWARE',
-                    computeAlternativeRoutes: false,
-                    routeModifiers: { avoidTolls: false, avoidHighways: false, avoidFerries: true },
-                    optimizeWaypointOrder: requestWaypoints.length > 1, // Only optimize if > 1 waypoint to prevent API errors
-                    // JS SDK field mask uses flat property names, not REST dot-notation
-                    fields: [
-                        'distanceMeters',
-                        'durationMillis',
-                        'optimizedIntermediateWaypointIndices',
-                        'path'
-                    ]
+            const isOptimizing = optimize && waypoints.length > 1;
+
+            const requestBody = {
+                origin: { location: { latLng: { latitude: Number(start.lat), longitude: Number(start.lng) } } },
+                destination: { location: { latLng: { latitude: Number(end.lat), longitude: Number(end.lng) } } },
+                intermediates: waypoints.map(w => ({
+                    location: { latLng: { latitude: Number(w.lat), longitude: Number(w.lng) } }
+                })),
+                travelMode,
+                routingPreference,
+                computeAlternativeRoutes: false,
+                routeModifiers: {
+                    avoidTolls: false,
+                    avoidHighways: false,
+                    avoidFerries: true,
+                    vehicleInfo
+                },
+                polylineQuality: 'HIGH_QUALITY',
+                optimizeWaypointOrder: isOptimizing,
+                units: 'METRIC',
+                languageCode: 'en-US'
+            };
+
+            const fieldMask = isOptimizing
+                ? 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.legs,routes.optimizedIntermediateWaypointIndex'
+                : 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.legs';
+
+            const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': APP_CONFIG.GOOGLE_MAPS_API_KEY,
+                    'X-Goog-FieldMask': fieldMask
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Routes API Error: ${errorData.error?.message || response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            if (data && data.routes && data.routes.length > 0) {
+                const route = data.routes[0];
+
+                const parseDuration = (dur: string) => {
+                    if (!dur) return 0;
+                    return parseInt(dur.replace('s', ''), 10);
                 };
 
-                const response = await RouteClass.computeRoutes(request);
+                const totalDistance = route.distanceMeters || 0;
+                const baseDuration = parseDuration(route.duration);
+                const duration = Math.round(baseDuration * speedMultiplier);
 
-                if (response && response.routes && response.routes.length > 0) {
-                    const route = response.routes[0];
-                    // route.path may contain LatLng instances (with .lat() method) or plain objects
-                    const pathArray = route.path
-                        ? route.path.map((p: any) => ({
-                            lat: typeof p.lat === 'function' ? p.lat() : p.lat,
-                            lng: typeof p.lng === 'function' ? p.lng() : p.lng
-                        }))
-                        : [];
+                const geometry = route.polyline?.encodedPolyline || "";
 
-                    const indices = route.optimizedIntermediateWaypointIndices;
+                // Handle Legs
+                let nextLegDistance = totalDistance;
+                let nextLegDuration = duration;
 
-                    // The Routes API JS SDK actually returns a duration string '120s' or duration object.
-                    // Sometimes duration is missing if durationMillis is used but not provided.
-                    let durationSecs = 0;
-                    if (route.durationMillis) {
-                        durationSecs = Math.round(route.durationMillis / 1000);
-                    } else if (route.duration) {
-                        if (typeof route.duration === 'string') {
-                            durationSecs = parseInt(route.duration.replace('s', ''), 10);
-                        } else if (typeof route.duration.seconds === 'number') {
-                            durationSecs = route.duration.seconds;
-                        } else if (typeof route.duration === 'number') {
-                            durationSecs = route.duration;
-                        }
-                    }
-
-                    return {
-                        geometry: pathArray, // MapLayer handles Array<{lat, lng}> format
-                        distance: route.distanceMeters || 0,
-                        duration: durationSecs, // Convert ms to seconds
-                        waypoint_order: (indices && indices.length > 0) ? indices : waypoints.map((_, i) => i)
-                    };
+                if (route.legs && route.legs.length > 0) {
+                    const firstLeg = route.legs[0];
+                    nextLegDistance = firstLeg.distanceMeters || 0;
+                    nextLegDuration = Math.round(parseDuration(firstLeg.duration) * speedMultiplier);
                 }
-                return null;
-            } else {
-                // Fallback to old Directions API
-                return new Promise((resolve) => {
-                    const directionsService = new google.maps.DirectionsService();
-                    const gWaypoints = waypoints.map(w => ({
-                        location: w,
-                        stopover: true
-                    }));
 
-                    directionsService.route({
-                        origin: start,
-                        destination: end,
-                        waypoints: gWaypoints,
-                        travelMode: google.maps.TravelMode.DRIVING,
-                        optimizeWaypoints: true
-                    }, (result, status) => {
-                        if (status === google.maps.DirectionsStatus.OK && result && result.routes.length > 0) {
-                            const route = result.routes[0];
-
-                            let totalDistance = 0;
-                            let totalDuration = 0;
-                            route.legs.forEach(leg => {
-                                totalDistance += leg.distance?.value || 0;
-                                totalDuration += leg.duration?.value || 0;
-                            });
-
-                            const geometry = typeof route.overview_polyline === 'string'
-                                ? route.overview_polyline
-                                : (route.overview_polyline as any).points;
-
-                            resolve({
-                                geometry: geometry,
-                                distance: totalDistance,
-                                duration: totalDuration,
-                                waypoint_order: route.waypoint_order // Return the optimized order
-                            });
-                        } else {
-                            console.error("Directions request failed due to " + status);
-                            resolve(null);
-                        }
-                    });
+                console.log(`[Diagnostic: mapService] V2 REST Success (${travelMode}):`, {
+                    distance: totalDistance,
+                    duration,
+                    multiplier: speedMultiplier
                 });
+
+                if (route.optimizedIntermediateWaypointIndex) {
+                    console.log("[Diagnostic: mapService] V2 Optimization Index Found:", route.optimizedIntermediateWaypointIndex);
+                }
+
+                return {
+                    geometry,
+                    distance: totalDistance,
+                    duration: duration,
+                    nextLegDistance,
+                    nextLegDuration,
+                    waypoint_order: route.optimizedIntermediateWaypointIndex || waypoints.map((_, i) => i)
+                };
             }
-        } catch (error) {
-            console.error("Route calculation failed:", error);
+            return null;
+        } catch (e) {
+            console.error("V2 REST Route error:", e);
             return null;
         }
     },
@@ -378,7 +402,8 @@ export const mapService = {
     optimizeStops: async (
         pickup: { lat: number; lng: number; address: string },
         dropoff: { lat: number; lng: number; address: string },
-        waypoints: Array<{ id: string; lat: number; lng: number; address: string; contact?: any; instructions?: string }>
+        waypoints: Array<{ id: string; lat: number; lng: number; address: string; contact?: any; instructions?: string }>,
+        vehicleType?: string
     ): Promise<{
         optimizedStops: Array<{
             id: string;
@@ -401,7 +426,7 @@ export const mapService = {
 
         // If no waypoints, just return pickup and dropoff with codes
         if (!waypoints || waypoints.length === 0) {
-            const route = await mapService.getRoute(pickup, dropoff);
+            const route = await mapService.getRoute(pickup, dropoff, [], vehicleType);
             return {
                 optimizedStops: [
                     {
@@ -438,8 +463,8 @@ export const mapService = {
             { lat: dropoff.lat, lng: dropoff.lng }
         ];
 
-        // Get optimized route with all stops
-        const route = await mapService.getRoute(pickup, allIntermediatePoints[allIntermediatePoints.length - 1], allIntermediatePoints.slice(0, -1));
+        // Get optimized route with all stops including the final dropoff as part of the reorderable stops
+        const route = await mapService.getFullyOptimizedRoute(pickup, allIntermediatePoints, vehicleType);
 
         // Build optimized stops array
         const optimizedStops: Array<{
@@ -467,54 +492,73 @@ export const mapService = {
             sequenceOrder: 0
         });
 
-        // Reorder waypoints based on Google's optimization
-        console.log("[Diagnostic: Post-Optimization] Axon Map Engine: Raw Waypoint Order Response:", route?.waypoint_order);
+        // Reorder waypoints based on Google's full optimization
+        console.log("[Diagnostic: Post-Optimization] Axon Map Engine: Raw Waypoint Order Response:", route?.full_optimized_order);
 
-        let waypointOrder = waypoints.map((_, i) => i);
+        // Generate an initial linear array mapping to 0..N including the final dropoff
+        let fullOrder = [...waypoints.map((_, i) => i), waypoints.length];
 
-        // Safely determine the final sequence order. 
-        // If Google Routes API returns an empty reorder array (e.g. for a single waypoint) 
-        // or omits it entirely, preserve the original sequence to prevent dropping the waypoint.
-        if (route && Array.isArray(route.waypoint_order) && route.waypoint_order.length === waypoints.length) {
-            waypointOrder = route.waypoint_order;
-        } else if (route?.waypoint_order && Array.isArray(route.waypoint_order) && route.waypoint_order.length === 0 && waypoints.length > 0) {
-            console.warn("Axon Map Engine: Google returned empty waypoint order but waypoints exist. Preserving original sequence.");
-            // Preserve original sequence
-            waypointOrder = waypoints.map((_, i) => i);
-        } else if (!route || !route.waypoint_order) {
-            console.warn("Axon Map Engine: No route or missing waypoint_order. Preserving original sequence.");
-            // Fallback for null route (failed calculation due to 1-waypoint optimization restriction)
-            waypointOrder = waypoints.map((_, i) => i);
+        if (route && Array.isArray(route.full_optimized_order) && route.full_optimized_order.length === fullOrder.length) {
+            fullOrder = route.full_optimized_order;
+        } else {
+            console.warn("Axon Map Engine: No route or missing full_optimized_order. Preserving original sequence.");
         }
 
-        console.log("[Diagnostic: Post-Optimization] Axon Map Engine: Final Waypoint Order to use:", waypointOrder);
+        console.log("[Diagnostic: Post-Optimization] Axon Map Engine: Final Waypoint Order to use:", fullOrder);
 
-        waypointOrder.forEach((originalIndex: number, newIndex: number) => {
-            const wp = waypoints[originalIndex];
-            if (wp) {
-                optimizedStops.push({
-                    id: wp.id,
-                    address: wp.address,
-                    lat: wp.lat,
-                    lng: wp.lng,
-                    type: 'waypoint',
-                    status: 'pending',
-                    contact: wp.contact,
-                    instructions: wp.instructions,
-                    verificationCode: generateCode(),
-                    sequenceOrder: newIndex + 1
+        // Separate the reordered points into new waypoints and the final new dropoff
+        const reorderedWaypoints = [];
+        let newDropoffIndex = fullOrder[fullOrder.length - 1];
+
+        fullOrder.slice(0, -1).forEach((originalIndex: number, newIndex: number) => {
+            if (originalIndex === waypoints.length) {
+                // The old dropoff is now a waypoint
+                reorderedWaypoints.push({
+                    id: 'temp-dropoff',
+                    address: dropoff.address,
+                    lat: dropoff.lat,
+                    lng: dropoff.lng,
+                    contact: undefined,
+                    instructions: undefined
                 });
+            } else {
+                const wp = waypoints[originalIndex];
+                if (wp) reorderedWaypoints.push(wp);
             }
+        });
+
+        // Add the new intermediate waypoints to the optimizedStops list
+        reorderedWaypoints.forEach((wp, index) => {
+            optimizedStops.push({
+                id: wp.id,
+                address: wp.address,
+                lat: wp.lat,
+                lng: wp.lng,
+                type: 'waypoint',
+                status: 'pending',
+                contact: wp.contact,
+                instructions: wp.instructions,
+                verificationCode: generateCode(),
+                sequenceOrder: index + 1
+            });
         });
 
         console.log("Axon Map Engine: Waypoints processed into stops. Count:", optimizedStops.length - 1); // -1 for pickup
 
+        // The final item in the optimized list becomes the actual 'dropoff'
+        let finalDropoffData;
+        if (newDropoffIndex === waypoints.length) {
+            finalDropoffData = dropoff;
+        } else {
+            finalDropoffData = waypoints[newDropoffIndex];
+        }
+
         // Dropoff is always last
         optimizedStops.push({
             id: 'dropoff-end',
-            address: dropoff.address,
-            lat: dropoff.lat,
-            lng: dropoff.lng,
+            address: finalDropoffData.address,
+            lat: finalDropoffData.lat,
+            lng: finalDropoffData.lng,
             type: 'dropoff',
             status: 'pending',
             verificationCode: generateCode(),
@@ -527,7 +571,60 @@ export const mapService = {
             totalDuration: route?.duration || 0,
             routeGeometry: route?.geometry || null
         };
-    }
+    },
+
+    /**
+     * Finds the absolute best route by testing every possible stop as the final destination.
+     * This fully includes the "drop-off" point in the optimization algorithm.
+     */
+    getFullyOptimizedRoute: async (start: Coordinates, allStops: Coordinates[], vehicleType?: string): Promise<any> => {
+        if (allStops.length === 0) return null;
+        if (allStops.length === 1) {
+            return await mapService.getRoute(start, allStops[0], [], vehicleType, false);
+        }
+
+        let bestRoute = null;
+        let bestDuration = Infinity;
+
+        // Try each stop as the final destination
+        const routePromises = allStops.map(async (potentialEnd, index) => {
+            const intermediates = allStops.filter((_, i) => i !== index);
+            const route = await mapService.getRoute(start, potentialEnd, intermediates, vehicleType, true);
+            if (route) {
+                return { ...route, endStopIndex: index, originalIntermediates: intermediates };
+            }
+            return null;
+        });
+
+        const routes = await Promise.all(routePromises);
+
+        for (const route of routes) {
+            if (route && route.duration < bestDuration) {
+                bestDuration = route.duration;
+                bestRoute = route;
+            }
+        }
+
+        if (bestRoute) {
+            // Reconstruct a unified full sequence index array mapping back to the original `allStops`
+            const fullOrderIndices = [];
+            const wpOrder = bestRoute.waypoint_order || bestRoute.originalIntermediates.map((_: any, i: number) => i);
+
+            for (let i = 0; i < wpOrder.length; i++) {
+                const intermediateIndexUsed = wpOrder[i];
+                // Find the original index of this intermediate in the allStops array
+                const originalIntermediateObj = bestRoute.originalIntermediates[intermediateIndexUsed];
+                const originalIndex = allStops.findIndex(s => s.lat === originalIntermediateObj.lat && s.lng === originalIntermediateObj.lng);
+                fullOrderIndices.push(originalIndex);
+            }
+            // Finally, push the chosen end stop
+            fullOrderIndices.push(bestRoute.endStopIndex);
+
+            bestRoute.full_optimized_order = fullOrderIndices;
+        }
+
+        return bestRoute;
+    },
 };
 
 function deg2rad(deg: number) {

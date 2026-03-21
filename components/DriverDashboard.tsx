@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import type { DeliveryOrder, Driver, DriverMetrics, User } from '../types';
 import { VehicleType } from '../types';
@@ -19,7 +19,7 @@ import {
    Truck, DollarSign, Bell, Search, Menu, X, ArrowUpRight, AlertCircle, AlertTriangle,
    FileText, Home, Phone, Mail, CreditCard, Shield, Edit2, Save, Bike, Car,
    Activity, MessageSquare, ChevronDown, ChevronUp, List, Copy, Check, Image, Camera,
-   Lock, ShieldCheck, Key, QrCode, RefreshCw, Power, Smartphone, ShieldAlert, FileCheck, Eye, EyeOff
+   Lock, ShieldCheck, Key, QrCode, RefreshCw, Power, Smartphone, ShieldAlert, FileCheck, Eye, EyeOff, Flag
 } from 'lucide-react';
 
 interface DriverDashboardProps {
@@ -75,6 +75,8 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
 
    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile toggle
    const [isOnline, setIsOnline] = useState(true);
+   const lastRouteUpdateRef = useRef<number>(0);
+   const lastValidCoordsRef = useRef<any>(null);
    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
    const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -131,8 +133,9 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
    const [activeJobCoords, setActiveJobCoords] = useState<{ pickup: { lat: number, lng: number } | null, dropoff: { lat: number, lng: number } | null }>({ pickup: null, dropoff: null });
    const [routeDuration, setRouteDuration] = useState<number | null>(null);
    const [routeDistance, setRouteDistance] = useState<number | null>(null);
+   const [totalRouteDuration, setTotalRouteDuration] = useState<number | null>(null);
+   const [totalRouteDistance, setTotalRouteDistance] = useState<number | null>(null);
    const [isDrawerCollapsed, setIsDrawerCollapsed] = useState(true);
-   const lastValidCoordsRef = React.useRef<{ lat: number, lng: number } | null>(null);
 
    // Track Driver Online Status & Time
    useEffect(() => {
@@ -263,20 +266,24 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                      // Fit bounds to include current location and all stops for the "entire route" view
                      const allPoints = [startPoint, p, d, ...allStops.map(s => s.coords!)].filter(pt => !!pt);
                      fitBounds(allPoints);
-                     const route = await mapService.getRoute(startPoint, endPoint, waypoints);
+                     const route = await mapService.getRoute(startPoint, endPoint, waypoints, activeJob.vehicle);
                      if (route) {
                         setRoutePolyline(route.geometry);
-                        setRouteDuration(Math.ceil(route.duration / 60));
-                        setRouteDistance(Math.round((route.distance / 1000) * 10) / 10);
+                        setRouteDuration(route.nextLegDuration);
+                        setRouteDistance(Math.round(((route.nextLegDistance || 0) / 1000) * 10) / 10);
+                        setTotalRouteDuration(route.duration);
+                        setTotalRouteDistance(Math.round((route.distance / 1000) * 10) / 10);
                      }
                   }
                } else {
                   fitBounds([p, d]);
-                  const route = await mapService.getRoute(p, d);
+                  const route = await mapService.getRoute(p, d, [], activeJob.vehicle);
                   if (route) {
                      setRoutePolyline(route.geometry);
-                     setRouteDuration(Math.ceil(route.duration / 60));
-                     setRouteDistance(Math.round((route.distance / 1000) * 10) / 10);
+                     setRouteDuration(route.duration); // For single stop, next leg is the total
+                     setRouteDistance(Math.round((route.distance / 1000) * 10) / 10); // For single stop, next leg is the total
+                     setTotalRouteDuration(route.duration);
+                     setTotalRouteDistance(Math.round((route.distance / 1000) * 10) / 10);
                   }
                }
             }
@@ -288,15 +295,16 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
             setOrderState('IDLE');
             setRouteDuration(null);
             setRouteDistance(null);
+            setTotalRouteDuration(null);
+            setTotalRouteDistance(null);
          }
       };
       syncMap();
-   }, [activeJob?.id, activeJob?.pickup, activeJob?.dropoff, nextStop?.id, currentView, isLoaded, setPickupCoords, setDropoffCoords, setWaypointCoords, setOrderState, fitBounds, setRoutePolyline]);
+   }, [activeJob?.id, activeJob?.pickup, activeJob?.dropoff, nextStop?.id, currentView, isLoaded, setPickupCoords, setDropoffCoords, setWaypointCoords, setOrderState, fitBounds, setRoutePolyline, requestUserLocation, allStops]);
 
    // Real-time Driver Tracking
    useEffect(() => {
-      if (hasActiveJob && currentView === 'JOBS' && isLoaded) {
-         let lastRouteUpdate = 0;
+      if (hasActiveJob && currentView === 'JOBS' && isLoaded && activeJob) {
          const ROUTE_UPDATE_INTERVAL = 15000; // Update route every 15 seconds
 
          const watchId = navigator.geolocation.watchPosition(
@@ -339,14 +347,15 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
 
                // Update Firestore with live location
                if (activeJob) {
-                  // Update Route and ETA
                   const now = Date.now();
                   let remDist: number | undefined;
                   let remDur: number | undefined;
+                  let totalDist: number | undefined;
+                  let totalDur: number | undefined;
                   let currentRouteGeometry: string | undefined;
 
-                  if (now - lastRouteUpdate > ROUTE_UPDATE_INTERVAL) {
-                     lastRouteUpdate = now;
+                  if (now - lastRouteUpdateRef.current > ROUTE_UPDATE_INTERVAL) {
+                     lastRouteUpdateRef.current = now;
 
                      // Determine destination based on status and stops
                      const remainingStops = allStops.filter(s => s.status !== 'completed');
@@ -355,14 +364,23 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                         const waypoints = remainingStops.slice(0, -1).map(s => s.coords);
 
                         if (endPoint) {
-                           const route = await mapService.getRoute(currentCoords, endPoint, waypoints);
+                           console.log("[Diagnostic: DriverDashboard] Requesting route to:", endPoint, "via:", waypoints);
+                           const route = await mapService.getRoute(currentCoords, endPoint, waypoints, activeJob.vehicle);
                            if (route) {
+                              console.log("[Diagnostic: DriverDashboard] Route Received:", { nextLegDist: route.nextLegDistance, nextLegDur: route.nextLegDuration });
                               currentRouteGeometry = route.geometry;
                               setRoutePolyline(route.geometry);
-                              remDur = Math.ceil(route.duration / 60);
-                              remDist = Math.round((route.distance / 1000) * 10) / 10;
+
+                              remDur = route.nextLegDuration;
+                              remDist = Math.round(((route.nextLegDistance || 0) / 1000) * 10) / 10;
+
+                              totalDur = route.duration;
+                              totalDist = Math.round((route.distance / 1000) * 10) / 10;
+
                               setRouteDuration(remDur);
                               setRouteDistance(remDist);
+                              setTotalRouteDuration(totalDur);
+                              setTotalRouteDistance(totalDist);
                            }
                         }
                      }
@@ -372,15 +390,15 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                      lat: currentCoords.lat,
                      lng: currentCoords.lng,
                      bearing: heading || 0
-                  }, remDist, remDur, currentRouteGeometry);
+                  }, remDist, remDur, currentRouteGeometry, totalDist, totalDur);
                }
             },
             (error) => console.error("Geolocation error:", error),
-            { enableHighAccuracy: true }
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
          );
          return () => navigator.geolocation.clearWatch(watchId);
       }
-   }, [hasActiveJob, currentView, isLoaded, setDriverCoords, setDriverBearing, activeJob?.id, activeJob?.status, activeJobCoords.pickup, activeJobCoords.dropoff, setRoutePolyline, nextStop?.coords, allStops]);
+   }, [hasActiveJob, currentView, isLoaded, setDriverCoords, setDriverBearing, activeJob?.id, activeJob?.status, activeJobCoords.pickup, activeJobCoords.dropoff, setRoutePolyline, nextStop?.coords, allStops, setRouteDuration, setRouteDistance, setTotalRouteDuration, setTotalRouteDistance]);
 
    // Filtered Orders Logic
    const filteredOrders = availableOrders.filter(order => {
@@ -953,7 +971,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
          {/* MAIN CONTENT */}
          <main className={`flex-1 lg:ml-64 flex flex-col transition-all relative ${currentView === 'JOBS' ? 'bg-transparent' : ''}`}>
             {/* Map Layer - Now inside main and relative to it */}
-            {hasActiveJob && currentView === 'JOBS' && (
+            {currentView === 'JOBS' && (
                <div className="absolute inset-0 z-0 pointer-events-auto">
                   <MapLayer />
                   {/* Locate Me Button */}
@@ -1248,6 +1266,8 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                   <div className="space-y-6 animate-in fade-in duration-500 pb-12 pointer-events-auto">
                      <div className="bg-brand-600 text-white rounded-3xl p-8 border border-brand-500 shadow-xl relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:bg-white/20 transition-all"></div>
+                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-400/10 rounded-full -ml-24 -mb-24 blur-2xl" />
+
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end relative z-10">
                            <div>
                               <p className="text-white/60 font-bold uppercase tracking-widest text-[10px] mb-2">Available Balance</p>
@@ -2044,7 +2064,12 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                               </span>
                               {routeDuration !== null && (
                                  <span className="bg-emerald-500 text-white text-sm font-black px-3 py-1.5 rounded-xl flex items-center shadow-lg border border-emerald-400 animate-pulse">
-                                    <Clock className="w-4 h-4 mr-1.5" /> {routeDuration} MINS
+                                    <Clock className="w-4 h-4 mr-1.5" /> {Math.ceil(routeDuration / 60)} MINS
+                                 </span>
+                              )}
+                              {totalRouteDuration !== null && totalRouteDuration > (routeDuration || 0) + 60 && (
+                                 <span className="hidden md:flex bg-gray-800/90 text-white text-[10px] font-black px-3 py-1.5 rounded-xl items-center shadow-lg border border-gray-700 backdrop-blur-sm">
+                                    <Flag className="w-3 h-3 mr-1.5 text-gray-400" /> TOTAL: {Math.ceil(totalRouteDuration / 60)} MINS
                                  </span>
                               )}
                               {routeDistance !== null && (
@@ -2065,15 +2090,15 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                            <>
                               <div className="grid grid-cols-2 gap-3 mb-4">
                                  <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Distance & Time</p>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Next Stop</p>
                                     <p className="text-sm font-bold text-gray-900">
-                                       {(routeDistance !== null ? routeDistance : (activeJob.remainingDistance || 0)).toLocaleString(undefined, { maximumFractionDigits: 1 })} km • {routeDuration !== null ? routeDuration : (activeJob.remainingDuration || 0)} mins
+                                       {(routeDistance !== null ? routeDistance : (activeJob.remainingDistance || 0)).toLocaleString(undefined, { maximumFractionDigits: 1 })} km • {Math.ceil((routeDuration !== null ? routeDuration : (activeJob.remainingDuration || 0)) / 60)} mins
                                     </p>
                                  </div>
-                                 <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
-                                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Your Earnings</p>
-                                    <p className="text-sm font-black text-emerald-700">
-                                       KES {((activeJob.price || 0) * 0.8).toLocaleString()}
+                                 <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Remaining</p>
+                                    <p className="text-sm font-bold text-gray-900">
+                                       {(totalRouteDistance !== null ? totalRouteDistance : (activeJob.totalRemainingDistance || 0)).toLocaleString(undefined, { maximumFractionDigits: 1 })} km • {Math.ceil((totalRouteDuration !== null ? totalRouteDuration : (activeJob.totalRemainingDuration || 0)) / 60)} mins
                                     </p>
                                  </div>
                               </div>

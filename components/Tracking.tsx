@@ -1262,32 +1262,50 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
                       </div>
                       <h2 className="text-5xl font-black text-brand-600 tracking-tighter animate-pulse leading-none flex items-baseline">
                         {order?.remainingDuration ? `${Math.ceil(order.remainingDuration / 60)}` : order?.estimatedDuration?.split(' ')[0] || '--'}
-                        <span className="text-gray-400 text-xl font-bold ml-2">mins away</span>
+                        <span className="text-gray-400 text-xl font-bold ml-2 flex flex-col items-start leading-[0.8]">
+                          <span>mins away</span>
+                          <span className="text-[10px] uppercase tracking-widest text-emerald-600 mt-1">
+                             To {order.status === 'driver_assigned' ? 'Pickup' : (order.stops?.find(s => s.status !== 'completed')?.type === 'dropoff' ? 'Dropoff' : `Stop ${order.stops?.find(s => s.status !== 'completed')?.sequenceOrder || ''}`)}
+                          </span>
+                        </span>
                       </h2>
                       {(() => {
                         const now = new Date();
                         let arrival: Date;
+                        const nextStop = order.status === 'driver_assigned' ? 'Pickup' : (order.stops?.find(s => s.status !== 'completed')?.type === 'dropoff' ? 'Dropoff' : `Stop ${order.stops?.find(s => s.status !== 'completed')?.sequenceOrder || ''}`);
+                        
                         if (order.remainingDuration) {
                           arrival = new Date(now.getTime() + order.remainingDuration * 1000);
                         } else {
                           const mins = parseInt(order.estimatedDuration?.split(' ')[0] || '30');
-                          arrival = new Date(now.getTime() + mins * 60 * 1000);
+                          arrival = new Date(now.getTime() + (isNaN(mins) ? 30 : mins) * 60 * 1000);
                         }
                         const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
                         const dateOptions: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', weekday: 'short' };
                         return (
-                          <p className="text-[10px] font-black text-brand-500 uppercase mt-1 tracking-widest">
-                            Estimated: {arrival.toLocaleTimeString([], timeOptions)}, {arrival.toLocaleDateString([], dateOptions)}
-                          </p>
+                          <div className="flex flex-col mt-2">
+                             <p className="text-[10px] font-black text-brand-500 uppercase tracking-widest">
+                               {nextStop} arrival: {arrival.toLocaleTimeString([], timeOptions)}, {arrival.toLocaleDateString([], dateOptions)}
+                             </p>
+                             {order.totalRemainingDuration && order.totalRemainingDuration > (order.remainingDuration || 0) + 60 && (
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+                                   Total Journey Finish: {new Date(now.getTime() + order.totalRemainingDuration * 1000).toLocaleTimeString([], timeOptions)}
+                                </p>
+                             )}
+                          </div>
                         );
                       })()}
                       {order?.remainingDistance !== undefined && (
                         <p className="text-sm font-bold text-gray-500 mt-2 flex items-center">
-                          <Navigation className="w-3.5 h-3.5 mr-1.5 text-brand-500" /> {order.remainingDistance} km remaining
-                          <span className="mx-2 text-gray-300">•</span>
-                          <span className="text-brand-600 uppercase text-[11px] font-black tracking-widest">
-                            {order.estimatedDuration || 'FAST'}
-                          </span>
+                          <Navigation className="w-3.5 h-3.5 mr-1.5 text-brand-500" /> {order.remainingDistance} km to {order.status === 'driver_assigned' ? 'pickup' : (order.stops?.find(s => s.status !== 'completed')?.type === 'dropoff' ? 'dropoff' : `stop ${order.stops?.find(s => s.status !== 'completed')?.sequenceOrder || ''}`)}
+                          {order.totalRemainingDistance && order.totalRemainingDistance > order.remainingDistance && (
+                             <>
+                                <span className="mx-2 text-gray-300">•</span>
+                                <span className="text-brand-600 uppercase text-[11px] font-black tracking-widest">
+                                   {order.totalRemainingDistance} km total
+                                </span>
+                             </>
+                          )}
                         </p>
                       )}
                     </div>

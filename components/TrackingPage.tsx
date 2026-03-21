@@ -112,13 +112,16 @@ const TrackingPageContent: React.FC = () => {
                                 const end = remainingStops[remainingStops.length - 1];
                                 const waypoints = remainingStops.slice(0, -1);
 
-                                const route = await mapService.getRoute(start, end, waypoints);
+                                const route = await mapService.getRoute(start, end, waypoints, order.vehicle);
                                 if (route) setRoutePolyline(route.geometry);
                             }
                         } else if (p && d) {
                             // No driver yet, show full route with waypoints
-                            const waypoints = order.stops?.map(s => ({ lat: s.lat, lng: s.lng })) || [];
-                            const route = await mapService.getRoute(p, d, waypoints);
+                            const waypoints = order.stops
+                                ?.filter(s => s.type !== 'dropoff')
+                                .sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0))
+                                .map(s => ({ lat: s.lat, lng: s.lng })) || [];
+                            const route = await mapService.getRoute(p, d, waypoints, order.vehicle, false); // No need to re-optimize, already optimized
                             if (route) setRoutePolyline(route.geometry);
                         }
                     }

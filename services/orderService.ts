@@ -26,17 +26,15 @@ export const orderService = {
     try {
       const q = query(
         collection(db, ORDERS_COLLECTION),
-        where('userId', '==', userId),
-        orderBy('date', 'desc')
+        where('userId', '==', userId)
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => {
+      const orders = querySnapshot.docs.map(doc => {
         const data = doc.data() as any;
-        // Ensure the Firestore document ID is the 'id' in our object, 
-        // even if the data itself contains an 'id' field for legacy reasons.
         return { ...data, id: doc.id } as DeliveryOrder;
       });
+      return orders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     } catch (error) {
       console.error("Error fetching user orders:", error);
       throw error;
@@ -83,18 +81,15 @@ export const orderService = {
    */
   getDriverJobs: async (driverId: string): Promise<DeliveryOrder[]> => {
     try {
-      // Note: Firestore requires an index for this compound query (driver.id + status)
-      // If index is missing, it might fail. Alternatively, filter in client.
-      // For simplicity, let's fetch by driver.id and filter status in client if needed, 
-      // or assume index exists.
       const q = query(
         collection(db, ORDERS_COLLECTION),
-        where('driver.id', '==', driverId),
-        orderBy('date', 'desc')
+        where('driver.id', '==', driverId)
       );
 
       const querySnapshot = await getDocs(q);
       const allJobs = querySnapshot.docs.map(doc => ({ ...doc.data() as any, id: doc.id } as DeliveryOrder));
+
+      allJobs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       // Filter out delivered jobs to show only active ones
       return allJobs.filter(job => job.status !== 'delivered');
@@ -403,12 +398,14 @@ export const orderService = {
     await orderService.updateOrder(orderId, updates);
   },
 
-  updateDriverLocation: async (orderId: string, location: { lat: number, lng: number, bearing: number }, remainingDistance?: number, remainingDuration?: number, routeGeometry?: string) => {
+  updateDriverLocation: async (orderId: string, location: { lat: number, lng: number, bearing: number }, remainingDistance?: number, remainingDuration?: number, routeGeometry?: string, totalDistance?: number, totalDuration?: number) => {
     try {
       const orderRef = doc(db, ORDERS_COLLECTION, orderId);
       const updates: any = { driverLocation: location };
       if (remainingDistance !== undefined) updates.remainingDistance = remainingDistance;
       if (remainingDuration !== undefined) updates.remainingDuration = remainingDuration;
+      if (totalDistance !== undefined) updates.totalRemainingDistance = totalDistance;
+      if (totalDuration !== undefined) updates.totalRemainingDuration = totalDuration;
       if (routeGeometry !== undefined) updates.routeGeometry = routeGeometry;
       await updateDoc(orderRef, updates);
     } catch (error) {
@@ -419,17 +416,18 @@ export const orderService = {
   /**
    * Calculate Price based on distance, vehicle type and service speed
    */
-  calculatePrice: async (details: PricingDetails): Promise<number> => {
+  calculatePrice: async (details: PricingDetails & { durationSeconds?: number }): Promise<number> => {
     const {
       distance = 0,
+      durationSeconds = 0, // Duration from Google Maps API (in seconds)
       vehicleType = VehicleType.BODA,
       serviceType = ServiceType.EXPRESS,
       stopCount = 0
     } = details;
 
-    // Base rates in KES
+    // Base rates in KES (Includes the first 2km free)
     const baseRates: Record<string, number> = {
-      [VehicleType.BODA]: 100,
+      [VehicleType.BODA]: 120, // 120 base
       [VehicleType.TUKTUK]: 250,
       [VehicleType.PICKUP]: 800,
       [VehicleType.VAN]: 1500,
@@ -437,9 +435,9 @@ export const orderService = {
       [VehicleType.TRAILER]: 12000
     };
 
-    // Per Stop Surcharge (Professional handling fee)
+    // Per Stop Surcharge (Handling fee)
     const stopSurcharges: Record<string, number> = {
-      [VehicleType.BODA]: 40,
+      [VehicleType.BODA]: 50,
       [VehicleType.TUKTUK]: 80,
       [VehicleType.PICKUP]: 250,
       [VehicleType.VAN]: 350,
@@ -447,9 +445,9 @@ export const orderService = {
       [VehicleType.TRAILER]: 2500
     };
 
-    // Per KM rates in KES
+    // Per KM rates in KES (Applied after the first 2 base km)
     const perKmRates: Record<string, number> = {
-      [VehicleType.BODA]: 40,
+      [VehicleType.BODA]: 10,
       [VehicleType.TUKTUK]: 60,
       [VehicleType.PICKUP]: 120,
       [VehicleType.VAN]: 180,
@@ -457,20 +455,37 @@ export const orderService = {
       [VehicleType.TRAILER]: 850
     };
 
-    // Service Multipliers
-    const serviceMultipliers: Record<string, number> = {
-      [ServiceType.EXPRESS]: 1.25,
-      [ServiceType.STANDARD]: 1.0,
-      [ServiceType.ECONOMY]: 0.75
+    // Time-based pricing (Traffic factor) per minute
+    const perMinuteRates: Record<string, number> = {
+      [VehicleType.BODA]: 1.5, // 1.5 KES per minute in traffic
+      [VehicleType.TUKTUK]: 2.5,
+      [VehicleType.PICKUP]: 5,
+      [VehicleType.VAN]: 6,
+      [VehicleType.LORRY]: 10,
+      [VehicleType.TRAILER]: 15
     };
 
-    const base = baseRates[vehicleType] || 100;
-    const perKm = perKmRates[vehicleType] || 40;
-    const stopFee = stopSurcharges[vehicleType] || 40;
+    // Service Multipliers
+    const serviceMultipliers: Record<string, number> = {
+      [ServiceType.EXPRESS]: 1.0,
+      [ServiceType.STANDARD]: 0.8,
+      [ServiceType.ECONOMY]: 0.6
+    };
+
+    const base = baseRates[vehicleType] || 120;
+    const perKm = perKmRates[vehicleType] || 10;
+    const perMinute = perMinuteRates[vehicleType] || 1.5;
+    const stopFee = stopSurcharges[vehicleType] || 50;
     const multiplier = serviceMultipliers[serviceType] || 1.0;
 
     // distance is in meters from API, convert to km
     const distanceKm = distance / 1000;
+
+    // Duration is in seconds, convert to minutes
+    // If API failed to return duration (0), we guess 35km/h
+    const durationMinutes = durationSeconds > 0
+      ? durationSeconds / 60
+      : (distanceKm / 35) * 60;
 
     // Additional stops surcharge (excluding the first dropoff)
     const extraStopFee = Math.max(0, stopCount - 1) * stopFee;
@@ -478,7 +493,10 @@ export const orderService = {
     // Intercity Surcharge
     const intercitySurcharge = distanceKm > 100 ? (base * 0.5) : 0;
 
-    let total = (base + (distanceKm * perKm) + extraStopFee + intercitySurcharge) * multiplier;
+    // Calculate Billable Distance (First 2 KM are free/covered in base rate)
+    const billableDistanceKm = Math.max(0, distanceKm - 2);
+
+    let total = (base + (billableDistanceKm * perKm) + (durationMinutes * perMinute) + extraStopFee + intercitySurcharge) * multiplier;
 
     // Safety minimums
     const minimums: Record<string, number> = {
@@ -500,25 +518,30 @@ export const orderService = {
   /**
    * Estimate Delivery Time based on distance and service type
    */
-  estimateDeliveryTime: (distanceMeters: number, serviceType: ServiceType, scheduledTime?: string): { arrivalTime: string, arrivalDate: string } => {
+  estimateDeliveryTime: (distanceMeters: number, serviceType: ServiceType, scheduledTime?: string, durationSeconds?: number): { arrivalTime: string, arrivalDate: string } => {
     const now = (scheduledTime && scheduledTime !== 'ASAP') ? new Date(scheduledTime) : new Date();
-    const distanceKm = distanceMeters / 1000;
 
-    // Average speeds in Kenya (considering traffic/road conditions)
-    // Avg 35km/h for mixed city/highway use
-    const avgSpeedKmH = 35;
-    const travelTimeHours = distanceKm / avgSpeedKmH;
-    const travelTimeMs = travelTimeHours * 60 * 60 * 1000;
+    let travelTimeMs = 0;
+    if (durationSeconds !== undefined && durationSeconds > 0) {
+      // Use high-precision duration (including traffic) from Google Routes API V2
+      travelTimeMs = durationSeconds * 1000;
+    } else {
+      // Fallback to distance-based estimation
+      const distanceKm = distanceMeters / 1000;
+      const avgSpeedKmH = 35;
+      const travelTimeHours = distanceKm / avgSpeedKmH;
+      travelTimeMs = travelTimeHours * 60 * 60 * 1000;
+    }
 
     let estimatedArrival = new Date(now.getTime() + travelTimeMs);
 
     // Add processing/pickup buffer based on service
     if (serviceType === ServiceType.EXPRESS) {
-      // Direct pickup within 20 mins
-      estimatedArrival = new Date(estimatedArrival.getTime() + (20 * 60 * 1000));
+      // Direct pickup immediately
+      estimatedArrival = new Date(estimatedArrival.getTime());
     } else if (serviceType === ServiceType.STANDARD) {
-      // 4 hour window for bundling logic
-      estimatedArrival = new Date(estimatedArrival.getTime() + (4 * 60 * 60 * 1000));
+      // 2 hour window for bundling logic
+      estimatedArrival = new Date(estimatedArrival.getTime() + (2 * 60 * 60 * 1000));
       // If result is after 6 PM, push to tomorrow 10 AM
       if (estimatedArrival.getHours() >= 18) {
         estimatedArrival.setDate(estimatedArrival.getDate() + 1);

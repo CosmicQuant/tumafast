@@ -181,6 +181,9 @@ export interface DeliveryOrder {
   driverLocation?: { lat: number; lng: number; bearing?: number };
   remainingDistance?: number;
   remainingDuration?: number;
+  totalRemainingDistance?: number;
+  totalRemainingDuration?: number;
+  distance?: number; // Total distance for the order (for analytics)
   routeGeometry?: string; // Encoded polyline for the current active route
   itemImage?: string;
   deliveryConfirmationImage?: string;

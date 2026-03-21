@@ -12,6 +12,7 @@ import ProfileModal from './components/ProfileModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import ChatAssistant from './components/ChatAssistant';
 import { ChatProvider } from './context/ChatContext';
+import Logo from './components/Logo';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -44,11 +45,7 @@ const FleetManagement = lazy(() => import('./components/FleetManagement'));
 const SkeletonFallback = () => (
   <div className="flex h-screen w-full items-center justify-center bg-white">
     <div className="flex flex-col items-center gap-4 animate-pulse">
-      <img
-        src="/icon.svg"
-        alt="Loading..."
-        className="w-32 h-32 object-contain drop-shadow-lg"
-      />
+      <Logo className="w-32 h-32 drop-shadow-lg" />
     </div>
   </div>
 );

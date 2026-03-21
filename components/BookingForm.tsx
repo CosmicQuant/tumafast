@@ -292,15 +292,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         }
     }, [prefillData, setPickupCoords, setDropoffCoords, setWaypointCoords]);
 
-    // Effect to calculate estimated arrival
-    useEffect(() => {
-        if (distance > 0) {
-            const estimation = orderService.estimateDeliveryTime(distance, serviceType, isScheduled ? pickupTime : 'ASAP');
-            setEstArrival(estimation);
-        } else {
-            setEstArrival(null);
-        }
-    }, [distance, serviceType, pickupTime, isScheduled]);
+    // (Removed redundant ETA effect, consolidated into master routing effect below)
 
     // Update sender details when user logs in (e.g. after auth prompt)
     useEffect(() => {
@@ -445,7 +437,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
             if (pCoords && dCoords) {
                 fitBounds([pCoords, dCoords]);
-                const route = await mapService.getRoute(pCoords, dCoords);
+                const route = await mapService.getRoute(pCoords, dCoords, [], selectedVehicle);
                 if (route) setRoutePolyline(route.geometry);
             } else if (pCoords) {
                 fitBounds([pCoords]);
@@ -498,39 +490,108 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         }
     }, [isPanning, activeInput, mapCenter, orderState, isMapSelecting, isLoaded]); // Removed pickupCoords/dropoffCoords from deps
 
+    // Store actual route duration for accurate time-based pricing
+    const [routeDuration, setRouteDuration] = useState<number>(0);
+
     // Master Multi-Stop Routing Effect
     useEffect(() => {
         if (!isLoaded || isPanning) return;
 
-        const updateRoute = async () => {
-            // 1. Sync waypoint coordinates to Map Context for markers
+        const performRouting = async () => {
+            // 1. Sync waypoint coordinates to Map Context
             const validWaypointCoords = waypoints
                 .map(wp => wp.coords)
                 .filter((coords): coords is { lat: number, lng: number } => coords !== null);
 
             setWaypointCoords(validWaypointCoords);
 
-            // 2. Calculate route if we have basic start/end
             if (pickupCoords && dropoffCoords) {
                 setCalculatingPrice(true);
                 try {
-                    const route = await mapService.getRoute(
+                    const allStops = [...validWaypointCoords, dropoffCoords];
+                    const route = await mapService.getFullyOptimizedRoute(
                         pickupCoords,
-                        dropoffCoords,
-                        validWaypointCoords
+                        allStops,
+                        selectedVehicle
                     );
 
                     if (route) {
                         setRoutePolyline(route.geometry);
                         setDistance(route.distance);
+                        setRouteDuration(route.duration);
+
+                        // Set real-time ETA from Google + Business Buffers
+                        if (route.duration > 0) {
+                            const estimation = orderService.estimateDeliveryTime(
+                                route.distance,
+                                serviceType,
+                                isScheduled ? pickupTime : 'ASAP',
+                                route.duration
+                            );
+                            setEstArrival(estimation);
+                        }
+
+                        // 3. Handle Full Reordering if optimized (Waypoints + Dropoff)
+                        if (route.full_optimized_order && Array.isArray(route.full_optimized_order) && route.full_optimized_order.length === allStops.length) {
+                            const isChanged = route.full_optimized_order.some((val: number, idx: number) => val !== idx);
+
+                            if (isChanged) {
+                                console.log("[Diagnostic: BookingForm] Reordering ALL stops based on full optimization:", route.full_optimized_order);
+
+                                const currentValidIndices = waypoints
+                                    .map((wp, idx) => wp.coords ? idx : null)
+                                    .filter((idx): idx is number => idx !== null);
+
+                                if (currentValidIndices.length === validWaypointCoords.length) {
+                                    const allCurrentStopsObjects = [
+                                        ...validWaypointCoords.map((_, i) => waypoints[currentValidIndices[i]]),
+                                        {
+                                            id: 'temp-dropoff',
+                                            address: dropoff,
+                                            coords: dropoffCoords,
+                                            recipientName: '',
+                                            recipientPhone: '',
+                                            instructions: ''
+                                        }
+                                    ];
+
+                                    const reorderedStops = route.full_optimized_order.map((oldIdx: number) => allCurrentStopsObjects[oldIdx]);
+                                    const newDropoffObj = reorderedStops.pop();
+
+                                    if (newDropoffObj && newDropoffObj.id !== 'temp-dropoff') {
+                                        setDropoff(newDropoffObj.address);
+                                        setDropoffCoords(newDropoffObj.coords!);
+                                    }
+
+                                    setWaypoints(prevWaypoints => {
+                                        const nextWaypoints = [...prevWaypoints];
+                                        let optimizedPtr = 0;
+                                        for (let i = 0; i < nextWaypoints.length; i++) {
+                                            if (nextWaypoints[i] && nextWaypoints[i].coords) {
+                                                const newWpData = reorderedStops[optimizedPtr++];
+                                                if (newWpData.id === 'temp-dropoff') {
+                                                    nextWaypoints[i] = {
+                                                        ...nextWaypoints[i],
+                                                        address: newWpData.address,
+                                                        coords: newWpData.coords!
+                                                    };
+                                                } else {
+                                                    nextWaypoints[i] = newWpData;
+                                                }
+                                            }
+                                        }
+                                        return nextWaypoints;
+                                    });
+                                }
+                            }
+                        }
                     } else {
-                        // Clear previous route if current points are unroutable
                         setRoutePolyline(null);
                         setDistance(0);
+                        setEstArrival(null);
                     }
                 } catch (error) {
                     console.error("Routing error:", error);
-                    // Clear previous route if it failed
                     setRoutePolyline(null);
                     setDistance(0);
                 } finally {
@@ -539,12 +600,13 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             } else {
                 setRoutePolyline(null);
                 setDistance(0);
+                setEstArrival(null);
             }
         };
 
-        const timer = setTimeout(updateRoute, 1000); // 1s debounce
+        const timer = setTimeout(performRouting, 1000);
         return () => clearTimeout(timer);
-    }, [pickupCoords, dropoffCoords, waypoints, isLoaded, isPanning, setRoutePolyline, setWaypointCoords]);
+    }, [pickupCoords, dropoffCoords, waypoints, isLoaded, isPanning, selectedVehicle, setRoutePolyline, setWaypointCoords]);
 
     useEffect(() => {
         if (!isLoaded) return;
@@ -659,6 +721,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             if (distance > 0) {
                 const p = await orderService.calculatePrice({
                     distance,
+                    durationSeconds: routeDuration, // Factor in live traffic time
                     vehicleType: selectedVehicle,
                     serviceType,
                     stopCount: waypoints.length + 1 // + dropoff
@@ -667,7 +730,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
             }
         };
         fetchPrice();
-    }, [selectedVehicle, distance, pickupCoords, dropoffCoords, serviceType, waypoints.length]);
+    }, [selectedVehicle, distance, routeDuration, pickupCoords, dropoffCoords, serviceType, waypoints.length]);
 
     // Auto-select vehicle based on Item & Distance
     useEffect(() => {
@@ -1050,15 +1113,22 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                     instructions: s.instructions || ''
                 }));
 
-            const optimizationResult = await mapService.optimizeStops(
-                { lat: orderData.pickupCoords.lat, lng: orderData.pickupCoords.lng, address: orderData.pickup },
-                { lat: orderData.dropoffCoords.lat, lng: orderData.dropoffCoords.lng, address: orderData.dropoff },
-                waypointData
+            const { optimizedStops: resultOptimizedStops, totalDistance, totalDuration, routeGeometry } = await mapService.optimizeStops(
+                { lat: pickupCoords.lat, lng: pickupCoords.lng, address: pickup },
+                { lat: dropoffCoords.lat, lng: dropoffCoords.lng, address: dropoff },
+                waypoints.map(wp => ({
+                    id: wp.id,
+                    lat: wp.coords!.lat,
+                    lng: wp.coords!.lng,
+                    address: wp.address,
+                    instructions: wp.instructions
+                })),
+                selectedVehicle
             );
 
             // Keep all stops except the initial pickup (which is always first)
             // This includes waypoints and the final dropoff
-            optimizedStops = optimizationResult.optimizedStops
+            optimizedStops = resultOptimizedStops
                 .filter(s => s.type !== 'pickup')
                 .map(s => ({
                     id: s.id,
@@ -1074,7 +1144,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                 }));
 
             // Use the final dropoff's code as the main order verification code for backward compatibility
-            const finalDropoff = optimizationResult.optimizedStops.find(s => s.type === 'dropoff');
+            const finalDropoff = resultOptimizedStops.find(s => s.type === 'dropoff');
             if (finalDropoff) {
                 orderData.verificationCode = finalDropoff.verificationCode;
             }
@@ -1566,107 +1636,110 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
                                 {/* --- Waypoints Section --- */}
                                 <div className="relative ml-6 space-y-4 border-l-2 border-dashed border-gray-100 pl-6 py-2">
-                                    {waypoints.map((wp, idx) => (
-                                        <div key={wp.id} className="relative animate-in slide-in-from-left-4 duration-300 pb-2">
-                                            <div className="absolute -left-[31px] top-6 w-4 h-4 rounded-full bg-white border-2 border-brand-400 z-10"></div>
-                                            <div className="relative group/wp bg-gray-50/50 rounded-2xl p-2 border border-gray-100 hover:border-brand-200 transition-all">
-                                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-2">Stop {idx + 1}</label>
+                                    {waypoints.map((wp, idx) => {
+                                        if (!wp) return null; // CRITICAL SAFETY: skip if undefined
+                                        return (
+                                            <div key={wp.id} className="relative animate-in slide-in-from-left-4 duration-300 pb-2">
+                                                <div className="absolute -left-[31px] top-6 w-4 h-4 rounded-full bg-white border-2 border-brand-400 z-10"></div>
+                                                <div className="relative group/wp bg-gray-50/50 rounded-2xl p-2 border border-gray-100 hover:border-brand-200 transition-all">
+                                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-2">Stop {idx + 1}</label>
 
-                                                {/* LOCATION INPUT */}
-                                                <div className="relative mb-2">
-                                                    <input
-                                                        type="text"
-                                                        value={wp.address}
-                                                        onChange={(e) => handleInputChange('waypoint', e.target.value, idx)}
-                                                        onFocus={() => {
-                                                            setActiveInput(`waypoint-${idx}`);
-                                                            setActiveWaypointIndex(idx);
-                                                            setShowPickupSuggestions(false);
-                                                            setIsMapSelecting(false);
-                                                        }}
-                                                        className={`w-full bg-white border border-gray-100 rounded-xl py-3 pl-3 pr-24 text-sm font-bold text-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-brand-500/10 transition-all ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'ring-2 ring-brand-500' : ''}`}
-                                                        placeholder={`Stop Location...`}
-                                                    />
-                                                    <button
-                                                        onClick={async () => {
-                                                            const coords = await requestUserLocation();
-                                                            if (coords) {
-                                                                const address = await mapService.reverseGeocode(coords.lat, coords.lng);
-                                                                const newWaypoints = [...waypoints];
-                                                                newWaypoints[idx] = { ...newWaypoints[idx], coords, address: address || newWaypoints[idx].address };
-                                                                setWaypoints(newWaypoints);
-                                                                if (pickupCoords && dropoffCoords) {
-                                                                    fitBounds([pickupCoords, dropoffCoords, coords]);
+                                                    {/* LOCATION INPUT */}
+                                                    <div className="relative mb-2">
+                                                        <input
+                                                            type="text"
+                                                            value={wp.address || ''}
+                                                            onChange={(e) => handleInputChange('waypoint', e.target.value, idx)}
+                                                            onFocus={() => {
+                                                                setActiveInput(`waypoint-${idx}`);
+                                                                setActiveWaypointIndex(idx);
+                                                                setShowPickupSuggestions(false);
+                                                                setIsMapSelecting(false);
+                                                            }}
+                                                            className={`w-full bg-white border border-gray-100 rounded-xl py-3 pl-3 pr-24 text-sm font-bold text-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-brand-500/10 transition-all ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'ring-2 ring-brand-500' : ''}`}
+                                                            placeholder={`Stop Location...`}
+                                                        />
+                                                        <button
+                                                            onClick={async () => {
+                                                                const coords = await requestUserLocation();
+                                                                if (coords) {
+                                                                    const address = await mapService.reverseGeocode(coords.lat, coords.lng);
+                                                                    const newWaypoints = [...waypoints];
+                                                                    newWaypoints[idx] = { ...newWaypoints[idx], coords, address: address || newWaypoints[idx].address };
+                                                                    setWaypoints(newWaypoints);
+                                                                    if (pickupCoords && dropoffCoords) {
+                                                                        fitBounds([pickupCoords, dropoffCoords, coords]);
+                                                                    }
                                                                 }
-                                                            }
-                                                        }}
-                                                        className="p-1.5 bg-white hover:bg-gray-50 rounded-lg text-brand-600 transition-all shadow-sm active:scale-95"
-                                                        title="Use Current Location"
-                                                    >
-                                                        <Navigation className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            setActiveInput(`waypoint-${idx}`);
-                                                            setActiveWaypointIndex(idx);
-                                                            const nextState = !isMapSelecting;
-                                                            setIsMapSelecting(nextState);
-                                                            if (nextState) {
-                                                                setIsCollapsed(true);
-                                                                if (wp.coords) setMapCenter(wp.coords.lat, wp.coords.lng);
-                                                            }
-                                                        }}
-                                                        className={`p-1.5 rounded-lg transition-all shadow-sm active:scale-95 ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'bg-brand-600 text-white' : 'bg-white text-gray-400 hover:text-brand-600'}`}
-                                                        title="Set on Map"
-                                                    >
-                                                        <Map className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => removeWaypoint(wp.id)}
-                                                        className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-
-                                                {/* DETAILS INPUTS */}
-                                                <div className="grid grid-cols-2 gap-2 px-1">
-                                                    <input
-                                                        type="text"
-                                                        value={wp.recipientName || ''}
-                                                        onChange={(e) => handleWaypointDetailChange(idx, 'recipientName', e.target.value)}
-                                                        className="w-full bg-transparent border-b border-gray-200 py-1 text-xs font-medium text-gray-600 placeholder:text-gray-300 focus:border-brand-500 focus:ring-0 transition-colors"
-                                                        placeholder="Contact Name (Optional)"
-                                                    />
-                                                    <input
-                                                        type="tel"
-                                                        value={wp.recipientPhone || ''}
-                                                        onChange={(e) => handleWaypointDetailChange(idx, 'recipientPhone', e.target.value)}
-                                                        className="w-full bg-transparent border-b border-gray-200 py-1 text-xs font-medium text-gray-600 placeholder:text-gray-300 focus:border-brand-500 focus:ring-0 transition-colors"
-                                                        placeholder="Phone (Optional)"
-                                                    />
-                                                </div>
-
-                                                {/* Waypoint Suggestions Dropdown */}
-                                                {showWaypointSuggestions && activeWaypointIndex === idx && waypointSuggestions.length > 0 && (
-                                                    <div className="absolute top-[50px] left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[60] animate-in fade-in slide-in-from-top-2">
-                                                        {waypointSuggestions.map((suggestion, sIdx) => (
-                                                            <div
-                                                                key={sIdx}
-                                                                onClick={() => handleSuggestionSelect('waypoint', suggestion)}
-                                                                className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-none flex items-center gap-3 transition-colors text-left"
-                                                            >
-                                                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                                                    <MapPin className="w-4 h-4 text-gray-500" />
-                                                                </div>
-                                                                <p className="text-xs font-semibold text-gray-700 truncate">{suggestion.label}</p>
-                                                            </div>
-                                                        ))}
+                                                            }}
+                                                            className="p-1.5 bg-white hover:bg-gray-50 rounded-lg text-brand-600 transition-all shadow-sm active:scale-95"
+                                                            title="Use Current Location"
+                                                        >
+                                                            <Navigation className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setActiveInput(`waypoint-${idx}`);
+                                                                setActiveWaypointIndex(idx);
+                                                                const nextState = !isMapSelecting;
+                                                                setIsMapSelecting(nextState);
+                                                                if (nextState) {
+                                                                    setIsCollapsed(true);
+                                                                    if (wp.coords) setMapCenter(wp.coords.lat, wp.coords.lng);
+                                                                }
+                                                            }}
+                                                            className={`p-1.5 rounded-lg transition-all shadow-sm active:scale-95 ${isMapSelecting && activeInput === `waypoint-${idx}` ? 'bg-brand-600 text-white' : 'bg-white text-gray-400 hover:text-brand-600'}`}
+                                                            title="Set on Map"
+                                                        >
+                                                            <Map className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => removeWaypoint(wp.id)}
+                                                            className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
                                                     </div>
-                                                )}
+
+                                                    {/* DETAILS INPUTS */}
+                                                    <div className="grid grid-cols-2 gap-2 px-1">
+                                                        <input
+                                                            type="text"
+                                                            value={wp.recipientName || ''}
+                                                            onChange={(e) => handleWaypointDetailChange(idx, 'recipientName', e.target.value)}
+                                                            className="w-full bg-transparent border-b border-gray-200 py-1 text-xs font-medium text-gray-600 placeholder:text-gray-300 focus:border-brand-500 focus:ring-0 transition-colors"
+                                                            placeholder="Contact Name (Optional)"
+                                                        />
+                                                        <input
+                                                            type="tel"
+                                                            value={wp.recipientPhone || ''}
+                                                            onChange={(e) => handleWaypointDetailChange(idx, 'recipientPhone', e.target.value)}
+                                                            className="w-full bg-transparent border-b border-gray-200 py-1 text-xs font-medium text-gray-600 placeholder:text-gray-300 focus:border-brand-500 focus:ring-0 transition-colors"
+                                                            placeholder="Phone (Optional)"
+                                                        />
+                                                    </div>
+
+                                                    {/* Waypoint Suggestions Dropdown */}
+                                                    {showWaypointSuggestions && activeWaypointIndex === idx && waypointSuggestions.length > 0 && (
+                                                        <div className="absolute top-[50px] left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[60] animate-in fade-in slide-in-from-top-2">
+                                                            {waypointSuggestions.map((suggestion, sIdx) => (
+                                                                <div
+                                                                    key={sIdx}
+                                                                    onClick={() => handleSuggestionSelect('waypoint', suggestion)}
+                                                                    className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-none flex items-center gap-3 transition-colors text-left"
+                                                                >
+                                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                                                        <MapPin className="w-4 h-4 text-gray-500" />
+                                                                    </div>
+                                                                    <p className="text-xs font-semibold text-gray-700 truncate">{suggestion.label}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
 
                                     <button
                                         onClick={addWaypoint}

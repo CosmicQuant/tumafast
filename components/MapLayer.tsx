@@ -119,6 +119,10 @@ const MapLayer: React.FC<MapLayerProps> = ({ driverLabel }) => {
     const wasPanned = useRef(false);
 
     useEffect(() => {
+        if (routePolyline) {
+            console.log("[Diagnostic: MapLayer] routePolyline updated:", 
+                typeof routePolyline === 'string' ? `String (length: ${routePolyline.length})` : "Object");
+        }
         if (typeof routePolyline === 'string' && routePolyline.length > 0) {
             setDecodedPath(decodePolyline(routePolyline));
         } else if (routePolyline && typeof routePolyline === 'object') {
