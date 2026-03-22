@@ -47,6 +47,9 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
     const [idNumber, setIdNumber] = useState('');
     const [licenseNumber, setLicenseNumber] = useState('');
 
+    // Business specific
+    const [businessRegNumber, setBusinessRegNumber] = useState('');
+
     // Image Upload State
     const [profileFile, setProfileFile] = useState<File | null>(null);
     const [profilePreview, setProfilePreview] = useState<string>('');
@@ -54,6 +57,8 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
     const [licensePreview, setLicensePreview] = useState<string>('');
     const [idFile, setIdFile] = useState<File | null>(null);
     const [idPreview, setIdPreview] = useState<string>('');
+    const [pinCertificateFile, setPinCertificateFile] = useState<File | null>(null);
+    const [pinCertificatePreview, setPinCertificatePreview] = useState<string>('');
 
     // Address Autocomplete
     const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
@@ -95,7 +100,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
         );
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'license' | 'id') => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'license' | 'id' | 'pinCertificate') => {
         const file = e.target.files?.[0];
         if (file) {
             if (type === 'profile') {
@@ -107,6 +112,9 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
             } else if (type === 'id') {
                 setIdFile(file);
                 setIdPreview(URL.createObjectURL(file));
+            } else if (type === 'pinCertificate') {
+                setPinCertificateFile(file);
+                setPinCertificatePreview(URL.createObjectURL(file));
             }
         }
     };
@@ -122,13 +130,13 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
                 return;
             }
 
-            // Core requirements: Name, Phone, ID Number
-            const hasCoreInfo = user.name && user.phone && user.idNumber;
+            // Core requirements
+            const hasBasicInfo = user.name && user.phone;
 
             const needsOnboarding =
                 !user.onboarded ||
-                !hasCoreInfo ||
                 (isDriver && (
+                    !hasBasicInfo || !user.idNumber ||
                     !user.licenseNumber ||
                     !user.plateNumber ||
                     !user.kraPin ||
@@ -138,7 +146,8 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
                     !user.idImage ||
                     !user.profileImage
                 )) ||
-                (isBusiness && (!user.kraPin || !user.address));
+                (isBusiness && (!hasBasicInfo || !user.kraPin || !user.address || !user.businessRegNumber || !user.pinCertificateImage)) ||
+                (user.role === 'customer' && (!hasBasicInfo || !user.idNumber));
 
             if (needsOnboarding) {
                 setIsOpen(true);
@@ -151,6 +160,8 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
                     setVehicleType(user.vehicleType || VehicleType.BODA);
                     setPlateNumber(user.plateNumber || '');
                     setLicenseNumber(user.licenseNumber || '');
+                } else if (isBusiness) {
+                    setBusinessRegNumber(user.businessRegNumber || '');
                 }
             } else {
                 setIsOpen(false);
@@ -163,12 +174,20 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
     const validateForm = () => {
         if (!name) return "Full name is required";
         if (!phone || phone.length < 10) return "Valid phone number is required";
-        if (!idNumber) return "National ID number is required";
+        
+        if (user.role !== 'business') {
+            if (!idNumber) return "National ID number is required";
+        }
 
         // Drivers and Businesses need more
         if (user.role !== 'customer') {
             if (!address) return "Address/Location is required";
             if (!kraPin) return "KRA PIN is required";
+        }
+
+        if (user.role === 'business') {
+            if (!businessRegNumber) return "Business Registration Number is required";
+            if (!pinCertificateFile && !user.pinCertificateImage) return "Please upload your PIN Certificate";
         }
 
         if (user.role === 'driver') {
@@ -197,47 +216,35 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
             const updates: any = {
                 name,
                 phone,
-                idNumber,
                 onboarded: true
             };
+            
+            if (user.role !== 'business') {
+                updates.idNumber = idNumber;
+            }
 
-            // Parallelize File Uploads for better performance (with compression)
-            const uploadPromises: Promise<void>[] = [];
-
+            // Run uploads sequentially to prevent Out-Of-Memory crashes on mobile devices during image compression.
             if (profileFile) {
-                uploadPromises.push(
-                    compressImage(profileFile)
-                        .then(compressedBlob => storageService.uploadFile(compressedBlob, `users/${user.id}/profile_${Date.now()}`))
-                        .then(url => {
-                            updates.profileImage = url;
-                            updates.avatar = url;
-                            updates.photoURL = url;
-                        })
-                );
+                const compressedBlob = await compressImage(profileFile);
+                const url = await storageService.uploadFile(compressedBlob, `users/${user.id}/profile_${Date.now()}`);
+                updates.profileImage = url;
+                updates.avatar = url;
+                updates.photoURL = url;
             }
 
             if (licenseFile) {
-                uploadPromises.push(
-                    compressImage(licenseFile)
-                        .then(compressedBlob => storageService.uploadFile(compressedBlob, `users/${user.id}/license_${Date.now()}`))
-                        .then(url => {
-                            updates.licenseImage = url;
-                        })
-                );
+                const compressedBlob = await compressImage(licenseFile);
+                updates.licenseImage = await storageService.uploadFile(compressedBlob, `users/${user.id}/license_${Date.now()}`);
             }
 
             if (idFile) {
-                uploadPromises.push(
-                    compressImage(idFile)
-                        .then(compressedBlob => storageService.uploadFile(compressedBlob, `users/${user.id}/id_${Date.now()}`))
-                        .then(url => {
-                            updates.idImage = url;
-                        })
-                );
+                const compressedBlob = await compressImage(idFile);
+                updates.idImage = await storageService.uploadFile(compressedBlob, `users/${user.id}/id_${Date.now()}`);
             }
 
-            if (uploadPromises.length > 0) {
-                await Promise.all(uploadPromises);
+            if (pinCertificateFile) {
+                const compressedBlob = await compressImage(pinCertificateFile);
+                updates.pinCertificateImage = await storageService.uploadFile(compressedBlob, `users/${user.id}/pincert_${Date.now()}`);
             }
 
             if (user.role !== 'customer') {
@@ -251,6 +258,7 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
                 updates.vehicleType = vehicleType;
             } else if (user.role === 'business') {
                 updates.companyName = name;
+                updates.businessRegNumber = businessRegNumber;
             }
 
             await updateUser(updates);
@@ -358,22 +366,24 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">National ID Number</label>
-                            <div className="relative group">
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-600 transition-colors">
-                                    <FileText className="w-5 h-5" />
+                        {user.role !== 'business' && (
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">National ID Number</label>
+                                <div className="relative group">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-600 transition-colors">
+                                        <FileText className="w-5 h-5" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={idNumber}
+                                        onChange={(e) => setIdNumber(e.target.value)}
+                                        className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-200 bg-gray-50 text-gray-900 focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all outline-none font-medium text-sm placeholder:text-gray-400"
+                                        placeholder="12345678"
+                                    />
                                 </div>
-                                <input
-                                    type="text"
-                                    required
-                                    value={idNumber}
-                                    onChange={(e) => setIdNumber(e.target.value)}
-                                    className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-200 bg-gray-50 text-gray-900 focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all outline-none font-medium text-sm placeholder:text-gray-400"
-                                    placeholder="12345678"
-                                />
                             </div>
-                        </div>
+                        )}
 
                         {user.role !== 'customer' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-top-4">
@@ -394,6 +404,25 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
                                         />
                                     </div>
                                 </div>
+
+                                {user.role === 'business' && (
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Business Registration Number</label>
+                                        <div className="relative group">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-600 transition-colors">
+                                                <Briefcase className="w-5 h-5" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                required
+                                                value={businessRegNumber}
+                                                onChange={(e) => setBusinessRegNumber(e.target.value)}
+                                                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-gray-200 bg-gray-50 text-gray-900 focus:bg-white focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all outline-none font-medium text-sm placeholder:text-gray-400"
+                                                placeholder="e.g. PVT-XXXXXX"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
@@ -521,6 +550,35 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen: propIsOpen, o
                                                 </>
                                             )}
                                             <input id="license-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'license')} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Business Specific Fields */}
+                        {user.role === 'business' && (
+                            <div className="space-y-6 pt-2 animate-in fade-in slide-in-from-top-4">
+                                <div className="h-px bg-gray-100 w-full"></div>
+                                <div className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center">
+                                    <Briefcase className="w-4 h-4 mr-2" /> Business Verification
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">PIN Certificate</label>
+                                        <div
+                                            onClick={() => document.getElementById('pincert-upload')?.click()}
+                                            className={`relative h-28 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${pinCertificatePreview ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-brand-400 hover:bg-gray-50'}`}
+                                        >
+                                            {pinCertificatePreview ? (
+                                                <img src={pinCertificatePreview} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <>
+                                                    <FileText className="w-8 h-8 text-gray-300 mb-2" />
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Upload PIN Certificate</span>
+                                                </>
+                                            )}
+                                            <input id="pincert-upload" type="file" className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'pinCertificate')} />
                                         </div>
                                     </div>
                                 </div>

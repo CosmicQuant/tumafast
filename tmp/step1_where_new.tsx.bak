@@ -1,0 +1,153 @@
+const Step1Where = ({ data, update, next }: any) => {
+    const [activeTab, setActiveTab] = useState<'pickup' | 'dropoff'>('pickup');
+    const maxDropoffsReached = data.waypoints.length >= 5;
+
+    const [pickupSuggestions, setPickupSuggestions] = useState<any[]>([]);
+    const [dropoffSuggestions, setDropoffSuggestions] = useState<any[]>([]);
+
+    const { setPickupCoords, setWaypointCoords, waypointCoords, setIsMapSelecting, setActiveInput } = useMapState();
+
+    const handlePickupChange = async (val: string) => {
+        update({ pickup: val });
+        if (val.length > 2) {
+            const results = await mapService.getSuggestions(val);
+            setPickupSuggestions(results);
+        } else {
+            setPickupSuggestions([]);
+        }
+    };
+
+    const handlePickupSelect = async (sug: any) => {
+        update({ pickup: sug.label });
+        setPickupSuggestions([]);
+        const resolved = await mapService.geocodeAddress(sug.label);
+        if (resolved) {
+            setPickupCoords({ lat: resolved.lat, lng: resolved.lng });
+            setActiveTab('dropoff');
+        }
+    };
+
+    const handleDropoffChange = async (val: string) => {
+        update({ dropoff: val });
+        if (val.length > 2) {
+            const results = await mapService.getSuggestions(val);
+            setDropoffSuggestions(results);
+        } else {
+            setDropoffSuggestions([]);
+        }
+    };
+
+    const handleDropoffSelect = async (sug: any) => {
+        const dropoffLabel = sug.label;
+        setDropoffSuggestions([]);
+        const resolved = await mapService.geocodeAddress(sug.label);
+        if (resolved) {
+            const newWp = [...data.waypoints, dropoffLabel];
+            const newCoords = [...waypointCoords, { lat: resolved.lat, lng: resolved.lng }];
+            update({ waypoints: newWp, dropoff: '' });
+            setWaypointCoords(newCoords);
+        }
+    };
+
+    const manualSelectMap = (type: 'pickup' | 'dropoff') => {
+        setActiveInput(type);
+        setIsMapSelecting(true);
+    };
+
+    const SuggestionsList = ({ suggestions, onSelect }: any) => {
+        if (!suggestions || suggestions.length === 0) return null;
+        return (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden max-h-48 overflow-y-auto">
+                {suggestions.map((sug: any, i: number) => (
+                    <div key={i} onClick={() => onSelect(sug)} className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-none flex items-center gap-3">
+                        <MapPin className="w-4 h-4 text-gray-400" />
+                        <p className="text-xs font-semibold text-gray-700 truncate">{sug.label}</p>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    return (
+        <div className="space-y-3 relative">
+            <AnimatePresence mode="wait">
+                {activeTab === 'pickup' ? (
+                    <motion.div key="pickup" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.15 }} className="space-y-3">
+                        <div className="relative">
+                            <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-green-500" size={18} />
+                            <input
+                                autoFocus type="text" placeholder="Search Pickup Location"
+                                className="w-full pl-10 pr-20 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-green-500 focus:bg-white text-gray-900 text-sm font-bold transition-all"
+                                value={data.pickup} onChange={e => handlePickupChange(e.target.value)}
+                            />
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                <button onClick={() => update({ pickup: 'Current Location' })} title="Current Location" className="p-1.5 bg-white rounded-md shadow-sm border border-gray-100 hover:bg-green-50">
+                                    <LocateFixed className="text-brand-600" size={16} />
+                                </button>
+                                <button onClick={() => manualSelectMap('pickup')} title="Pin on Map" className="p-1.5 bg-white rounded-md shadow-sm border border-gray-100 hover:bg-blue-50">
+                                    <Map className="text-blue-500" size={16} />
+                                </button>
+                            </div>
+                            <SuggestionsList suggestions={pickupSuggestions} onSelect={handlePickupSelect} />
+                        </div>
+                    </motion.div>
+                ) : (
+                    <motion.div key="dropoff" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.15 }} className="space-y-3">
+                        {data.waypoints.length > 0 && (
+                            <div className="py-1 mb-1 w-full">
+                                <div className="flex items-start overflow-x-auto no-scrollbar pb-2 pt-2 px-1 snap-x mt-2">
+                                    <div className="flex flex-col items-center flex-shrink-0 snap-start w-[80px]">
+                                        <div className="w-4 h-4 bg-green-500 rounded-full border-[3px] border-white shadow-sm z-10" />
+                                        <span className="text-[11px] font-bold text-gray-900 truncate w-full text-center px-1 mt-1" title={data.pickup || 'Current Location'}>{data.pickup || 'Current Location'}</span>
+                                    </div>
+                                    <AnimatePresence>
+                                        {data.waypoints.map((wp: string, idx: number) => (
+                                            <motion.div key={idx} initial={{ opacity: 0, width: 0, scale: 0.8 }} animate={{ opacity: 1, width: 'auto', scale: 1 }} exit={{ opacity: 0, width: 0, scale: 0.8 }} className="flex items-start flex-shrink-0 snap-start">
+                                                <div className="w-8 md:w-16 h-[2px] bg-gray-200 mt-[7px]" />
+                                                <div className="flex flex-col items-center relative group w-[80px]">
+                                                    <div className={`w-4 h-4 ${['bg-orange-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-teal-500'][idx % 5]} rounded-full border-[3px] border-white shadow-sm z-10`} />
+                                                    <span className="text-[11px] font-bold text-gray-900 truncate w-full text-center px-1 mt-1" title={wp}>{wp.split(',')[0]}</span>
+                                                    <button onClick={() => {
+                                                        const newWp = data.waypoints.filter((_: any, i: number) => i !== idx);
+                                                        const newCoords = waypointCoords.filter((_: any, i: number) => i !== idx);
+                                                        update({ waypoints: newWp });
+                                                        setWaypointCoords(newCoords);
+                                                    }} className="absolute -top-1 -right-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-red-50 hover:bg-red-100 p-1 rounded-full z-20 shadow-sm border border-red-100 cursor-pointer">
+                                                        <X size={10} className="text-red-500" />
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
+                        )}
+                        <div className="relative">
+                            <MapPin className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${maxDropoffsReached ? 'text-gray-400' : 'text-brand-600'}`} size={18} />
+                            <input
+                                autoFocus type="text" placeholder={maxDropoffsReached ? "Max dropoffs reached (5)" : (data.waypoints.length > 0 ? "Search another dropoff" : "Search Dropoff Location")}
+                                className="w-full pl-10 pr-20 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-brand-500 focus:bg-white text-gray-900 text-sm font-bold transition-all disabled:opacity-50"
+                                value={data.dropoff} onChange={e => handleDropoffChange(e.target.value)}
+                                disabled={maxDropoffsReached}
+                            />
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                <button onClick={() => manualSelectMap('dropoff')} title="Pin on Map" className="p-1.5 bg-white rounded-md shadow-sm border border-gray-100 hover:bg-blue-50">
+                                    <Map className="text-blue-500" size={16} />
+                                </button>
+                            </div>
+                            <SuggestionsList suggestions={dropoffSuggestions} onSelect={handleDropoffSelect} />
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                            <button onClick={() => setActiveTab('pickup')} className="w-12 bg-gray-100 text-gray-700 rounded-xl flex items-center justify-center hover:bg-gray-200"><ArrowLeft size={16} /></button>
+                            <button
+                                onClick={next}
+                                disabled={data.waypoints.length === 0}
+                                className="flex-1 py-3 bg-gray-900 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                            >Confirm Route <Check size={16} /></button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};

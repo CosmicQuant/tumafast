@@ -17,7 +17,7 @@ interface AuthModalProps {
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'LOGIN', preselectedRole, customTitle, customDescription }) => {
-  const { login, signup, loginWithGoogle, finalizeGoogleProfile } = useAuth();
+  const { login, signup, loginWithGoogle, finalizeGoogleProfile, logout } = useAuth();
   const navigate = useNavigate();
   const [view, setView] = useState<'LOGIN' | 'SIGNUP' | 'FORGOT_PASSWORD' | 'ROLE_SELECT'>(defaultView);
   const [loading, setLoading] = useState(false);
@@ -81,6 +81,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
       }
 
       const gUser = result as any;
+
+      if (role && gUser.role && gUser.role !== role) {
+        await logout();
+        const roleName = gUser.role.charAt(0).toUpperCase() + gUser.role.slice(1);
+        const portalName = gUser.role === 'customer' ? 'Customer portal ("Sign In")' : 
+                          gUser.role === 'driver' ? 'Driver portal ("Drive")' : 
+                          'Enterprise portal ("Enterprise Login")';
+        throw new Error(`This email is registered as a ${roleName}. Please use the ${portalName} to log in.`);
+      }
+
       console.log("Modal: Google Login Success");
       onClose(); // Close modal on success
       if (gUser?.role === 'driver') navigate('/driver');
@@ -160,6 +170,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
     try {
       if (view === 'LOGIN') {
         const loggedUser = await login(email, password);
+
+        if (role && loggedUser.role !== role) {
+          await logout();
+          const roleName = loggedUser.role.charAt(0).toUpperCase() + loggedUser.role.slice(1);
+          const portalName = loggedUser.role === 'customer' ? 'Customer portal ("Sign In")' : 
+                             loggedUser.role === 'driver' ? 'Driver portal ("Drive")' : 
+                             'Enterprise portal ("Enterprise Login")';
+          throw new Error(`This email is registered as a ${roleName}. Please use the ${portalName} to log in.`);
+        }
+
         onClose();
         // Immediate redirection
         if (loggedUser?.role === 'driver') navigate('/driver');

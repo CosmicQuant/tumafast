@@ -1,0 +1,219 @@
+// --- Step 2: WHAT ---
+const Step2What = ({ data, update, next, prev }: any) => {
+    const categories = [
+        { id: 'A', label: 'Standard', desc: 'Boxes, Parcels', icon: Box, style: 'blue' },
+        { id: 'B', label: 'Bulky', desc: 'Furniture, Material', icon: Truck, style: 'orange' },
+        { id: 'C', label: 'Dedicated', desc: 'Full Vehicle', icon: Navigation, style: 'purple' }
+    ];
+
+    const getStyle = (id: string, styleId: string, isSelected: boolean) => {
+        if (!isSelected) return 'border-gray-200 bg-white hover:bg-gray-50 text-gray-500';
+        if (styleId === 'blue') return 'border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-500 text-blue-700';
+        if (styleId === 'orange') return 'border-orange-500 bg-orange-50 shadow-sm ring-1 ring-orange-500 text-orange-700';
+        if (styleId === 'purple') return 'border-purple-500 bg-purple-50 shadow-sm ring-1 ring-purple-500 text-purple-700';
+    };
+
+    return (
+        <div className="space-y-3">
+            
+            
+            <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar px-1">
+                {categories.map(c => {
+                    const sel = data.category === c.id;
+                    return (
+                        <button 
+                            key={c.id} onClick={() => update({ category: c.id as Category })}
+                            className={`flex-shrink-0 w-[95px] p-2 rounded-xl border text-left transition-all duration-200 ${getStyle(c.id, c.style, sel)} ${sel ? 'scale-[1.02]' : 'scale-100'}`}
+                        >
+                            <div className={`p-1 w-fit rounded-lg mb-1.5 ${sel ? (c.style==='blue'?'bg-blue-500 text-white':c.style==='orange'?'bg-orange-500 text-white':'bg-purple-500 text-white') : 'bg-gray-100 text-gray-400'}`}>
+                                <c.icon size={16} />
+                            </div>
+                            <div className="font-bold text-[11px] leading-tight text-gray-900">{c.label}</div>
+                            <div className="text-[9px] font-medium opacity-80 leading-none mt-1 line-clamp-1">{c.desc}</div>
+                        </button>
+                    )
+                })}
+            </div>
+
+            <AnimatePresence mode="popLayout">
+                {data.category === 'A' && (
+                    <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} className="grid grid-cols-2 gap-2">
+                        <input type="number" placeholder="Weight (kg)" className="px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-brand-500 text-xs font-bold transition-all" value={data.dimensions.weight} onChange={e => update({ dimensions: {...data.dimensions, weight: e.target.value }})} />
+                        <input type="number" placeholder="Length (cm)" className="px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-brand-500 text-xs font-bold transition-all" value={data.dimensions.length} onChange={e => update({ dimensions: {...data.dimensions, length: e.target.value }})} />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <button 
+                onClick={() => update({ imageUploaded: !data.imageUploaded })}
+                className={`w-full p-2.5 rounded-xl border border-dashed flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${data.imageUploaded ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+            >
+                <Camera size={14} /> {data.imageUploaded ? 'Image Verified' : 'Tap to Upload Cargo Image'}
+            </button>
+
+            <div className="flex gap-2">
+                <button onClick={prev} className="px-4 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200"><ArrowLeft size={16} /></button>
+                <button onClick={next} disabled={!data.imageUploaded} className="flex-1 py-3 bg-gray-900 text-white rounded-xl text-sm font-bold flex flex-center gap-1.5 justify-center shadow-md shadow-gray-900/10 disabled:opacity-50">
+                    Find Vehicles <ArrowRight size={16} />
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// --- Step 3: HOW ---
+const Step3How = ({ data, update, next, prev }: any) => {
+    const weightVal = parseFloat(data.dimensions.weight) || 0;
+    
+    const eligibleVehicles = VEHICLES.filter(v => {
+        if (data.distanceKm > v.maxDist) return false;
+        if (!v.allowedCats.includes(data.category)) return false;
+        if (data.category === 'A' && weightVal > v.maxWeight) return false;
+        return true;
+    });
+
+    const activeVehicle = VEHICLES.find(v => v.id === data.vehicle) || eligibleVehicles[0];
+    const basePrice = activeVehicle ? (activeVehicle.pricePerKm * data.distanceKm) : 0;
+    const finalPrice = data.serviceType === 'Express' ? basePrice * 1.5 : basePrice;
+
+    useEffect(() => {
+        if (eligibleVehicles.length > 0 && !eligibleVehicles.find(v => v.id === data.vehicle)) {
+            update({ vehicle: eligibleVehicles[0].id });
+        }
+    }, [eligibleVehicles, data.vehicle, update]);
+
+    return (
+        <div className="space-y-4">
+                          <div className="flex items-center justify-end -mt-0 mb-3">
+                   <span className="text-[10px] font-bold text-gray-500 uppercase bg-gray-100 px-2 py-1 rounded-md">{data.distanceKm}km Total Route</span>
+              </div>
+
+            <div className="flex gap-1 bg-gray-100/80 p-1 rounded-xl">
+                {[
+                    { id: 'Express', icon: Zap, label: 'Express', color: 'text-orange-500', bg: 'bg-orange-50' },
+                    { id: 'Standard', icon: Clock, label: 'Standard', color: 'text-brand-500', bg: 'bg-brand-50' }
+                ].map(type => {
+                    const active = data.serviceType === type.id;
+                    return (
+                        <button 
+                            key={type.id} onClick={() => update({ serviceType: type.id as ServiceType })}
+                            className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1.5 rounded-lg transition-all ${active ? `bg-white shadow-sm ring-1 ring-gray-200 text-gray-900` : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <div className={`p-1 rounded-full ${active ? type.bg : 'bg-transparent'}`}>
+                                <type.icon size={14} className={active ? type.color : 'text-gray-400'} /> 
+                            </div>
+                            {type.label}
+                        </button>
+                    )
+                })}
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-2 pt-0.5 px-0.5 -mx-0.5 snap-x no-scrollbar">
+                {eligibleVehicles.length === 0 ? (
+                    <div className="w-full p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium border border-red-100">No vehicles support these limits.</div>
+                ) : (
+                    eligibleVehicles.map(v => (
+                        <button 
+                            key={v.id} onClick={() => update({ vehicle: v.id })}
+                            className={`flex-shrink-0 w-[85px] snap-center p-2.5 rounded-[1rem] border flex flex-col items-center text-center transition-all duration-200 ${data.vehicle === v.id ? 'border-brand-500 bg-brand-50 shadow-sm ring-1 ring-brand-500 scale-[1.02]' : 'border-gray-200 bg-white hover:border-gray-300 scale-100'}`}
+                        >
+                            <div className={`p-1.5 rounded-full mb-2 ${data.vehicle === v.id ? 'bg-white shadow-sm' : 'bg-gray-50'}`}>
+                                <v.icon size={18} className={data.vehicle === v.id ? 'text-brand-600' : 'text-gray-400'} />
+                            </div>
+                            <div className="font-bold text-[11px] leading-tight text-gray-900 line-clamp-1">{v.label}</div>
+                            <div className="text-[9px] font-medium text-gray-500 mt-0.5">≤ {v.maxWeight}kg</div>
+                        </button>
+                    ))
+                )}
+            </div>
+
+            <div className="flex items-center justify-between p-3.5 bg-gray-900 rounded-xl shadow-lg shadow-gray-900/10 mb-0">
+                <div className="flex flex-col">
+                    <span className="text-[9px] uppercase tracking-widest text-gray-400 font-bold">Total Price</span>
+                    <span className="text-xl font-black text-white leading-none mt-0.5">KES {finalPrice.toLocaleString()}</span>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={prev} className="px-3 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-white/20"><ArrowLeft size={16} /></button>
+                    <button onClick={next} disabled={!data.vehicle} className="px-4 py-2 bg-brand-500 text-white rounded-lg text-sm font-bold flex items-center gap-1.5 hover:bg-brand-400 disabled:opacity-50">
+                        Confirm <ArrowRight size={14} />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Step 4: WHO ---
+const Step4Who = ({ data, update, next, prev }: any) => (
+    <div className="space-y-3">
+        
+        <div className="space-y-2">
+            <input 
+                type="text" placeholder="Receiver Name" 
+                className="w-full px-3.5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-brand-500 text-sm font-bold transition-all"
+                value={data.receiverName} onChange={e => update({ receiverName: e.target.value })} 
+            />
+            <input 
+                type="tel" placeholder="Phone Number" 
+                className="w-full px-3.5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-brand-500 text-sm font-bold transition-all"
+                value={data.receiverPhone} onChange={e => update({ receiverPhone: e.target.value })} 
+            />
+            <input 
+                type="text" placeholder="Recipient ID Number" 
+                className="w-full px-3.5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-brand-500 text-sm font-bold transition-all"
+                value={data.receiverId} onChange={e => update({ receiverId: e.target.value })} 
+            />
+        </div>
+        
+        <div className="flex gap-2 pt-1">
+            <button onClick={prev} className="px-4 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200"><ArrowLeft size={16} /></button>
+            <button onClick={next} disabled={!data.receiverName || !data.receiverPhone || !data.receiverId} className="flex-1 py-3 bg-gray-900 text-white rounded-xl text-sm font-bold flex flex-center gap-1.5 justify-center disabled:opacity-50">
+                Payment <ArrowRight size={16} />
+            </button>
+        </div>
+    </div>
+);
+
+// --- Step 5: PAYMENT ---
+const Step5Payment = ({ data, update, submit, prev }: any) => (
+    <div className="space-y-4">
+        
+        
+        <div className="grid grid-cols-2 gap-2">
+             <button 
+                onClick={() => update({ paymentMethod: 'M-Pesa' })}
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all ${data.paymentMethod === 'M-Pesa' ? 'border-green-500 bg-green-50 text-green-700 ring-1 ring-green-500 scale-[1.02]' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
+             >
+                 <Smartphone size={24} className={data.paymentMethod === 'M-Pesa' ? 'text-green-600' : ''}/>
+                 <span className="font-bold text-sm">M-Pesa</span>
+             </button>
+             <button 
+                onClick={() => update({ paymentMethod: 'Cash' })}
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition-all ${data.paymentMethod === 'Cash' ? 'border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-500 scale-[1.02]' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
+             >
+                 <Banknote size={24} className={data.paymentMethod === 'Cash' ? 'text-brand-600' : ''}/>
+                 <span className="font-bold text-sm">Cash on Delivery</span>
+             </button>
+        </div>
+
+        <AnimatePresence mode="wait">
+            {data.paymentMethod === 'M-Pesa' && (
+                <motion.div initial={{opacity:0, height:0}} animate={{opacity:1, height:'auto'}} exit={{opacity:0, height:0}} className="space-y-1">
+                    <label className="text-xs font-bold text-gray-600 ml-1">M-Pesa Phone Number</label>
+                    <input 
+                        type="tel" 
+                        className="w-full px-3.5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-green-500 text-sm font-bold transition-all text-gray-900"
+                        value={data.paymentPhone} onChange={e => update({ paymentPhone: e.target.value })} 
+                    />
+                </motion.div>
+            )}
+        </AnimatePresence>
+        
+        <div className="flex gap-2 pt-1">
+            <button onClick={prev} className="px-4 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200"><ArrowLeft size={16} /></button>
+            <button onClick={submit} className="flex-1 py-3 bg-green-600 text-white rounded-xl text-sm font-bold flex items-center gap-1.5 justify-center shadow-lg shadow-green-600/30 hover:bg-green-500 transition-colors">
+                Confirm & Pay <Check size={16} />
+            </button>
+        </div>
+    </div>
+)

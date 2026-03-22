@@ -1,0 +1,23 @@
+const Step3How = ({ data, update, next, prev }: any) => {
+    const weightVal = parseFloat(data.dimensions.weight) || 0;
+    
+    const eligibleVehicles = VEHICLES.filter(v => {
+        if (data.distanceKm > v.maxDist) return false;
+        if (!v.allowedCats.includes(data.category)) return false;
+        if (data.category === 'A' && weightVal > v.maxWeight) return false;
+        return true;
+    });
+
+    const activeVehicle = VEHICLES.find(v => v.id === data.vehicle) || eligibleVehicles[0];
+    const basePrice = activeVehicle ? (activeVehicle.pricePerKm * data.distanceKm) : 0;
+    const finalPrice = data.serviceType === 'Express' ? basePrice * 1.5 : basePrice;
+
+    useEffect(() => {
+        if (eligibleVehicles.length > 0 && !eligibleVehicles.find(v => v.id === data.vehicle)) {
+            update({ vehicle: eligibleVehicles[0].id });
+        }
+    }, [eligibleVehicles, data.vehicle, update]);
+
+    return (
+        <div className="space-y-4">
+                          <div className="f

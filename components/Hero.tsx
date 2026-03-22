@@ -562,11 +562,11 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                            </div>
 
                            <div className="relative z-10 pt-1 sm:pt-3 flex items-center text-white font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
-                              Explore <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
+                              FullFill at Scale <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
                            </div>
                         </div>
 
-                        {/* 3. Drive With Us */}
+                        {/* 3. Deliver With Us */}
                         <div onClick={() => onDriverClick ? onDriverClick() : navigate('/driver')} className="relative bg-brand-600 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-brand-500 flex flex-col justify-between h-38 sm:h-42 cursor-pointer hover:bg-brand-700 hover:-translate-y-1 transition-all group overflow-hidden">
                            <div className="absolute top-0 left-0 p-2 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                               <Users className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
@@ -578,7 +578,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                            </div>
 
                            <div className="relative z-10 text-left">
-                              <h3 className="text-xs sm:text-lg font-black text-white leading-tight mb-1">Drive<br />With Us</h3>
+                              <h3 className="text-xs sm:text-lg font-black text-white leading-tight mb-1">Deliver<br />With Us</h3>
                               <p className="text-[7px] sm:text-[11px] text-brand-100 font-medium leading-tight max-w-[90%] block">Turn your miles into money on your schedule.</p>
                            </div>
 

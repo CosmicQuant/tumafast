@@ -80,12 +80,13 @@ app.post('/orders', authenticate, async (req, res) => {
             scheduled // Boolean
         } = req.body;
 
-        // Basic Validation
-        if (!pickup || !dropoff || !recipient?.phone || !vehicle || !serviceType || !items?.description) {
+        // Basic Validation (Accept either description or itemDesc for items)
+        const itemDescriptionText = items?.itemDesc || items?.itemDesc;
+        if (!pickup || !dropoff || !recipient?.phone || !vehicle || !serviceType || !itemDescriptionText) {
             return res.status(400).json({
                 error: {
                     code: 'validation_error',
-                    message: 'Missing required fields: pickup, dropoff, recipient.phone, vehicle, serviceType, items.description'
+                    message: 'Missing required fields: pickup, dropoff, recipient.phone, vehicle, serviceType, items.itemDesc/description'
                 }
             });
         }
@@ -110,16 +111,16 @@ app.post('/orders', authenticate, async (req, res) => {
                 instructions: s.notes || ''
                 // lat/lng would typically be geocoded here or provided
             })),
-            // Items Object (Primary)
+            // Items Object (Primary) - Aligning with new OrderItem schema
             items: {
-                description: items.description, // Guaranteed by validation
+                itemDesc: items.itemDesc || items.itemDesc, // Support both
                 weightKg: items?.weightKg || 1,
                 fragile: !!items?.fragile,
                 value: items?.value || 0,
                 handlingNotes: items?.handlingNotes || ''
             },
             // Legacy fallbacks for older dashboards
-            itemDescription: items?.description || 'Standard Package',
+            itemDescription: items.itemDesc || items.itemDesc || 'Standard Package',
 
             recipient: {
                 name: recipient.name || 'Valued Customer',
@@ -325,7 +326,7 @@ app.patch('/orders/:id', authenticate, async (req, res) => {
             if (items) {
                 updates.items = { ...data.items, ...items };
                 // Sync legacy field if description changes
-                if (items.description) updates.itemDescription = items.description;
+                if (items.itemDesc) updates.itemDescription = items.itemDesc;
             }
 
             // Trigger Price Recalculation (Simulation)

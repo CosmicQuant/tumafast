@@ -13,6 +13,19 @@ export const LOCATION_COORDINATES: Record<string, [number, number]> = {
     'Parklands': [-1.2608, 36.8248]
 };
 
+export const LOGISTICS_HUBS = {
+    NAIROBI: { lat: -1.286389, lng: 36.817223, name: 'Axon CBD Hub (Nairobi)' },
+    MOMBASA: { lat: -4.043477, lng: 39.668206, name: 'Mombasa Regional Hub' },
+    KISUMU: { lat: -0.102213, lng: 34.761714, name: 'Kisumu Regional Hub' }
+};
+
+export const LOGISTICS_ZONES = {
+    ZONE_1_MAX: 15000, // 15km
+    ZONE_2_MAX: 35000, // 35km
+    ZONE_3_MAX: 65000, // 65km
+    INTERCOUNTY_THRESHOLD: 65000
+};
+
 export const GOOGLE_MAPS_LIBRARIES: any = ['places', 'geometry', 'routes'];
 
 export const VEHICLE_TYPES = {

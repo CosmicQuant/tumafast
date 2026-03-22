@@ -364,6 +364,8 @@ export const authService = {
       if (updates.kraPin !== undefined) bizUpdates.kraPin = updates.kraPin;
       if (updates.address !== undefined) bizUpdates.address = updates.address;
       if (updates.phone !== undefined) bizUpdates.phone = updates.phone;
+      if (updates.businessRegNumber !== undefined) bizUpdates.businessRegNumber = updates.businessRegNumber;
+      if (updates.pinCertificateImage !== undefined) bizUpdates.pinCertificateImage = updates.pinCertificateImage;
 
       const bSnap = await getDoc(businessRef);
       if (bSnap.exists()) {

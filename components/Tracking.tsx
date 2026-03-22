@@ -54,7 +54,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
           // Items
           const itemCounts: Record<string, number> = {};
           orders.forEach(o => {
-            const desc = o.items?.description;
+            const desc = o.items?.itemDesc;
             if (desc) {
               const parts = desc.split(',').map(s => s.trim()).filter(s => s.length > 0);
               parts.forEach(p => {
@@ -98,7 +98,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
     recipientName: order?.recipient?.name || '',
     recipientPhone: order?.recipient?.phone || '',
     recipientId: order?.recipient?.idNumber || '',
-    itemDesc: order?.items?.description || '',
+    itemDesc: order?.items?.itemDesc || '',
     fragile: order?.items?.fragile || false,
     weightKg: order?.items?.weightKg || 1,
     handlingNotes: order?.items?.handlingNotes || '',
@@ -462,7 +462,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
       },
       items: {
         ...order.items,
-        description: editForm.itemDesc,
+        itemDesc: editForm.itemDesc,
         weightKg: editForm.weightKg,
         fragile: editForm.fragile,
         handlingNotes: editForm.handlingNotes
@@ -606,7 +606,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
                           <span className="text-xs font-black text-gray-900 truncate max-w-[140px]">
                             {(order.status === 'driver_assigned' || order.status === 'in_transit') && order.driver?.name
                               ? order.driver.name
-                              : (order.items?.description || 'Package')}
+                              : (order.items?.itemDesc || 'Package')}
                           </span>
                           <span className="text-gray-300">•</span>
                           <span className="text-[10px] font-black text-brand-600">KES {order.price.toLocaleString()}</span>
@@ -1492,7 +1492,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Items</p>
-                      <h4 className="font-extrabold text-gray-900">{order?.items?.description || 'Package'}</h4>
+                      <h4 className="font-extrabold text-gray-900">{order?.items?.itemDesc || 'Package'}</h4>
                     </div>
                   </div>
 

@@ -8,7 +8,7 @@ export const DUMMY_MARKET_ORDERS: DeliveryOrder[] = [
     pickup: 'Westlands, Nairobi',
     dropoff: 'Lavington, Nairobi',
     vehicle: VehicleType.BODA,
-    items: { description: 'Urgent Legal Documents', weightKg: 0.5, fragile: false, value: 0 },
+    items: { itemDesc: 'Urgent Legal Documents', weightKg: 0.5, fragile: false, value: 0 },
     price: 250,
     status: 'pending',
     estimatedDuration: '15 mins',
@@ -17,14 +17,15 @@ export const DUMMY_MARKET_ORDERS: DeliveryOrder[] = [
     recipient: { name: 'Safaricom HQ Reception', phone: '0722 333 444' },
     paymentMethod: 'MPESA',
     verificationCode: '8520',
-    serviceType: ServiceType.EXPRESS
+    serviceType: ServiceType.EXPRESS,
+    driverRate: 5.0
   },
   {
     id: 'ORD-MKT-102',
     pickup: 'River Road, CBD',
     dropoff: 'South B, Nairobi',
     vehicle: VehicleType.PICKUP,
-    items: { description: 'Box of Auto Spares', weightKg: 15, fragile: true, value: 15000 },
+    items: { itemDesc: 'Box of Auto Spares', weightKg: 15, fragile: true, value: 15000 },
     price: 1200,
     status: 'pending',
     estimatedDuration: '45 mins',
@@ -33,14 +34,15 @@ export const DUMMY_MARKET_ORDERS: DeliveryOrder[] = [
     recipient: { name: 'Mechanic John', phone: '0744 555 666' },
     paymentMethod: 'CASH',
     verificationCode: '3698',
-    serviceType: ServiceType.STANDARD
+    serviceType: ServiceType.STANDARD,
+    driverRate: 4.8
   },
   {
     id: 'ORD-MKT-103',
     pickup: 'Village Market, Gigiri',
     dropoff: 'Runda, Nairobi',
     vehicle: VehicleType.BODA,
-    items: { description: 'Lunch Delivery', weightKg: 2, fragile: true, value: 3000 },
+    items: { itemDesc: 'Lunch Delivery', weightKg: 2, fragile: true, value: 3000 },
     price: 350,
     status: 'pending',
     estimatedDuration: '20 mins',
@@ -49,14 +51,15 @@ export const DUMMY_MARKET_ORDERS: DeliveryOrder[] = [
     recipient: { name: 'Alice Smith', phone: '0766 777 888' },
     paymentMethod: 'MPESA',
     verificationCode: '7410',
-    serviceType: ServiceType.EXPRESS
+    serviceType: ServiceType.EXPRESS,
+    driverRate: 4.9
   },
   {
     id: 'ORD-MKT-104',
     pickup: 'Industrial Area, Nairobi',
     dropoff: 'Thika Road Mall (TRM)',
     vehicle: VehicleType.LORRY,
-    items: { description: 'Construction Materials (Tiles)', weightKg: 500, fragile: true, value: 50000 },
+    items: { itemDesc: 'Construction Materials (Tiles)', weightKg: 500, fragile: true, value: 50000 },
     price: 4500,
     status: 'pending',
     estimatedDuration: '2 hours',
@@ -65,14 +68,15 @@ export const DUMMY_MARKET_ORDERS: DeliveryOrder[] = [
     recipient: { name: 'Construction Site B', phone: '0788 999 000' },
     paymentMethod: 'MPESA',
     verificationCode: '9632',
-    serviceType: ServiceType.ECONOMY
+    serviceType: ServiceType.ECONOMY,
+    driverRate: 4.2
   },
   {
     id: 'ORD-MKT-105',
     pickup: 'Nyali Centre, Mombasa',
     dropoff: 'Bamburi Beach Hotel',
     vehicle: VehicleType.TUKTUK,
-    items: { description: 'Tourist Luggage', weightKg: 20, fragile: false, value: 0 },
+    items: { itemDesc: 'Tourist Luggage', weightKg: 20, fragile: false, value: 0 },
     price: 400,
     status: 'pending',
     estimatedDuration: '30 mins',
@@ -81,7 +85,8 @@ export const DUMMY_MARKET_ORDERS: DeliveryOrder[] = [
     recipient: { name: 'Hotel Reception', phone: '0700 111 222' },
     paymentMethod: 'CASH',
     verificationCode: '1597',
-    serviceType: ServiceType.STANDARD
+    serviceType: ServiceType.STANDARD,
+    driverRate: 4.7
   }
 ];
 

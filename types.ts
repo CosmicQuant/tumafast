@@ -16,6 +16,19 @@ export enum ServiceType {
   ECONOMY = 'Economy (Next Day)'
 }
 
+export enum CargoCategory {
+  STANDARD = 'Standard Parcels & Boxes',
+  BULKY = 'Bulky Items & Appliances',
+  DEDICATED = 'Dedicated / Business Stock'
+}
+
+export enum LogisticsZone {
+  ZONE_1 = 'Hyper-Local (0-15km)',
+  ZONE_2 = 'Urban Outskirts (16-35km)',
+  ZONE_3 = 'Metropolis Edge (36-65km)',
+  INTERCOUNTY = 'Inter-County (>65km)'
+}
+
 export interface Location {
   id: string;
   name: string;
@@ -38,11 +51,20 @@ export interface RouteStop {
 }
 
 export interface OrderItem {
-  description: string;
+  itemDesc: string;
+  category?: CargoCategory;
+  subCategory?: string;
   weightKg: number;
+  actualWeight?: number; 
+  dimensions?: {
+    l: number;
+    w: number;
+    h: number;
+  };
   fragile: boolean;
   value: number;
   handlingNotes?: string;
+  image?: string;
 }
 
 export interface Driver {
@@ -82,6 +104,8 @@ export interface User {
   // Business Fields
   companyName?: string;
   businessDescription?: string;
+  businessRegNumber?: string;
+  pinCertificateImage?: string;
   kraPin?: string;
   apiKey?: string;
   communicationPreferences?: {
@@ -128,6 +152,8 @@ export interface BusinessProfile {
   userId: string;
   companyName: string;
   businessDescription?: string;
+  businessRegNumber?: string;
+  pinCertificateImage?: string;
   kraPin: string;
   address: string;
   verified: boolean;
@@ -150,6 +176,8 @@ export interface PricingDetails {
   isFragile?: boolean;
   serviceType?: ServiceType;
   stopCount?: number;
+  zone?: LogisticsZone;
+  isDedicated?: boolean;
 }
 
 export interface DeliveryOrder {
@@ -198,6 +226,9 @@ export interface DeliveryOrder {
   stops?: RouteStop[]; // Optional: for multi-stop orders
   total?: number; // Total cost (legacy)
   dropoffAddress?: string; // Legacy
+  isDedicated?: boolean;
+  isIntercounty?: boolean;
+  zone?: LogisticsZone;
 }
 
 export interface Review {

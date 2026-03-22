@@ -188,7 +188,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                     // Items
                     const itemCounts: Record<string, number> = {};
                     orders.forEach(o => {
-                        const desc = o.items?.description;
+                        const desc = o.items?.itemDesc;
                         if (desc) {
                             // Split by comma to handle multiple items if user typed "Box, Clothes"
                             const parts = desc.split(',').map(s => s.trim()).filter(s => s.length > 0);
@@ -744,7 +744,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
                         // Estimate time: distance / 25km/h (city traffic) * 3600s
                         pickupDurationSeconds = Math.round((minDistance / 25) * 3600);
-                        
+
                         // Add 3 min base for driver to react and start moving
                         pickupDurationSeconds += 180;
                     }
@@ -752,14 +752,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
                 // Dynamically update ETA based on selected serviceType and pickup buffer
                 if (routeDuration > 0) {
-                   const estimation = orderService.estimateDeliveryTime(
-                       distance,
-                       serviceType,
-                       isScheduled ? pickupTime : 'ASAP',
-                       routeDuration,
-                       pickupDurationSeconds
-                   );
-                   setEstArrival(estimation);
+                    const estimation = orderService.estimateDeliveryTime(
+                        distance,
+                        serviceType,
+                        isScheduled ? pickupTime : 'ASAP',
+                        routeDuration,
+                        pickupDurationSeconds
+                    );
+                    setEstArrival(estimation);
                 }
             }
         };
@@ -1233,8 +1233,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
     };
 
     const vehicleOptions = [
-        { type: VehicleType.BODA, icon: Bike, label: 'Motorbike', desc: 'Small packages & docs', maxDist: 150, maxWeight: '10kg' },
-        { type: VehicleType.TUKTUK, icon: Car, label: 'Tuk-Tuk', desc: 'Medium items & boxes', maxDist: 100, maxWeight: '100kg' },
+        { type: VehicleType.BODA, icon: Bike, label: 'Motorbike', desc: 'Small packages & docs', maxDist: 65, maxWeight: '100kg' },
+        { type: VehicleType.TUKTUK, icon: Car, label: 'Tuk-Tuk', desc: 'Medium items & boxes', maxDist: 65, maxWeight: '500kg*' },
         { type: VehicleType.PICKUP, icon: Truck, label: 'Pickup Truck', desc: 'Furniture & Appliances', maxDist: 1000, maxWeight: '1000kg' },
         { type: VehicleType.VAN, icon: Truck, label: 'Cargo Van', desc: 'Large item moves', maxDist: 1000, maxWeight: '2000kg' },
         { type: VehicleType.LORRY, icon: Truck, label: 'Truck / Lorry', desc: 'Commercial loads', maxDist: 2000, maxWeight: '3000kg+' },
@@ -2320,7 +2320,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-2 gap-3 pt-1">
                                             <button
                                                 onClick={() => setPaymentMethod('MPESA')}
                                                 className={`group relative p-4 rounded-2xl border-2 transition-all ${paymentMethod === 'MPESA' ? 'bg-green-600 border-green-600 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-400'}`}

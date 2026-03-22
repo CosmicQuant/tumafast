@@ -41,7 +41,8 @@ const UnifiedLogisticsIntelligence = lazy(() => import('./components/UnifiedLogi
 const ApiDocumentation = lazy(() => import('./components/ApiDocumentation'));
 const PaymentCollection = lazy(() => import('./components/PaymentCollection'));
 const FleetManagement = lazy(() => import('./components/FleetManagement'));
-
+// Temporary test component for the new wizard framework
+const TestBookingWizard = lazy(() => import('./components/booking/BookingWizard'));
 const SkeletonFallback = () => (
   <div className="flex h-screen w-full items-center justify-center bg-white">
     <div className="flex flex-col items-center gap-4 animate-pulse">
@@ -214,7 +215,8 @@ const App = () => {
     location.pathname.startsWith('/terms');
 
   const isMapPage = location.pathname === '/book' ||
-    location.pathname.startsWith('/track');
+    location.pathname.startsWith('/track') ||
+    location.pathname.startsWith('/test-wizard');
 
   // Hide BottomNav on Map pages (Book/Track) and Driver Dashboard (Active Job view)
   // to prevent overlapping with bottom drawers/sheets
@@ -264,6 +266,13 @@ const App = () => {
           <main className="flex-grow flex flex-col relative pb-16 md:pb-0">
             <Suspense fallback={<SkeletonFallback />}>
               <Routes>
+                {/* Temporary Test Route */}
+                <Route path="/test-wizard" element={
+                  <div className="h-screen w-full relative bg-gray-100 flex flex-col pt-20">
+                    <div className="absolute inset-0 bg-blue-50/50" style={{ backgroundImage: "url('https://maps.googleapis.com/maps/api/staticmap?center=-1.2921,36.8219&zoom=13&size=800x800&key=dummy_for_visual_layout')" }} />
+                    <TestBookingWizard />
+                  </div>
+                } />
                 {/* Public Routes */}
                 <Route path="/" element={
                   <Hero

@@ -442,11 +442,11 @@ export const orderService = {
       // Base fee + 0.1 KES per km for economy shipping (drastically lower distance penalty)
       const baseEco = economyBases[vehicleType] || 200;
       let ecoTotal = baseEco + (distanceKm * 0.1);
-      
+
       // Safety minimums for economy
       const ecoMin = 200;
       if (ecoTotal < ecoMin) ecoTotal = ecoMin;
-      
+
       // Round to nearest 10 KES
       return Math.round(ecoTotal / 10) * 10;
     }

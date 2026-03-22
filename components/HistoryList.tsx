@@ -109,7 +109,7 @@ const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) =>
       dropoffCoords: order.dropoffCoords,
       vehicle: order.vehicle,
       serviceType: order.serviceType,
-      itemDescription: order.itemDescription || order.items?.description,
+      itemDescription: order.itemDescription || order.items?.itemDesc,
       sender: order.sender,
       recipient: order.recipient,
       stops: order.stops,
@@ -249,7 +249,7 @@ const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) =>
                       </div>
 
                       <h3 className="text-lg md:text-xl font-black text-gray-900 mb-1 break-words leading-tight">
-                        {order.items.description}
+                        {order.items.itemDesc}
                       </h3>
 
                       <div className="flex flex-wrap items-center gap-3 mt-2">
@@ -559,8 +559,8 @@ const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) =>
                 </div>
                 <div>
                   <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Recipient Details</h4>
-                  <p className="text-sm font-bold text-gray-900">{viewingReceipt.recipientName}</p>
-                  <p className="text-xs text-gray-500">{viewingReceipt.recipientPhone}</p>
+                  <p className="text-sm font-bold text-gray-900">{viewingReceipt.recipient.name}</p>
+                  <p className="text-xs text-gray-500">{viewingReceipt.recipient.phone}</p>
                   <div className="mt-4">
                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Dropoff Address</h4>
                     <p className="text-xs text-gray-600 leading-relaxed">{viewingReceipt.dropoff}</p>

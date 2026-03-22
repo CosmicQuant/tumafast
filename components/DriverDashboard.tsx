@@ -405,7 +405,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
       const matchesSearch =
          order.pickup.toLowerCase().includes(searchQuery.toLowerCase()) ||
          order.dropoff.toLowerCase().includes(searchQuery.toLowerCase()) ||
-         order.items.description.toLowerCase().includes(searchQuery.toLowerCase());
+         order.items.itemDesc.toLowerCase().includes(searchQuery.toLowerCase());
 
       // Only show orders that match the driver's vehicle type and are still pending
       const matchesVehicle = order.vehicle === user?.vehicleType;
@@ -1182,7 +1182,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                                                 {job.status.replace('_', ' ')}
                                              </span>
                                           </div>
-                                          <h3 className="text-lg font-black text-gray-900 mb-4">{job.items.description}</h3>
+                                          <h3 className="text-lg font-black text-gray-900 mb-4">{job.items.itemDesc}</h3>
 
                                           <div className="space-y-3">
                                              <div className="flex items-center space-x-3">
@@ -1435,7 +1435,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                                              <ArrowUpRight className="w-5 h-5" />
                                           </div>
                                           <div>
-                                             <p className="font-bold text-gray-900 text-sm">{job.items.description}</p>
+                                             <p className="font-bold text-gray-900 text-sm">{job.items.itemDesc}</p>
                                              <p className="text-[10px] text-gray-400 font-bold uppercase">
                                                 {new Date(job.createdAt || job.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                                                 {job.updatedAt && job.updatedAt !== (job.createdAt || job.date) && (
@@ -1570,7 +1570,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                                                 {copiedId === order.id ? <Check className="w-2.5 h-2.5 text-emerald-500" /> : <Copy className="w-2.5 h-2.5 opacity-40" />}
                                              </button>
                                           </div>
-                                          <h4 className="font-bold text-gray-900 line-clamp-1">{order.items.description}</h4>
+                                          <h4 className="font-bold text-gray-900 line-clamp-1">{order.items.itemDesc}</h4>
                                        </div>
                                        <div className="text-right">
                                           <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Total Payout (You Earn)</p>

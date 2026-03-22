@@ -677,7 +677,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                       </div>
                       <div class="section">
                          <div class="label">Package</div>
-                         <div class="value">${order.items?.description || order.itemDescription || 'Standard Package'}</div>
+                         <div class="value">${order.items?.itemDesc || order.itemDescription || 'Standard Package'}</div>
                       </div>
                   </div>
 
@@ -1020,7 +1020,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                     <Menu className="w-6 h-6" />
                 </button>
                 <button onClick={onGoHome} className="text-lg font-bold hover:opacity-80 transition-opacity flex items-center">
-                    Tuma<span className="text-brand-600">Business</span>
+                    Axon<span className="text-brand-600">Business</span>
                 </button>
             </div>
 
@@ -1041,7 +1041,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
       `}>
                 <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100">
                     <button onClick={onGoHome} className="text-lg font-bold hover:opacity-80 transition-opacity flex items-center">
-                        Tuma<span className="text-brand-600">Business</span>
+                        Axon<span className="text-brand-600">Business</span>
                     </button>
                     <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-gray-400 hover:text-gray-600">
                         <X className="w-5 h-5" />
@@ -1188,7 +1188,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                                             </span>
                                                         )}
                                                         <span className="mx-2">•</span>
-                                                        {order.items?.description || order.itemDescription || 'Delivery'}
+                                                        {order.items?.itemDesc || order.itemDescription || 'Delivery'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -1334,7 +1334,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${order.status === 'delivered' ? 'bg-emerald-100 text-emerald-600' : order.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-brand-100 text-brand-600'}`}>{order.status.replace('_', ' ')}</span>
                                                     </div>
                                                     <h3 className="font-bold text-lg text-gray-900 flex items-center">
-                                                        {order.items?.description || order.itemDescription || 'Delivery'}
+                                                        {order.items?.itemDesc || order.itemDescription || 'Delivery'}
                                                         {order.status !== 'delivered' && (
                                                             <span className="ml-3 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-brand-50 text-brand-600 border border-brand-100">
                                                                 <Shield className="w-2.5 h-2.5 mr-1" />
@@ -1374,7 +1374,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                                                     dropoffCoords: order.dropoffCoords,
                                                                     vehicle: order.vehicle,
                                                                     serviceType: order.serviceType,
-                                                                    itemDescription: order.items?.description,
+                                                                    itemDescription: order.items?.itemDesc,
                                                                     sender: order.sender,
                                                                     recipient: order.recipient,
                                                                     stops: order.stops,
@@ -1704,7 +1704,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                                             <div className="text-[10px] text-brand-600 font-bold">ID: {order.recipient?.idNumber}</div>
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <div className="text-gray-900 font-medium">{order.items?.description}</div>
+                                                            <div className="text-gray-900 font-medium">{order.items?.itemDesc}</div>
                                                             <div className="text-xs text-gray-400">{order.vehicle} • {order.serviceType}</div>
                                                         </td>
                                                         <td className="px-6 py-4 font-bold text-gray-900">
@@ -2631,7 +2631,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-500">Item Description</span>
-                                        <span className="font-bold text-gray-900">{viewingReceipt.items?.description}</span>
+                                        <span className="font-bold text-gray-900">{viewingReceipt.items?.itemDesc}</span>
                                     </div>
                                     <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
                                         <span className="text-base font-black text-gray-900">Total Paid</span>

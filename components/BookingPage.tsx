@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import BookingForm from './BookingForm';
+import BookingWizard from './booking/BookingWizard';
 import HeroOverlay from './HeroOverlay';
 import MapLayer from './MapLayer';
 import { useAuth } from '../context/AuthContext';
@@ -82,7 +82,7 @@ const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData: propPrefi
 
             {/* The form will be the drawer at the bottom */}
             <div className="relative z-10 flex-grow flex flex-col pointer-events-none">
-                <BookingForm
+                <BookingWizard
                     prefillData={prefillData}
                     onOrderComplete={handleOrderComplete}
                     onCollapseChange={setIsCollapsed}

@@ -122,7 +122,7 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenProfile, onLogin, isDarkBackgroun
                   onClick={handleDriveClick}
                   className={`text-sm font-bold transition-colors ${isDarkBackground ? 'text-white/90 hover:text-white' : 'text-slate-600 hover:text-brand-600'}`}
                 >
-                  Drive
+                  Deliver
                 </button>
                 <button
                   onClick={handleBusinessClick}
@@ -165,7 +165,7 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenProfile, onLogin, isDarkBackgroun
               </div>
             ) : (
               <button
-                onClick={() => onLogin?.()}
+                onClick={() => onLogin?.('customer', 'Welcome back', 'Access your AXON dashboard.')}
                 className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-black px-6 py-2.5 rounded-full transition-all active:scale-95"
               >
                 Sign In
@@ -193,7 +193,7 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenProfile, onLogin, isDarkBackgroun
             </>
           ) : (
             <button
-              onClick={() => onLogin?.()}
+              onClick={() => onLogin?.('customer', 'Welcome back', 'Access your AXON dashboard.')}
               className={`text-sm font-black px-6 py-2.5 rounded-full transition-all active:scale-95 ${isMapPage ? 'bg-brand-600 text-white pointer-events-auto' : 'bg-brand-600 text-white'}`}
             >
               Sign In
