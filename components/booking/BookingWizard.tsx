@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { mapService } from '../../services/mapService';
 import { useMapState } from '@/context/MapContext';
 import { MapPin, Map, Box, Truck, User, ArrowRight, ArrowLeft, Check, Camera, Zap, Clock, Bike, Car, Plus, Navigation, LocateFixed, Smartphone, Banknote, X, FileText, Package, PackageOpen, Archive, Ruler } from 'lucide-react';
+import mpesaLogo from '../../assets/mpesa.png';
 
 // --- Types & Constants ---
 type Category = 'A' | 'B' | 'C';
@@ -475,9 +476,6 @@ const Step1Where = ({ data, update, next }: any) => {
                     </motion.div>
                 ) : (
                     <motion.div key="dropoff" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.15 }} className="space-y-3">
-                        <button onClick={() => setActiveTab('pickup')} className="flex items-center gap-2 text-sm text-gray-500 font-bold hover:text-gray-900 mb-2 transition-colors">
-                            <ArrowLeft size={16} /> Back to Pickup
-                        </button>
                         {(data.waypoints.length > 0 || data.dropoff) && (
                             <div className="py-1 mb-1 w-full">
                                 <div className="flex items-start overflow-x-auto no-scrollbar pb-2 pt-2 px-1 snap-x mt-2">
@@ -497,7 +495,9 @@ const Step1Where = ({ data, update, next }: any) => {
                                                         <div className="w-8 md:w-16 h-[2px] bg-gray-200 mt-[7px]" />
                                                         <div className="flex flex-col items-center relative group w-[80px]">
                                                             <div className={`w-4 h-4 ${isLastStop ? 'bg-red-500' : ['bg-orange-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-teal-500'][idx % 5]} rounded-full border-[3px] border-white shadow-sm z-10`} />
-                                                            <span className="text-[11px] font-bold text-gray-900 truncate w-full text-center px-1 mt-1" title={wp}>{wp.split(',')[0]}</span>
+                                                            <span className={`text-[11px] font-bold ${isLastStop ? 'text-red-500' : 'text-gray-900'} truncate w-full text-center px-1 mt-1`} title={wp}>
+                                                                {isLastStop ? 'Final Dropoff' : wp.split(',')[0]}
+                                                            </span>
                                                             <button onClick={() => {
                                                                 if (isFinalDropoff) {
                                                                     update({ dropoff: '' });
@@ -523,7 +523,7 @@ const Step1Where = ({ data, update, next }: any) => {
                         <div className="relative">
                             <MapPin className={`absolute left-4 top-1/2 -translate-y-1/2 ${maxDropoffsReached ? 'text-gray-400' : 'text-brand-600'}`} size={24} />
                             <input
-                                autoFocus type="text" placeholder={maxDropoffsReached ? "Max dropoffs reached (5)" : (data.waypoints.length > 0 ? "Search another dropoff" : "Search Dropoff Location")}
+                                type="text" placeholder={maxDropoffsReached ? "Max dropoffs reached (5)" : (data.waypoints.length > 0 ? "Search another dropoff" : "Search Dropoff Location")}
                                 className="w-full pl-12 pr-20 py-4 rounded-xl bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-brand-500 focus:bg-white text-gray-900 text-base font-bold transition-all disabled:opacity-50 min-h-[56px]"
                                 value={data.dropoff}
                                 onFocus={() => {
@@ -820,9 +820,8 @@ const Step4Who = ({ data, update, next, prev }: any) => {
 
     return (
         <div className="space-y-3">
-            <div className="mb-3">
-                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1">Recent Receivers</label>
-                <div className="flex gap-2 mt-1.5 overflow-x-auto no-scrollbar pb-1 px-1 snap-x">
+            <div className="mb-2">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-1 snap-x">
                     {recentReceivers.map((r, i) => (
                         <button
                             key={i}
@@ -873,10 +872,9 @@ const Step5Payment = ({ data, update, submit, prev }: any) => (
                 onClick={() => update({ paymentMethod: 'M-Pesa' })}
                 className={`p-3 rounded-xl border flex flex-col items-center justify-center transition-all ${data.paymentMethod === 'M-Pesa' ? 'border-green-500 bg-green-50 text-green-700 ring-1 ring-green-500 scale-[1.02]' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
             >
-                <div className="flex items-center justify-center h-8 mb-1">
-                    <img src="/assets/mpesa.png" alt="M-Pesa" className={`h-8 w-auto object-contain ${data.paymentMethod === 'M-Pesa' ? '' : 'grayscale opacity-60'}`} />
+                <div className="flex items-center justify-center h-full w-full py-2">
+                    <img src={mpesaLogo} alt="M-Pesa" className={`h-10 w-auto object-contain scale-110 ${data.paymentMethod === 'M-Pesa' ? '' : 'grayscale opacity-60'}`} />
                 </div>
-                <span className="font-bold text-xs uppercase tracking-wider">Digital</span>
             </button>
             <button
                 onClick={() => update({ paymentMethod: 'Cash' })}

@@ -4,6 +4,7 @@ import { CheckCircle2, Building2, BarChart3, Globe, ArrowRight, Zap, Layers, Che
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { User } from '../types';
+import mpesaLogo from '../assets/mpesa.png';
 
 interface BusinessLandingProps {
    user?: User | null;
@@ -104,10 +105,8 @@ const BusinessLanding: React.FC<BusinessLandingProps> = ({ user, onGetStarted, o
                   {/* M-PESA */}
                   <div className="group flex flex-col items-center justify-center">
                      <div className="h-16 flex items-center transition-transform duration-300 hover:scale-105 opacity-90 hover:opacity-100 cursor-default select-none">
-                        <img src="/assets/mpesa.png" alt="M-Pesa" className="h-12 w-auto object-contain" />
-                     </div>
+                        <img src={mpesaLogo} alt="M-Pesa" className="h-12 w-auto object-contain" />                       </div>
                   </div>
-
                   {/* Firebase */}
                   <div className="group flex flex-col items-center justify-center">
                      <img
