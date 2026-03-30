@@ -168,6 +168,7 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     };
                     setUserLocation(coords);
                     setMapCenterInternal(coords);
+                    setBoundsToFit([coords]);
                 },
                 (error) => {
                     console.warn("Initial location pre-fetch failed:", error);
