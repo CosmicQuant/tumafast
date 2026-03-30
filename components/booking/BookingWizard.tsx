@@ -44,22 +44,17 @@ const INITIAL_STATE: BookingState = {
 };
 
 const VEHICLES = [
-    { id: 'boda', label: 'Motorbike', maxDist: 65, maxWeight: 100, allowedCats: ['A'], pricePerKm: 30, icon: Bike, color: 'text-orange-500', bgColor: 'bg-orange-500', bgLight: 'bg-orange-50' },
-    { id: 'tuktuk', label: 'Tuk-Tuk', maxDist: 65, maxWeight: 500, allowedCats: ['A'], pricePerKm: 50, icon: Car, color: 'text-yellow-500', bgColor: 'bg-yellow-500', bgLight: 'bg-yellow-50' },
-    { id: 'probox', label: 'Probox', maxDist: 9999, maxWeight: 800, allowedCats: ['A', 'B'], pricePerKm: 70, icon: Car, color: 'text-blue-500', bgColor: 'bg-blue-500', bgLight: 'bg-blue-50' },
-    { id: 'van', label: 'Cargo Van', maxDist: 9999, maxWeight: 1500, allowedCats: ['B'], pricePerKm: 90, icon: Truck, color: 'text-indigo-500', bgColor: 'bg-indigo-500', bgLight: 'bg-indigo-50' },
-    { id: 'pickup', label: 'Pick-up', maxDist: 9999, maxWeight: 2000, allowedCats: ['B', 'C'], pricePerKm: 100, icon: Truck, color: 'text-emerald-500', bgColor: 'bg-emerald-500', bgLight: 'bg-emerald-50' },
-    { id: 'truck', label: 'Trucks', maxDist: 9999, maxWeight: 5000, allowedCats: ['C'], pricePerKm: 200, icon: Truck, color: 'text-slate-700', bgColor: 'bg-slate-700', bgLight: 'bg-slate-50' }
+    { id: 'boda', label: 'Motorbike', maxDist: 65, maxWeight: 100, allowedCats: ['A'], pricePerKm: 30, img: '/icons3d/motorcycle.png', color: 'text-orange-500', bgColor: 'bg-orange-500', bgLight: 'bg-orange-50' },
+    { id: 'tuktuk', label: 'Cargo Tuk-Tuk', maxDist: 65, maxWeight: 500, allowedCats: ['A'], pricePerKm: 50, img: '/icons3d/auto_rickshaw.png', color: 'text-yellow-500', bgColor: 'bg-yellow-500', bgLight: 'bg-yellow-50' },
+    { id: 'probox', label: 'Probox', maxDist: 9999, maxWeight: 800, allowedCats: ['A', 'B'], pricePerKm: 70, img: '/icons3d/automobile.png', color: 'text-blue-500', bgColor: 'bg-blue-500', bgLight: 'bg-blue-50' },
+    { id: 'van', label: 'Cargo Van', maxDist: 9999, maxWeight: 1500, allowedCats: ['A', 'B'], pricePerKm: 90, img: '/icons3d/minibus.png', color: 'text-indigo-500', bgColor: 'bg-indigo-500', bgLight: 'bg-indigo-50' },
+    { id: 'pickup', label: 'Pick-up', maxDist: 9999, maxWeight: 2000, allowedCats: ['A', 'B'], pricePerKm: 100, img: '/icons3d/pickup_truck.png', color: 'text-emerald-500', bgColor: 'bg-emerald-500', bgLight: 'bg-emerald-50' },
+    { id: 'canter', label: 'Canter 3T', maxDist: 9999, maxWeight: 3000, allowedCats: ['B'], pricePerKm: 150, img: '/icons3d/delivery_truck.png', color: 'text-teal-600', bgColor: 'bg-teal-600', bgLight: 'bg-teal-50' },
+    { id: 'lorry', label: 'Lorry 10T', maxDist: 9999, maxWeight: 10000, allowedCats: ['B'], pricePerKm: 200, img: '/icons3d/articulated_lorry.png', color: 'text-slate-700', bgColor: 'bg-slate-700', bgLight: 'bg-slate-50' },
+    { id: 'tipper', label: 'Tipper', maxDist: 9999, maxWeight: 15000, allowedCats: ['B'], pricePerKm: 220, img: '/icons3d/tipper_truck.svg', color: 'text-amber-700', bgColor: 'bg-amber-700', bgLight: 'bg-amber-50' },
+    { id: 'container', label: 'Container', maxDist: 9999, maxWeight: 20000, allowedCats: ['B'], pricePerKm: 280, img: '/icons3d/container_truck.svg', color: 'text-purple-600', bgColor: 'bg-purple-600', bgLight: 'bg-purple-50' },
+    { id: 'tanker', label: 'Tanker', maxDist: 9999, maxWeight: 25000, allowedCats: ['B'], pricePerKm: 300, img: '/icons3d/tanker_truck.svg', color: 'text-red-600', bgColor: 'bg-red-600', bgLight: 'bg-red-50' }
 ];
-
-// Map Dedicated subcategories to vehicle IDs
-const DEDICATED_VEHICLE_MAP: Record<string, string> = {
-    'Cargo Tuk-Tuk': 'tuktuk',
-    'Station Wagon': 'probox',
-    '1-Ton Pick-up': 'pickup',
-    '3-Ton Canter': 'truck',
-    '10-Ton Lorry': 'truck'
-};
 
 // --- Animation Variants ---
 const slideVariants = {
@@ -103,6 +98,7 @@ export default function BookingWizard({ prefillData, onOrderComplete, onCollapse
             if (prefillData.serviceType) updates.serviceType = prefillData.serviceType;
             if (prefillData.vehicle) updates.vehicle = prefillData.vehicle;
             if (prefillData.activeTab) updates.activeTab = prefillData.activeTab;
+            if (prefillData.category) updates.category = prefillData.category;
             if (Object.keys(updates).length > 0) handleUpdate(updates);
 
             if (prefillData.pickupCoords) setPickupCoords(prefillData.pickupCoords);
@@ -321,7 +317,6 @@ export default function BookingWizard({ prefillData, onOrderComplete, onCollapse
                     <div className="w-12 h-1 bg-gray-200 rounded-full mb-3" />
                     <div className="w-full flex justify-between mt-1 items-end">
                         {(() => {
-                            const isDedicated = data.category === 'C';
                             const STEP_INFO = [
                                 { title: 'Route', icon: Navigation },
                                 { title: 'Cargo Type', icon: Box },
@@ -330,9 +325,8 @@ export default function BookingWizard({ prefillData, onOrderComplete, onCollapse
                                 { title: 'Payment Option', icon: Banknote }
                             ];
                             const ActiveStepIcon = STEP_INFO[step].icon;
-                            const displayStep = isDedicated && step > 2 ? step : step + 1;
-                            const totalSteps = isDedicated ? 4 : 5;
-                            const displayStepNum = isDedicated ? (step <= 1 ? step + 1 : step) : step + 1;
+                            const totalSteps = 5;
+                            const displayStepNum = step + 1;
                             return (
                                 <span className="flex items-center gap-1.5 text-[10px] font-black text-brand-600 uppercase tracking-widest bg-brand-50/50 px-2 py-1 rounded-md mb-2 mt-[-4px]">
                                     <ActiveStepIcon size={12} strokeWidth={3} /> {step === 0 ? (data.activeTab === "pickup" ? "Pickup Point" : (data.waypoints.length > 0 ? "Drop offs" : "Drop off")) : STEP_INFO[step].title} ({displayStepNum}/{totalSteps})
@@ -387,8 +381,8 @@ export default function BookingWizard({ prefillData, onOrderComplete, onCollapse
                         >
                             {step === 0 && <Step1Where data={data} update={handleUpdate} next={nextStep} />}
                             {step === 1 && <Step2What data={data} update={handleUpdate} next={nextStep} prev={prevStep} />}
-                            {step === 2 && <Step3How data={data} update={handleUpdate} next={nextStep} prev={prevStep} isDedicated={data.category === 'C'} />}
-                            {step === 3 && <Step4Who data={data} update={handleUpdate} next={nextStep} prev={prevStep} isDedicated={data.category === 'C'} />}
+                            {step === 2 && <Step3How data={data} update={handleUpdate} next={nextStep} prev={prevStep} />}
+                            {step === 3 && <Step4Who data={data} update={handleUpdate} next={nextStep} prev={prevStep} />}
                             {step === 4 && <Step5Payment data={data} update={handleUpdate} submit={submitBooking} prev={prevStep} />}
                         </motion.div>
                     </AnimatePresence>
@@ -750,34 +744,29 @@ const Step1Where = ({ data, update, next }: any) => {
 const Step2What = ({ data, update, next, prev }: any) => {
     const tabs = [
         { id: 'A', label: '📦 Standard' },
-        { id: 'B', label: '🛋️ Bulky' },
-        { id: 'C', label: '🚛 Dedicated' }
+        { id: 'B', label: '🏗️ Bulky / Heavy' }
     ];
 
     const subcategories = {
         'A': [
-            { id: 'Document', label: 'Document', desc: 'Max 0.5kg', examples: 'e.g. passports, keys, envelopes', icon: FileText },
-            { id: 'Small Box', label: 'Small Box', desc: 'Max 2kg', examples: 'e.g. phones, clothes, books', icon: Package },
-            { id: 'Medium Box', label: 'Medium Box', desc: 'Max 5kg', examples: 'e.g. shoes, laptops, toasters', icon: Box },
-            { id: 'Large Box', label: 'Large Box', desc: 'Max 15kg', examples: 'e.g. microwaves, desktop pcs', icon: PackageOpen },
-            { id: 'Jumbo Box', label: 'Jumbo Box', desc: 'Max 30kg', examples: 'e.g. mini-fridges, seating', icon: Archive },
-            { id: 'Custom Dimensions', label: 'Custom', desc: 'Custom', examples: 'enter sizes below', icon: Ruler }
+            { id: 'Document', label: 'Document', desc: 'Max 0.5kg', examples: 'e.g. passports, keys, envelopes', img: '/icons3d/page_facing_up.png' },
+            { id: 'Small Box', label: 'Small Box', desc: 'Max 2kg', examples: 'e.g. phones, clothes, books', img: '/icons3d/package.png' },
+            { id: 'Medium Box', label: 'Medium Box', desc: 'Max 5kg', examples: 'e.g. shoes, laptops, toasters', img: '/icons3d/package.png' },
+            { id: 'Large Box', label: 'Large Box', desc: 'Max 15kg', examples: 'e.g. microwaves, desktop pcs', img: '/icons3d/package.png' },
+            { id: 'Jumbo Box', label: 'Jumbo Box', desc: 'Max 30kg', examples: 'e.g. mini-fridges, seating', img: '/icons3d/package.png' },
+            { id: 'Custom Dimensions', label: 'Custom', desc: 'Custom', examples: 'enter sizes below', img: '/icons3d/triangular_ruler.png' }
         ],
         'B': [
-            { id: 'TVs', label: 'TVs (All Sizes)', desc: 'Secure transit' },
-            { id: 'Fridges & Freezers', label: 'Fridges & Freezers', desc: 'Upright handling' },
-            { id: 'Washing Machines', label: 'Washing Machines', desc: 'Heavy appliances' },
-            { id: 'Sofas & Seats', label: 'Sofas & Seats', desc: 'Furniture delivery' },
-            { id: 'Beds & Mattresses', label: 'Beds & Mattresses', desc: 'Bedroom furniture' },
-            { id: 'Hardware', label: 'Hardware/Construction', desc: 'Raw materials' },
-            { id: 'Agricultural Sacks', label: '90kg Ag Sacks', desc: 'Cereals & Produce' }
-        ],
-        'C': [
-            { id: 'Cargo Tuk-Tuk', label: 'Cargo Tuk-Tuk', desc: 'Max 500kg' },
-            { id: 'Station Wagon', label: 'Station Wagon', desc: 'Max 500kg' },
-            { id: '1-Ton Pick-up', label: '1-Ton Pick-up', desc: 'Farm & Hardware' },
-            { id: '3-Ton Canter', label: '3-Ton Canter', desc: 'Mid-size loads' },
-            { id: '10-Ton Lorry', label: '10-Ton Lorry', desc: 'Heavy freight' }
+            { id: 'TVs', label: 'TVs (All Sizes)', desc: 'Secure transit', img: '/icons3d/television.png' },
+            { id: 'Fridges & Freezers', label: 'Fridges & Freezers', desc: 'Upright handling', img: '/icons3d/ice.png' },
+            { id: 'Washing Machines', label: 'Washing Machines', desc: 'Heavy appliances', img: '/icons3d/gear.png' },
+            { id: 'Sofas & Seats', label: 'Sofas & Seats', desc: 'Furniture delivery', img: '/icons3d/couch_and_lamp.png' },
+            { id: 'Beds & Mattresses', label: 'Beds & Mattresses', desc: 'Bedroom furniture', img: '/icons3d/bed.png' },
+            { id: 'Hardware', label: 'Hardware/Construction', desc: 'Raw materials', img: '/icons3d/hammer.png' },
+            { id: 'Agricultural Sacks', label: '90kg Ag Sacks', desc: 'Cereals & Produce', img: '/icons3d/sheaf_of_rice.png' },
+            { id: 'LPG & Gas', label: 'LPG / Gas (Bulk)', desc: 'Tanker transport', img: '/icons3d/fuel_pump.png' },
+            { id: 'Petroleum & Oil', label: 'Petroleum / Oil', desc: 'Liquid bulk', img: '/icons3d/oil_drum.png' },
+            { id: 'Loose Aggregate', label: 'Loose Aggregate', desc: 'Sand, gravel, ballast', img: '/icons3d/rock.png' }
         ]
     };
 
@@ -786,7 +775,7 @@ const Step2What = ({ data, update, next, prev }: any) => {
     return (
         <div className="space-y-4">
             {/* Filter Tabs */}
-            <div className="grid grid-cols-3 gap-1 pb-2 pt-2 px-0 text-center w-full">
+            <div className="grid grid-cols-2 gap-1 pb-2 pt-2 px-0 text-center w-full">
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
@@ -824,7 +813,7 @@ const Step2What = ({ data, update, next, prev }: any) => {
                                         : 'border-gray-200 bg-white hover:border-brand-200 hover:bg-gray-50'
                                         } ${isA ? 'min-h-[85px] justify-start gap-1' : ''}`}
                                 >
-                                    {isA && item.icon && <item.icon className={`w-5 h-5 ${isSelected ? 'text-brand-600' : 'text-gray-400'}`} />}
+                                    <img src={item.img} alt={item.label} className="w-5 h-5 object-contain" />
 
                                     <div className="w-full">
                                         <div className={`text-[13px] font-bold ${isA ? 'pr-12' : ''} ${isSelected ? 'text-brand-900' : 'text-gray-900'}`}>{item.label}</div>
@@ -876,27 +865,19 @@ const Step2What = ({ data, update, next, prev }: any) => {
             <div className="flex gap-2 pt-2">
                 <button onClick={prev} className="w-12 bg-gray-100 text-gray-700 rounded-xl flex items-center justify-center hover:bg-gray-200"><ArrowLeft size={16} /></button>
                 <button
-                    onClick={() => {
-                        if (data.category === 'C' && data.subCategory) {
-                            // Dedicated: auto-set vehicle from subcategory and skip Step 3
-                            const vehicleId = DEDICATED_VEHICLE_MAP[data.subCategory] || 'pickup';
-                            update({ vehicle: vehicleId, serviceType: 'Express' as ServiceType });
-                            next(3); // Skip step 2 (vehicle selection), go directly to step 3 (receiver details)
-                        } else {
-                            next();
-                        }
-                    }}
+                    onClick={() => next()}
                     disabled={!data.subCategory}
                     className="flex-1 py-3 bg-brand-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all"
                 >
-                    {data.category === 'C' ? 'Next: Receiver Details' : 'Next: Select Vehicle'} <ArrowRight size={16} />
+                    Next: Service &amp; Vehicle <ArrowRight size={16} />
                 </button>
             </div>
         </div>
     );
 }
 
-const Step3How = ({ data, update, next, prev, isDedicated }: any) => {
+const Step3How = ({ data, update, next, prev }: any) => {
+    const isStandard = data.serviceType === 'Standard';
     const weightVal = parseFloat(data.dimensions.weight) || 0;
 
     const eligibleVehicles = VEHICLES.filter(v => {
@@ -912,56 +893,74 @@ const Step3How = ({ data, update, next, prev, isDedicated }: any) => {
     const finalPrice = Math.round(finalPriceRaw / 10) * 10;
 
     useEffect(() => {
-        if (eligibleVehicles.length > 0 && !eligibleVehicles.find(v => v.id === data.vehicle)) {
+        if (!isStandard && eligibleVehicles.length > 0 && !eligibleVehicles.find(v => v.id === data.vehicle)) {
             update({ vehicle: eligibleVehicles[0].id });
         }
-    }, [eligibleVehicles, data.vehicle, update]);
+    }, [isStandard, eligibleVehicles, data.vehicle, update]);
 
     return (
         <div className="space-y-4">
-            <div className="flex gap-1 bg-gray-100/80 p-1 rounded-xl">
+            {/* Service Type Toggle */}
+            <div className="grid grid-cols-2 gap-2 px-0.5 pt-1">
                 {[
-                    { id: 'Express', icon: Zap, label: 'Express', color: 'text-orange-500', bg: 'bg-orange-50' },
-                    { id: 'Standard', icon: Clock, label: 'Standard', color: 'text-brand-500', bg: 'bg-brand-50' }
-                ].map(type => {
-                    const active = data.serviceType === type.id;
-                    return (
-                        <button
-                            key={type.id} onClick={() => update({ serviceType: type.id as ServiceType })}
-                            className={`flex-1 py-2 text-xs font-bold flex items-center justify-center gap-1.5 rounded-lg transition-all ${active ? `bg-white shadow-sm ring-1 ring-gray-200 text-gray-900` : 'text-gray-500 hover:text-gray-700'}`}
-                        >
-                            <div className={`p-1 rounded-full ${active ? type.bg : 'bg-transparent'}`}>
-                                <type.icon size={14} className={active ? type.color : 'text-gray-400'} />
-                            </div>
-                            {type.label}
-                        </button>
-                    )
-                })}
+                    { id: 'Standard', label: '📦 Standard', desc: 'Consolidated & affordable', accent: 'brand' },
+                    { id: 'Express', label: '⚡ Express', desc: 'Dedicated vehicle, fast', accent: 'orange' }
+                ].map(svc => (
+                    <button
+                        key={svc.id}
+                        onClick={() => update({ serviceType: svc.id, ...(svc.id === 'Standard' ? { vehicle: '' } : {}) })}
+                        className={`text-left p-3 rounded-xl border-2 transition-all ${data.serviceType === svc.id
+                            ? svc.accent === 'orange'
+                                ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-500'
+                                : 'border-brand-500 bg-brand-50 ring-1 ring-brand-500'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                            }`}
+                    >
+                        <div className={`text-sm font-bold ${data.serviceType === svc.id
+                            ? svc.accent === 'orange' ? 'text-orange-700' : 'text-brand-700'
+                            : 'text-gray-700'
+                            }`}>{svc.label}</div>
+                        <div className={`text-[10px] mt-0.5 ${data.serviceType === svc.id
+                            ? svc.accent === 'orange' ? 'text-orange-600' : 'text-brand-600'
+                            : 'text-gray-400'
+                            }`}>{svc.desc}</div>
+                    </button>
+                ))}
             </div>
 
-            <div className="flex gap-2 pb-2 pt-0.5 px-0.5 justify-center w-full max-w-full overflow-x-auto no-scrollbar snap-x">
-                {eligibleVehicles.length === 0 ? (
-                    <div className="w-full p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium border border-red-100">No vehicles support these limits.</div>
-                ) : (
-                    eligibleVehicles.map(v => (
-                        <button
-                            key={v.id} onClick={() => update({ vehicle: v.id })}
-                            className={`flex-shrink-0 w-[85px] snap-center p-2.5 rounded-[1rem] border flex flex-col items-center text-center transition-all duration-200 ${data.vehicle === v.id ? `border-gray-300 ${v.bgLight} shadow-sm ring-1 ring-gray-300 scale-[1.02]` : 'border-gray-200 bg-white hover:border-gray-300 scale-100'}`}
-                        >
-                            <div className={`p-1.5 rounded-full mb-2 ${data.vehicle === v.id ? 'bg-white shadow-sm' : 'bg-gray-50'}`}>
-                                <v.icon size={18} className={data.vehicle === v.id ? v.color : 'text-gray-400'} />
-                            </div>
-                            <div className="font-bold text-[11px] leading-tight text-gray-900 line-clamp-1">{v.label}</div>
-                            <div className="text-[9px] font-medium text-gray-500 mt-0.5">≤ {v.maxWeight}kg</div>
-                        </button>
-                    ))
+            {/* Vehicle Grid - Only for Express */}
+            <AnimatePresence>
+                {!isStandard && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="flex flex-wrap gap-2 pb-2 pt-0.5 px-0.5 justify-center w-full">
+                            {eligibleVehicles.length === 0 ? (
+                                <div className="w-full p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium border border-red-100">No vehicles support these limits.</div>
+                            ) : (
+                                eligibleVehicles.map(v => (
+                                    <button
+                                        key={v.id} onClick={() => update({ vehicle: v.id })}
+                                        className={`flex-shrink-0 w-[85px] p-2.5 rounded-[1rem] border flex flex-col items-center text-center transition-all duration-200 ${data.vehicle === v.id ? `border-gray-300 ${v.bgLight} shadow-sm ring-1 ring-gray-300 scale-[1.02]` : 'border-gray-200 bg-white hover:border-gray-300 scale-100'}`}
+                                    >
+                                        <img src={v.img} alt={v.label} className="w-10 h-10 object-contain mb-0.5" />
+                                        <div className="font-bold text-[11px] leading-tight text-gray-900 line-clamp-1">{v.label}</div>
+                                        <div className="text-[9px] font-medium text-gray-500 mt-0.5">≤ {v.maxWeight >= 1000 ? `${v.maxWeight / 1000}T` : `${v.maxWeight}kg`}</div>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </motion.div>
                 )}
-            </div>
+            </AnimatePresence>
 
             <div className="flex items-center justify-end pt-2">
                 <div className="flex gap-2 w-full">
                     <button onClick={prev} className="px-3 bg-gray-100 text-gray-700 rounded-xl flex items-center justify-center hover:bg-gray-200"><ArrowLeft size={16} /></button>
-                    <button onClick={next} disabled={!data.vehicle} className="flex-1 py-3.5 bg-gray-900 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-gray-900/20 disabled:opacity-50">
+                    <button onClick={next} disabled={!isStandard && !data.vehicle} className="flex-1 py-3.5 bg-gray-900 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-gray-900/20 disabled:opacity-50">
                         Continue to Details <ArrowRight size={16} />
                     </button>
                 </div>
@@ -971,7 +970,7 @@ const Step3How = ({ data, update, next, prev, isDedicated }: any) => {
 };
 
 // --- Step 4: WHO ---
-const Step4Who = ({ data, update, next, prev, isDedicated }: any) => {
+const Step4Who = ({ data, update, next, prev }: any) => {
     const recentReceivers = [
         { name: 'Jane Doe', phone: '0712345678', id: '12345678' },
         { name: 'John Smith', phone: '0722000111', id: '87654321' }
@@ -1012,7 +1011,7 @@ const Step4Who = ({ data, update, next, prev, isDedicated }: any) => {
             </div>
 
             <div className="flex gap-2 pt-1">
-                <button onClick={() => isDedicated ? prev(1) : prev()} className="px-4 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200"><ArrowLeft size={16} /></button>
+                <button onClick={() => prev()} className="px-4 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200"><ArrowLeft size={16} /></button>
                 <button onClick={next} disabled={!data.receiverName || !data.receiverPhone || !data.receiverId} className="flex-1 py-3 bg-gray-900 text-white rounded-xl text-sm font-bold flex flex-center gap-1.5 justify-center disabled:opacity-50">
                     Payment <ArrowRight size={16} />
                 </button>
@@ -1029,15 +1028,19 @@ const Step5Payment = ({ data, update, submit, prev }: any) => (
         <div className="grid grid-cols-2 gap-2 pt-2 pb-1 px-1">
             <button
                 onClick={() => update({ paymentMethod: 'M-Pesa' })}
-                className={`p-3 rounded-xl border flex flex-col items-center justify-center transition-all ${data.paymentMethod === 'M-Pesa' ? 'border-green-500 bg-green-50 text-green-700 ring-1 ring-green-500 scale-[1.02]' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
+                className={`p-0 rounded-xl border overflow-hidden relative flex flex-col items-center justify-center transition-all min-h-[5rem] ${data.paymentMethod === 'M-Pesa' ? 'border-green-500 bg-green-50/50 ring-1 ring-green-500 scale-[1.02] shadow-sm' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
             >
-                <div className="flex items-center justify-center h-full w-full py-2">
-                    <img src={mpesaLogo} alt="M-Pesa" className={`h-10 w-auto object-contain scale-110 ${data.paymentMethod === 'M-Pesa' ? '' : 'grayscale opacity-60'}`} />
+                <div className="absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden rounded-xl p-1">
+                    <img
+                        src={mpesaLogo}
+                        alt="M-Pesa"
+                        className={`w-full h-full object-contain mix-blend-multiply ${data.paymentMethod === 'M-Pesa' ? '' : 'grayscale opacity-60 hover:opacity-80'}`}
+                    />
                 </div>
             </button>
             <button
                 onClick={() => update({ paymentMethod: 'Cash' })}
-                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${data.paymentMethod === 'Cash' ? 'border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-500 scale-[1.02]' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
+                className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all min-h-[5rem] ${data.paymentMethod === 'Cash' ? 'border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-500 scale-[1.02] shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
             >
                 <Banknote size={24} className={data.paymentMethod === 'Cash' ? 'text-brand-600' : ''} />
                 <span className="font-bold text-sm">Cash on Delivery</span>

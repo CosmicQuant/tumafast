@@ -12,7 +12,7 @@ import { mapService } from '../services/mapService';
 import { useAuth } from '../context/AuthContext';
 import { usePrompt } from '../context/PromptContext';
 import { orderService } from '../services/orderService';
-import { ServiceType, VehicleType } from '../types';
+import { ServiceType } from '../types';
 import { Capacitor } from '@capacitor/core';
 
 interface HeroProps {
@@ -210,19 +210,44 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
       }
    };
 
-   const handleVehicleSelect = (vehicleType: VehicleType) => {
+   const handleUseCaseSelect = async (category: string, vehicle?: string, serviceType?: string) => {
       if (checkDriverRole()) return;
+      setIsAnalyzing(true);
 
-      const prefill = {
-         vehicle: vehicleType,
-         itemDescription: vehicleType === VehicleType.BODA ? "Boda Boda Delivery" :
-            vehicleType === VehicleType.TUKTUK ? "Tuktuk Small Load" : "Vehicle Delivery"
-      };
+      try {
+         const coords = await requestUserLocation();
+         let pickupAddress = '';
+         let pickupCoordsData: { lat: number, lng: number } | null = null;
+         if (coords) {
+            pickupCoordsData = coords;
+            const address = await mapService.reverseGeocode(coords.lat, coords.lng);
+            if (address) pickupAddress = address;
+         }
 
-      if (onStartBooking) {
-         onStartBooking(prefill);
-      } else {
-         navigate('/book', { state: { prefill } });
+         const prefill: any = {
+            pickup: pickupAddress,
+            pickupCoords: pickupCoordsData,
+            activeTab: 'dropoff',
+            category,
+            ...(vehicle && { vehicle }),
+            ...(serviceType && { serviceType })
+         };
+
+         setIsAnalyzing(false);
+         if (onStartBooking) {
+            onStartBooking(prefill);
+         } else {
+            navigate('/book', { state: { prefill } });
+         }
+      } catch (e) {
+         console.error('Use case select error:', e);
+         setIsAnalyzing(false);
+         const prefill = { activeTab: 'dropoff', category };
+         if (onStartBooking) {
+            onStartBooking(prefill);
+         } else {
+            navigate('/book', { state: { prefill } });
+         }
       }
    };
 
@@ -349,7 +374,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
             </div>
 
             {/* Content */}
-            <div className="relative z-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-16 sm:pt-24 pb-8 pointer-events-auto">
+            <div className="relative z-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-10 sm:pt-14 pb-6 pointer-events-auto">
 
                {/* Badge */}
                <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-brand-200 shadow-sm text-brand-700 text-[10px] sm:text-xs font-black tracking-widest uppercase mb-3">
@@ -366,12 +391,12 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-green-500">Fast & Reliable.</span>
                </h1>
 
-               <p className="max-w-xl mx-auto text-sm sm:text-base text-slate-600 font-medium leading-relaxed mb-5 sm:mb-7">
+               <p className="max-w-xl mx-auto text-sm sm:text-base text-slate-600 font-medium leading-relaxed mb-3 sm:mb-4">
                   From door-to-door Boda Boda errands to 40ft container trailers. Connect with verified drivers and enterprise-grade solutions in seconds using Kenya's smartest logistics platform.
                </p>
 
                {/* Dual Engine Gateway (Refactored to 2 Rows) */}
-               <div className="max-w-4xl mx-auto mb-5 text-left space-y-3">
+               <div className="max-w-4xl mx-auto mb-4 text-left space-y-2">
                   {/* Top Row: Services (Switch based on Auth) */}
                   {user && user.role === 'business' ? (
                      /* LOGGED IN VIEW: Business (3 Cards) */
@@ -442,40 +467,69 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                   ) : user && user.role !== 'driver' ? (
                      /* LOGGED IN VIEW: Customer (2 Rows: Service Types + Vehicles) */
                      <>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4">
                            {/* Express */}
-                           <div onClick={() => onStartBooking?.({ serviceType: ServiceType.EXPRESS })} className="bg-brand-600 p-3 rounded-[1.5rem] shadow-xl border border-brand-500 flex flex-col justify-between h-28 cursor-pointer hover:bg-brand-700 hover:-translate-y-1 transition-all group">
-                              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-white backdrop-blur-sm group-hover:bg-white/30 transition-colors">
-                                 <Rocket className="w-4 h-4" />
+                           <div onClick={() => onStartBooking?.({ serviceType: ServiceType.EXPRESS })} className="relative bg-gradient-to-br from-brand-500 to-brand-700 p-3 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-xl border border-brand-400/50 overflow-hidden cursor-pointer hover:shadow-brand-500/40 hover:-translate-y-1 transition-all group min-h-[7.5rem] sm:min-h-[9rem] flex flex-col justify-between">
+                              {/* Background Pattern / Glow */}
+                              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent opacity-50"></div>
+
+                              <div className="relative z-10">
+                                 <span className="inline-flex items-center px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-[8px] sm:text-[9px] text-white font-bold tracking-widest uppercase mb-1.5 sm:mb-2 border border-white/10">
+                                    <Zap className="w-2.5 h-2.5 mr-1" /> Dedicated Vehicle
+                                 </span>
+                                 <h3 className="text-lg sm:text-xl font-black text-white leading-tight drop-shadow-md">Express<br />Delivery</h3>
                               </div>
-                              <div>
-                                 <h3 className="text-xs sm:text-sm font-black text-white leading-tight mb-1">Express<br />Delivery</h3>
-                                 <p className="text-[8px] sm:text-[9px] text-brand-100 font-bold uppercase tracking-tight leading-tight">Instant Pickup & Delivery</p>
+
+                              <div className="relative z-10 flex justify-between items-end mt-2">
+                                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white transition-colors duration-300">
+                                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white group-hover:text-brand-600 transition-colors duration-300" />
+                                 </div>
+                              </div>
+
+                              {/* 3D Icon - Right Aligned and Larger */}
+                              <div className="absolute bottom-[-5%] right-[-5%] transform group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500 origin-bottom-right">
+                                 <img src="/icons3d/rocket.png" alt="Express" className="w-20 h-20 sm:w-28 sm:h-28 object-contain drop-shadow-2xl opacity-90 group-hover:opacity-100" />
                               </div>
                            </div>
+
                            {/* Standard */}
-                           <div onClick={() => onStartBooking?.({ serviceType: ServiceType.STANDARD })} className="bg-blue-600 p-3 rounded-[1.5rem] shadow-xl border border-blue-500 flex flex-col justify-between h-28 cursor-pointer hover:bg-blue-700 hover:-translate-y-1 transition-all group">
-                              <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center text-white backdrop-blur-sm group-hover:bg-white/30 transition-colors">
-                                 <Package className="w-4 h-4" />
+                           <div onClick={() => onStartBooking?.({ serviceType: ServiceType.STANDARD })} className="relative bg-gradient-to-br from-blue-500 to-blue-700 p-3 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-xl border border-blue-400/50 overflow-hidden cursor-pointer hover:shadow-blue-500/40 hover:-translate-y-1 transition-all group min-h-[7.5rem] sm:min-h-[9rem] flex flex-col justify-between">
+                              {/* Background Pattern / Glow */}
+                              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent opacity-50"></div>
+
+                              <div className="relative z-10">
+                                 <span className="inline-flex items-center px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-[8px] sm:text-[9px] text-white font-bold tracking-widest uppercase mb-1.5 sm:mb-2 border border-white/10">
+                                    <Package className="w-2.5 h-2.5 mr-1" /> Consolidated
+                                 </span>
+                                 <h3 className="text-lg sm:text-xl font-black text-white leading-tight drop-shadow-md">Standard<br />Parcel</h3>
                               </div>
-                              <div>
-                                 <h3 className="text-xs sm:text-sm font-black text-white leading-tight mb-1">Standard<br />Parcel</h3>
-                                 <p className="text-[8px] sm:text-[9px] text-blue-100 font-bold uppercase tracking-tight leading-tight">Same Day Delivery</p>
+
+                              <div className="relative z-10 flex justify-between items-end mt-2">
+                                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white transition-colors duration-300">
+                                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white group-hover:text-blue-600 transition-colors duration-300" />
+                                 </div>
+                              </div>
+
+                              {/* 3D Icon - Right Aligned and Larger */}
+                              <div className="absolute bottom-[-5%] right-[-5%] transform group-hover:scale-110 group-hover:translate-x-2 transition-transform duration-500 origin-bottom-right">
+                                 <img src="/icons3d/package.png" alt="Standard" className="w-20 h-20 sm:w-28 sm:h-28 object-contain drop-shadow-2xl opacity-90 group-hover:opacity-100" />
                               </div>
                            </div>
                         </div>
 
-                        {/* Bottom Row: Vehicles (4 Cols) - ONLY WHEN LOGGED IN */}
-                        <div className="grid grid-cols-4 gap-3">
+                        {/* Bottom Row: Use-Case Shortcuts (4 Cols) */}
+                        <div className="grid grid-cols-4 gap-2 sm:gap-3 mt-2 sm:mt-3">
                            {[
-                              { icon: Bike, label: 'Boda', type: VehicleType.BODA, color: 'text-orange-500' },
-                              { icon: Truck, label: 'Pickup', type: VehicleType.PICKUP, color: 'text-blue-500' },
-                              { icon: Truck, label: 'Truck', type: VehicleType.LORRY, color: 'text-green-600' },
-                              { icon: Box, label: 'Trailer', type: VehicleType.TRAILER, color: 'text-indigo-600' }
+                              { img: '/icons3d/motorcycle.png', label: 'Quick Errand', category: 'A', vehicle: 'boda', serviceType: 'Express' },
+                              { img: '/icons3d/package.png', label: 'Send Package', category: 'A', serviceType: 'Standard' },
+                              { img: '/icons3d/building_construction.png', label: 'Heavy / Bulky', category: 'B', serviceType: 'Express' },
+                              { img: '/icons3d/articulated_lorry.png', label: 'Dedicated', category: 'B', serviceType: 'Express' }
                            ].map((v) => (
-                              <div key={v.label} onClick={() => handleVehicleSelect(v.type)} className="bg-white p-3 rounded-[1.2rem] shadow-md border border-slate-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:border-brand-300 hover:shadow-lg hover:-translate-y-1 transition-all h-24 group">
-                                 <v.icon className={`w-6 h-6 ${v.color} transition-colors`} />
-                                 <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-none text-center">{v.label}</span>
+                              <div key={v.label} onClick={() => handleUseCaseSelect(v.category, v.vehicle, v.serviceType)} className="bg-slate-50/50 hover:bg-white p-2 sm:p-3 rounded-xl sm:rounded-[1.2rem] shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:border-brand-200 hover:shadow-lg hover:-translate-y-1 transition-all h-20 sm:h-24 group">
+                                 <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-full shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                    <img src={v.img} alt={v.label} className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow-sm" />
+                                 </div>
+                                 <span className="text-[7px] sm:text-[8px] font-black text-slate-600 uppercase tracking-widest leading-tight text-center">{v.label}</span>
                               </div>
                            ))}
                         </div>
@@ -484,9 +538,9 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                      /* LOGGED OUT VIEW: Detailed Cards, Single Row */
                      <div className="grid grid-cols-3 gap-2 sm:gap-4">
                         {/* 1. Send Anything */}
-                        <div onClick={handleSendAnything} className="relative bg-white p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-slate-100 flex flex-col justify-between h-38 sm:h-42 cursor-pointer hover:border-brand-300 hover:-translate-y-1 transition-all group overflow-hidden">
+                        <div onClick={handleSendAnything} className="relative bg-white p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-slate-100 flex flex-col justify-between h-32 sm:h-36 cursor-pointer hover:border-brand-300 hover:-translate-y-1 transition-all group overflow-hidden">
                            <div className="absolute top-0 left-0 p-2 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                              <Package className="w-12 h-12 sm:w-16 sm:h-16 text-brand-600" />
+                              <Package className="w-10 h-10 sm:w-14 sm:h-14 text-brand-600" />
                            </div>
 
                            {/* Tag Top Right */}
@@ -496,18 +550,18 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
 
                            <div className="relative z-10 text-left">
                               <h3 className="text-xs sm:text-lg font-black text-slate-900 leading-tight mb-1">Send<br />Anything</h3>
-                              <p className="text-[7px] sm:text-[11px] text-slate-500 font-medium leading-tight max-w-[90%] block">Instant on-demand consumer deliveries.</p>
+                              <p className="text-[7px] sm:text-[10px] text-slate-500 font-medium leading-tight max-w-[90%] block">Instant on-demand deliveries.</p>
                            </div>
 
-                           <div className="relative z-10 pt-1 sm:pt-3 flex items-center text-brand-600 font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
+                           <div className="relative z-10 pt-1 sm:pt-2 flex items-center text-brand-600 font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
                               Book Delivery <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
                            </div>
                         </div>
 
                         {/* 2. Enterprise Solutions */}
-                        <div onClick={handleBusinessClick} className="relative bg-slate-900 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-slate-700 flex flex-col justify-between h-38 sm:h-42 cursor-pointer hover:ring-2 hover:ring-slate-700 hover:-translate-y-1 transition-all group overflow-hidden">
+                        <div onClick={handleBusinessClick} className="relative bg-slate-900 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-slate-700 flex flex-col justify-between h-32 sm:h-36 cursor-pointer hover:ring-2 hover:ring-slate-700 hover:-translate-y-1 transition-all group overflow-hidden">
                            <div className="absolute top-0 left-0 p-2 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                              <Briefcase className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
+                              <Briefcase className="w-10 h-10 sm:w-14 sm:h-14 text-white" />
                            </div>
 
                            {/* Tag Top Right */}
@@ -517,18 +571,18 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
 
                            <div className="relative z-10 text-left">
                               <h3 className="text-xs sm:text-lg font-black text-white leading-tight mb-1">Enterprise<br />Solutions</h3>
-                              <p className="text-[7px] sm:text-[11px] text-slate-400 font-medium leading-tight max-w-[90%] block">Scalable logistics for high-volume business.</p>
+                              <p className="text-[7px] sm:text-[10px] text-slate-400 font-medium leading-tight max-w-[90%] block">Scalable logistics for business.</p>
                            </div>
 
-                           <div className="relative z-10 pt-1 sm:pt-3 flex items-center text-white font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
-                              FullFill at Scale <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
+                           <div className="relative z-10 pt-1 sm:pt-2 flex items-center text-white font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
+                              FullFill <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
                            </div>
                         </div>
 
                         {/* 3. Deliver With Us */}
-                        <div onClick={() => onDriverClick ? onDriverClick() : navigate('/driver')} className="relative bg-brand-600 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-brand-500 flex flex-col justify-between h-38 sm:h-42 cursor-pointer hover:bg-brand-700 hover:-translate-y-1 transition-all group overflow-hidden">
+                        <div onClick={() => onDriverClick ? onDriverClick() : navigate('/driver')} className="relative bg-brand-600 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-brand-500 flex flex-col justify-between h-32 sm:h-36 cursor-pointer hover:bg-brand-700 hover:-translate-y-1 transition-all group overflow-hidden">
                            <div className="absolute top-0 left-0 p-2 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                              <Users className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
+                              <Users className="w-10 h-10 sm:w-14 sm:h-14 text-white" />
                            </div>
 
                            {/* Tag Top Right */}
@@ -538,10 +592,10 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
 
                            <div className="relative z-10 text-left">
                               <h3 className="text-xs sm:text-lg font-black text-white leading-tight mb-1">Deliver<br />With Us</h3>
-                              <p className="text-[7px] sm:text-[11px] text-brand-100 font-medium leading-tight max-w-[90%] block">Turn your miles into money on your schedule.</p>
+                              <p className="text-[7px] sm:text-[10px] text-brand-100 font-medium leading-tight max-w-[90%] block">Turn miles into money.</p>
                            </div>
 
-                           <div className="relative z-10 pt-1 sm:pt-3 flex items-center text-white font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
+                           <div className="relative z-10 pt-1 sm:pt-2 flex items-center text-white font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
                               Start Earning <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
                            </div>
                         </div>
@@ -550,17 +604,17 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                </div>
 
                {/* Dropoff Location Picker */}
-               <div className="max-w-2xl mx-auto w-full pt-1 mb-4" ref={suggestionsRef}>
+               <div className="max-w-2xl mx-auto w-full pt-1 mb-3" ref={suggestionsRef}>
                   <form onSubmit={handleQuickSubmit} className="relative group">
                      <div className="absolute -inset-1 bg-gradient-to-r from-brand-400 to-green-300 rounded-2xl blur opacity-10 group-hover:opacity-20 transition duration-1000"></div>
 
-                     <div className="relative bg-white rounded-2xl shadow-xl p-1.5 flex items-center gap-2 border border-gray-100 focus-within:ring-2 focus-within:ring-brand-500/30 transition-all duration-300">
-                        <div className="pl-3 self-center">
+                     <div className="relative bg-white rounded-2xl shadow-xl p-1 flex items-center gap-2 border border-gray-100 focus-within:ring-2 focus-within:ring-brand-500/30 transition-all duration-300">
+                        <div className="pl-4 self-center">
                            <MapPin className="w-5 h-5 text-brand-500" />
                         </div>
                         <input
                            type="text"
-                           className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 text-gray-900 placeholder-slate-400 text-sm sm:text-lg font-medium py-3 sm:py-4"
+                           className="flex-1 min-w-0 bg-transparent border-none focus:ring-0 text-gray-900 placeholder-slate-400 text-sm sm:text-lg font-medium py-2.5 sm:py-3"
                            placeholder="Where are you sending to?"
                            value={quickInput}
                            onChange={handleInputChange}
@@ -568,7 +622,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                            autoComplete="off"
                         />
                         {isAnalyzing && (
-                           <div className="pr-3">
+                           <div className="pr-4">
                               <div className="w-5 h-5 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin" />
                            </div>
                         )}

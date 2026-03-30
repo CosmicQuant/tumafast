@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Container truck - cab + shipping container on flatbed -->
+  <defs>
+    <linearGradient id="cont" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="ccab" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e5e7eb"/>
+      <stop offset="100%" stop-color="#9ca3af"/>
+    </linearGradient>
+  </defs>
+  <!-- Chassis -->
+  <rect x="6" y="82" width="116" height="7" rx="3" fill="#374151"/>
+  <!-- Rear wheels (dual) -->
+  <circle cx="22" cy="96" r="11" fill="#1f2937"/>
+  <circle cx="22" cy="96" r="5" fill="#6b7280"/>
+  <circle cx="42" cy="96" r="11" fill="#1f2937"/>
+  <circle cx="42" cy="96" r="5" fill="#6b7280"/>
+  <!-- Front wheels -->
+  <circle cx="104" cy="96" r="11" fill="#1f2937"/>
+  <circle cx="104" cy="96" r="5" fill="#6b7280"/>
+  <!-- Shipping container -->
+  <rect x="6" y="36" width="74" height="46" rx="3" fill="url(#cont)" stroke="#1e40af" stroke-width="2"/>
+  <!-- Container corrugation lines -->
+  <line x1="16" y1="36" x2="16" y2="82" stroke="#2563eb" stroke-width="1.5" opacity="0.4"/>
+  <line x1="26" y1="36" x2="26" y2="82" stroke="#2563eb" stroke-width="1.5" opacity="0.4"/>
+  <line x1="36" y1="36" x2="36" y2="82" stroke="#2563eb" stroke-width="1.5" opacity="0.4"/>
+  <line x1="46" y1="36" x2="46" y2="82" stroke="#2563eb" stroke-width="1.5" opacity="0.4"/>
+  <line x1="56" y1="36" x2="56" y2="82" stroke="#2563eb" stroke-width="1.5" opacity="0.4"/>
+  <line x1="66" y1="36" x2="66" y2="82" stroke="#2563eb" stroke-width="1.5" opacity="0.4"/>
+  <!-- Container door handles -->
+  <rect x="72" y="50" width="3" height="18" rx="1" fill="#1e3a5f"/>
+  <rect x="76" y="50" width="3" height="18" rx="1" fill="#1e3a5f"/>
+  <!-- Cab -->
+  <rect x="82" y="44" width="38" height="38" rx="6" fill="url(#ccab)" stroke="#6b7280" stroke-width="2"/>
+  <!-- Cab window -->
+  <rect x="88" y="48" width="26" height="16" rx="3" fill="#bfdbfe" stroke="#93c5fd" stroke-width="1"/>
+  <!-- Headlight -->
+  <rect x="118" y="68" width="5" height="6" rx="2" fill="#fef08a"/>
+  <!-- Cab-container connector -->
+  <rect x="80" y="60" width="4" height="22" rx="1" fill="#4b5563"/>
+</svg>

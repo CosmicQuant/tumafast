@@ -201,7 +201,7 @@ const MapLayer: React.FC<MapLayerProps> = ({ driverLabel }) => {
                         return;
                     }
                     map.setZoom(currentZoom);
-                }, 50);
+                }, 120);
             }
             resetBoundsTrigger();
         }
@@ -242,6 +242,7 @@ const MapLayer: React.FC<MapLayerProps> = ({ driverLabel }) => {
                 onDragEnd={() => setIsPanning(false)}
                 options={{
                     disableDefaultUI: true,
+                    backgroundColor: '#e8f4e8',
                     // Show points of interest labels by default to help with navigation
                     styles: []
                 }}
