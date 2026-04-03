@@ -18,6 +18,7 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Geolocation } from '@capacitor/geolocation';
+import MapLayer from './components/MapLayer';
 
 // Lazy-loaded components for performance
 const Hero = lazy(() => import('./components/Hero'));
@@ -275,7 +276,15 @@ const App = () => {
             onProfile={() => { setIsMenuOpen(false); setShowProfile(true); }}
           />
 
-          <main className="flex-grow flex flex-col relative pb-16 md:pb-0">
+          {/* Global Map Layer (Singleton) for caching and preloading */}
+          <div 
+            className={`fixed inset-0 transition-opacity duration-300 z-0 ${isMapPage || location.pathname.startsWith('/driver') ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
+            aria-hidden={!isMapPage && !location.pathname.startsWith('/driver')}
+          >
+            <MapLayer />
+          </div>
+
+          <main className="flex-grow flex flex-col relative pb-16 md:pb-0 z-10">
             <Suspense fallback={<SkeletonFallback />}>
               <Routes>
                 {/* Temporary Test Route */}

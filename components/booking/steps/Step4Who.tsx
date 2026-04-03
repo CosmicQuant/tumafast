@@ -1,30 +1,45 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useBooking } from '../BookingContext';
+import { useAuth } from '../../../context/AuthContext';
+import { useUserOrders } from '../../../hooks/useOrders';
 
 export const Step4Who = () => {
     const { data, updateData, nextStep, prevStep } = useBooking();
+    const { user } = useAuth();
+    const { data: orders } = useUserOrders(user?.id);
 
-    const recentReceivers = [
-        { name: 'Jane Doe', phone: '0712345678', id: '12345678' },
-        { name: 'John Smith', phone: '0722000111', id: '87654321' }
-    ];
+    const recentReceivers = useMemo(() => {
+        if (!orders) return [];
+        const unique = new Map();
+        orders.forEach((o: any) => {
+            if (o.recipient && o.recipient.name && o.recipient.phone) {
+                // Ignore the default "Customer" sender if it appears here
+                if (o.recipient.name !== 'Customer') {
+                    unique.set(o.recipient.phone, o.recipient);
+                }
+            }
+        });
+        return Array.from(unique.values()).slice(0, 5);
+    }, [orders]);
 
     return (
         <div className="space-y-3">
-            <div className="mb-2">
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-1 snap-x">
-                    {recentReceivers.map((r, i) => (
-                        <button
-                            key={i}
-                            onClick={() => updateData({ receiverName: r.name, receiverPhone: r.phone, receiverId: r.id })}
-                            className="flex-shrink-0 snap-start bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 hover:border-brand-500 hover:text-brand-600 transition-colors shadow-sm"
-                        >
-                            {r.name}
-                        </button>
-                    ))}
+            {recentReceivers.length > 0 && (
+                <div className="mb-2">
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 px-1 snap-x">
+                        {recentReceivers.map((r, i) => (
+                            <button
+                                key={i}
+                                onClick={() => updateData({ receiverName: r.name, receiverPhone: r.phone, receiverId: r.id || '' })}
+                                className="flex-shrink-0 snap-start bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 hover:border-brand-500 hover:text-brand-600 transition-colors shadow-sm"
+                            >
+                                {r.name}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             <div className="space-y-2">
                 <input
@@ -53,3 +68,4 @@ export const Step4Who = () => {
         </div>
     );
 };
+

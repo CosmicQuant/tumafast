@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Banknote, Check, ReceiptText, Shield, Truck, MapPin } from 'lucide-react';
+import { Banknote, Check, ReceiptText, Shield, Truck, MapPin, ArrowLeft } from 'lucide-react';
 import { useBooking } from '../BookingContext';
 import mpesaLogo from '../../../assets/mpesa.png';
 
@@ -12,27 +12,26 @@ export const Step5Payment: React.FC<Step5Props> = ({ submit }) => {
     const { data, updateData, prevStep } = useBooking();
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             {/* Booking Summary Card (The Receipt) */}
-            <div className="bg-slate-900 rounded-[1.5rem] p-5 text-white shadow-xl relative overflow-hidden">
+            <div className="bg-slate-900 rounded-[1.25rem] p-4 text-white shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/10 rounded-full -mr-16 -mt-16 blur-2xl" />
                 
-                <div className="flex justify-between items-start mb-4 relative z-10">
+                <div className="flex justify-between items-start mb-2 relative z-10">
                     <div>
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Order Summary</h4>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1.5 mt-0.5">
                             <Truck size={14} className="text-brand-400" />
-                            <span className="text-sm font-bold">{data.vehicle || 'Standard'} • {data.serviceType}</span>
+                            <span className="text-sm font-bold">{data.vehicle || 'Standard'} <span className="text-slate-400 text-[10px] font-normal ml-0.5">({data.serviceType})</span></span>
                         </div>
                     </div>
                     <div className="text-right">
-                        <span className="text-2xl font-black text-white">
+                        <span className="text-xl font-black text-white">
                             KES {(data.price || 0).toLocaleString()}
                         </span>
                     </div>
                 </div>
 
-                <div className="space-y-2 border-t border-slate-800 pt-4 relative z-10">
+                <div className="space-y-1.5 border-t border-slate-800 pt-2.5 relative z-10">
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                         <p className="text-[11px] font-medium text-slate-300 truncate">{data.pickup}</p>
@@ -44,44 +43,46 @@ export const Step5Payment: React.FC<Step5Props> = ({ submit }) => {
                 </div>
 
                 {/* Badges */}
-                <div className="flex flex-wrap gap-2 mt-4 relative z-10">
-                    {data.isReturnTrip && (
-                        <div className="px-2 py-1 rounded-md bg-brand-500/20 text-brand-400 text-[9px] font-black uppercase border border-brand-500/30">
-                            Return Leg Included
-                        </div>
-                    )}
-                    {data.helpersCount > 0 && (
-                        <div className="px-2 py-1 rounded-md bg-blue-500/20 text-blue-400 text-[9px] font-black uppercase border border-blue-500/30">
-                            {data.helpersCount} Loaders
-                        </div>
-                    )}
-                    {data.isFragile && (
-                        <div className="px-2 py-1 rounded-md bg-amber-500/20 text-amber-400 text-[9px] font-black uppercase border border-amber-500/30">
-                            Fragile Item
-                        </div>
-                    )}
-                </div>
+                { (data.isReturnTrip || data.helpersCount > 0 || data.isFragile) && (
+                    <div className="flex flex-wrap gap-1.5 mt-2.5 relative z-10">
+                        {data.isReturnTrip && (
+                            <div className="px-2 py-[2px] rounded border border-brand-500/30 bg-brand-500/10 text-brand-400 text-[9px] font-black uppercase">
+                                Return Leg
+                            </div>
+                        )}
+                        {data.helpersCount > 0 && (
+                            <div className="px-2 py-[2px] rounded border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase">
+                                {data.helpersCount} Loaders
+                            </div>
+                        )}
+                        {data.isFragile && (
+                            <div className="px-2 py-[2px] rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[9px] font-black uppercase">
+                                Fragile
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-2 gap-2 pt-1 pb-1 px-1">
                 <button
                     onClick={() => updateData({ paymentMethod: 'M-Pesa' })}
-                    className={`p-0 rounded-xl border overflow-hidden relative flex flex-col items-center justify-center transition-all min-h-[5rem] ${data.paymentMethod === 'M-Pesa' ? 'border-green-500 bg-green-50/50 ring-1 ring-green-500 scale-[1.02] shadow-sm' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+                    className={`p-0 rounded-xl border overflow-hidden relative flex flex-col items-center justify-center transition-all min-h-[4rem] ${data.paymentMethod === 'M-Pesa' ? 'border-green-500 bg-green-50/50 ring-1 ring-green-500 scale-[1.02] shadow-sm' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
                 >
                     <div className="absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden rounded-xl p-1">
                         <img
                             src={mpesaLogo}
                             alt="M-Pesa"
-                            className={`w-full h-full object-contain mix-blend-multiply ${data.paymentMethod === 'M-Pesa' ? '' : 'grayscale opacity-60 hover:opacity-80'}`}
+                            className={`h-10 object-contain mix-blend-multiply ${data.paymentMethod === 'M-Pesa' ? '' : 'grayscale opacity-60 hover:opacity-80'}`}
                         />
                     </div>
                 </button>
                 <button
                     onClick={() => updateData({ paymentMethod: 'Cash' })}
-                    className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all min-h-[5rem] ${data.paymentMethod === 'Cash' ? 'border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-500 scale-[1.02] shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
+                    className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all min-h-[4rem] ${data.paymentMethod === 'Cash' ? 'border-brand-500 bg-brand-50 text-brand-700 ring-1 ring-brand-500 scale-[1.02] shadow-sm' : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'}`}
                 >
-                    <Banknote size={24} className={data.paymentMethod === 'Cash' ? 'text-brand-600' : ''} />
-                    <span className="font-bold text-sm">Cash on Delivery</span>
+                    <Banknote size={20} className={data.paymentMethod === 'Cash' ? 'text-brand-600' : ''} />
+                    <span className="font-bold text-xs">Cash on Delivery</span>
                 </button>
             </div>
 
@@ -99,7 +100,7 @@ export const Step5Payment: React.FC<Step5Props> = ({ submit }) => {
             </AnimatePresence>
 
             <div className="flex gap-2 pt-1">
-                <button onClick={() => prevStep()} className="px-4 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200">Back</button>
+                <button onClick={() => prevStep()} className="w-12 bg-gray-100 text-gray-700 rounded-xl flex items-center justify-center hover:bg-gray-200"><ArrowLeft size={16} /></button>
                 <button onClick={submit} className="flex-1 py-3 bg-brand-600 text-white rounded-xl text-sm font-bold flex items-center gap-1.5 justify-center shadow-lg shadow-brand-600/30 hover:bg-brand-500 transition-colors">
                     Confirm & Pay <Check size={16} />
                 </button>

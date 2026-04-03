@@ -71,6 +71,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
   // Transform order to prefill format for BookingWizard
   const getPrefillData = () => {
     return {
+      id: order.id,
       pickup: order.pickup,
       dropoff: order.dropoff,
       pickupCoords: order.pickupCoords,

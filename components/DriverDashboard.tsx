@@ -5,7 +5,6 @@ import { VehicleType } from '../types';
 import { orderService } from '../services/orderService';
 import { mapService } from '../services/mapService';
 import { storageService } from '../services/storageService';
-import MapLayer from './MapLayer';
 import { MapProvider, useMapState } from '@/context/MapContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';

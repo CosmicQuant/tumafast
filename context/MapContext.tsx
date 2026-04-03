@@ -71,6 +71,9 @@ interface MapContextType {
     allowMarkerClick: boolean;
     setAllowMarkerClick: (allow: boolean) => void;
 
+    driverLabel: string | null;
+    setDriverLabel: (label: string | null) => void;
+
     // Commands
     fitBounds: (markers: Coordinates[]) => void;
 
@@ -96,6 +99,7 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [driverCoords, setDriverCoords] = useState<Coordinates | null>(null);
     const [driverBearing, setDriverBearing] = useState<number>(0);
     const [driverVehicleType, setDriverVehicleType] = useState<string>('Truck');
+    const [driverLabel, setDriverLabel] = useState<string | null>(null);
     const [routePolyline, setRoutePolyline] = useState<any>(null);
     const [nearbyVehicles, setNearbyVehicles] = useState<VehicleMarker[]>([]);
 
@@ -277,7 +281,9 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             allowMarkerClick,
             setAllowMarkerClick,
             waypointCoords,
-            setWaypointCoords
+            setWaypointCoords,
+            driverLabel,
+            setDriverLabel
         }}>
             {children}
         </MapContext.Provider>

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import BookingWizard from './booking/BookingWizardModular';
 import HeroOverlay from './HeroOverlay';
-import MapLayer from './MapLayer';
 import { useAuth } from '../context/AuthContext';
 import { useCreateOrder, useUserOrders } from '../hooks/useOrders';
 import type { DeliveryOrder } from '../types';
@@ -76,10 +75,6 @@ const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData: propPrefi
 
     return (
         <div className="absolute inset-0 flex flex-col pointer-events-none">
-            <div className="absolute inset-0 z-0 pointer-events-auto">
-                <MapLayer />
-            </div>
-
             {/* The form will be the drawer at the bottom */}
             <div className="relative z-10 flex-grow flex flex-col pointer-events-none">
                 <BookingWizard

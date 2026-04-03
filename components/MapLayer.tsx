@@ -79,11 +79,7 @@ const decodePolyline = (encoded: string) => {
     return poly;
 };
 
-interface MapLayerProps {
-    driverLabel?: string;
-}
-
-const MapLayer: React.FC<MapLayerProps> = ({ driverLabel }) => {
+const MapLayer: React.FC = () => {
     const {
         isLoaded,
         pickupCoords,
@@ -110,7 +106,8 @@ const MapLayer: React.FC<MapLayerProps> = ({ driverLabel }) => {
         allowMarkerClick,
         setActiveInput,
         waypointCoords,
-        setWaypointCoords
+        setWaypointCoords,
+        driverLabel
     } = useMapState();
 
     const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -154,54 +151,21 @@ const MapLayer: React.FC<MapLayerProps> = ({ driverLabel }) => {
             if (boundsToFit.length === 1) {
                 // Single point: smooth zoom in (e.g. pickup selected, or all dropoffs removed)
                 const target = boundsToFit[0];
+                const targetZoom = 18;
+                
+                // Pan first, then let the native camera ease into the zoom
                 map.panTo(target);
-                let currentZoom = map.getZoom() || 13;
-                const targetZoom = 17;
-                if (currentZoom < targetZoom) {
-                    const step = setInterval(() => {
-                        currentZoom += 1;
-                        map.setZoom(currentZoom);
-                        if (currentZoom >= targetZoom) clearInterval(step);
-                    }, 80);
-                } else if (currentZoom > targetZoom) {
-                    // Zoom OUT smoothly back to pickup (e.g. dropoffs removed)
-                    const step = setInterval(() => {
-                        currentZoom -= 1;
-                        map.setZoom(currentZoom);
-                        if (currentZoom <= targetZoom) clearInterval(step);
-                    }, 80);
-                }
+                setTimeout(() => {
+                    if (map) map.setZoom(targetZoom);
+                }, 400); // 400ms delay allows the pan animation to finish or start smoothly before zooming
+
             } else {
-                // Multi-point: smooth step-zoom to fit all markers (industry-grade)
+                // Multi-point: native fitBounds (industry-grade)
                 const bounds = new google.maps.LatLngBounds();
                 boundsToFit.forEach(coord => bounds.extend(coord));
-                const targetCenter = bounds.getCenter();
-
-                // Pan to the midpoint of the route first
-                map.panTo(targetCenter);
-
-                // Step-zoom out until all markers are visible, then fine-tune with fitBounds
-                let currentZoom = map.getZoom() || 14;
-                const stepZoom = setInterval(() => {
-                    const mapBounds = map.getBounds();
-                    if (mapBounds) {
-                        const ne = bounds.getNorthEast();
-                        const sw = bounds.getSouthWest();
-                        if (mapBounds.contains(ne) && mapBounds.contains(sw)) {
-                            clearInterval(stepZoom);
-                            // Final precise fit with padding
-                            map.fitBounds(bounds, PADDING);
-                            return;
-                        }
-                    }
-                    currentZoom -= 0.5;
-                    if (currentZoom < 3) {
-                        clearInterval(stepZoom);
-                        map.fitBounds(bounds, PADDING);
-                        return;
-                    }
-                    map.setZoom(currentZoom);
-                }, 120);
+                
+                // Let Google Maps perform the optimal layout computation natively
+                map.fitBounds(bounds, PADDING);
             }
             resetBoundsTrigger();
         }
@@ -243,6 +207,7 @@ const MapLayer: React.FC<MapLayerProps> = ({ driverLabel }) => {
                 options={{
                     disableDefaultUI: true,
                     backgroundColor: '#e8f4e8',
+                    gestureHandling: 'greedy', // Enables one-finger panning on mobile
                     // Show points of interest labels by default to help with navigation
                     styles: []
                 }}
@@ -411,38 +376,21 @@ const MapLayer: React.FC<MapLayerProps> = ({ driverLabel }) => {
                     </React.Fragment>
                 ))}
 
-                <Polyline
-                    path={decodedPath}
-                    options={{
-                        strokeColor: '#2563eb',
-                        strokeOpacity: 1,
-                        strokeWeight: 6,
-                        geodesic: true,
-                        zIndex: 100,
-                        visible: decodedPath.length > 0
-                    }}
-                />
-            </GoogleMap>
+            <Polyline
+                path={decodedPath}
+                options={{
+                    strokeColor: '#2563eb',
+                    strokeOpacity: 1,
+                    strokeWeight: 6,
+                    geodesic: true,
+                    zIndex: 100,
+                    visible: decodedPath.length > 0
+                }}
+            />
+        </GoogleMap>
 
-            {(orderState === 'MATCHING' && !isMapSelecting) && (
-                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-10 bg-brand-900/10">
-                    <div className="bg-white/90 px-8 py-4 rounded-[2rem] shadow-2xl border border-white/50 flex flex-col items-center space-y-4 animate-in zoom-in duration-500">
-                        <div className="relative">
-                            <div className="w-16 h-16 bg-brand-600 rounded-full animate-ping opacity-20 absolute inset-0"></div>
-                            <div className="w-16 h-16 bg-brand-600 rounded-full flex items-center justify-center relative shadow-lg shadow-brand-500/50">
-                                <Truck className="w-8 h-8 text-white animate-bounce" />
-                            </div>
-                        </div>
-                        <div className="text-center">
-                            <h3 className="text-xl font-extrabold text-gray-900">Matching Driver</h3>
-                            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1">Finding nearby couriers...</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {isMapSelecting && (
-                <>
+        {isMapSelecting && (
+            <>
                     {/* Top Hint */}
                     <div className="absolute top-24 left-0 right-0 flex justify-center z-10 pointer-events-none">
                         <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl border border-white/50 flex items-center space-x-3 animate-in slide-in-from-top-4 duration-500">

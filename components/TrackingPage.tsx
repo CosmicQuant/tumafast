@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Tracking from './Tracking';
-import MapLayer from './MapLayer';
 import { useAuth } from '../context/AuthContext';
 import { usePrompt } from '../context/PromptContext';
 import { useUpdateOrderStatus, useUpdateOrder } from '../hooks/useOrders';
@@ -21,7 +20,7 @@ const TrackingPageContent: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { showAlert } = usePrompt();
-    const { isLoaded, setOrderState, setPickupCoords, setDropoffCoords, setDriverCoords, setDriverBearing, setDriverVehicleType, setRoutePolyline, fitBounds, requestUserLocation, setMapCenter, setWaypointCoords } = useMapState();
+    const { isLoaded, setOrderState, setPickupCoords, setDropoffCoords, setDriverCoords, setDriverBearing, setDriverVehicleType, setRoutePolyline, fitBounds, requestUserLocation, setMapCenter, setWaypointCoords, setDriverLabel } = useMapState();
 
     const [order, setOrder] = React.useState<DeliveryOrder | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -39,9 +38,24 @@ const TrackingPageContent: React.FC = () => {
             } else {
                 setOrderState('IN_TRANSIT');
             }
+
+            // Sync driver label to context
+            const dLabel = order?.status === 'driver_assigned'
+                ? (order.remainingDuration ? `Picking up in ${Math.ceil(order.remainingDuration / 60)} mins` : 'Heading to Pickup')
+                : (order?.status === 'in_transit'
+                    ? (order.remainingDuration ? `Delivering in ${Math.ceil(order.remainingDuration / 60)} mins` : 'Delivering')
+                    : (order?.status === 'delivered' ? 'Arrived' : null));
+            
+            setDriverLabel(dLabel);
+
+        } else {
+            setDriverLabel(null);
         }
-        return () => setOrderState('IDLE');
-    }, [order?.status, setOrderState]);
+        return () => {
+            setOrderState('IDLE');
+            setDriverLabel(null);
+        };
+    }, [order?.status, order?.remainingDuration, setOrderState, setDriverLabel]);
 
     // Sync map data when order or isLoaded changes
     useEffect(() => {
@@ -286,19 +300,6 @@ const TrackingPageContent: React.FC = () => {
 
     return (
         <div className="absolute inset-0 flex flex-col pointer-events-none">
-            {/* Background Map Layer */}
-            <div className="absolute inset-0 pointer-events-auto">
-                <MapLayer
-                    driverLabel={
-                        order?.status === 'driver_assigned'
-                            ? (order.remainingDuration ? `Picking up in ${Math.ceil(order.remainingDuration / 60)} mins` : 'Heading to Pickup')
-                            : (order?.status === 'in_transit'
-                                ? (order.remainingDuration ? `Delivering in ${Math.ceil(order.remainingDuration / 60)} mins` : 'Delivering')
-                                : (order?.status === 'delivered' ? 'Arrived' : undefined))
-                    }
-                />
-            </div>
-
             <div className="relative z-10 flex-grow flex flex-col pointer-events-none">
                 <Tracking
                     order={order}

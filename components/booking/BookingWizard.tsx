@@ -104,9 +104,10 @@ export default function BookingWizard({ prefillData, onOrderComplete, onCollapse
             if (prefillData.pickupCoords) setPickupCoords(prefillData.pickupCoords);
             if (prefillData.dropoffCoords) setDropoffCoords(prefillData.dropoffCoords);
 
-            // If both coords are provided, fit bounds to show the route
-            if (prefillData.pickupCoords && prefillData.dropoffCoords) {
-                fitBounds([prefillData.pickupCoords, prefillData.dropoffCoords]);
+            // Removed explicit fitBounds here if dropoffCoords exist to prevent map stutter,
+            // as calculateRoute will run 800ms later and perform a symmetric fitBounds gracefully.
+            if (prefillData.pickupCoords && !prefillData.dropoffCoords) {
+                fitBounds([prefillData.pickupCoords]);
             }
         }
     }, []); // Run only once on mount
@@ -145,6 +146,28 @@ export default function BookingWizard({ prefillData, onOrderComplete, onCollapse
         }
     }, [mapCenter, isMapSelecting, activeInput]);
 
+    const fitBoundsFromPickup = (pickup: any, destinations: any[]) => {
+        if (!pickup) return;
+        if (!destinations || destinations.length === 0) {
+            if (typeof fitBounds === 'function') fitBounds([pickup]);
+            return;
+        }
+        let maxLatDiff = 0;
+        let maxLngDiff = 0;
+        destinations.forEach(d => {
+            if (!d) return;
+            maxLatDiff = Math.max(maxLatDiff, Math.abs(d.lat - pickup.lat));
+            maxLngDiff = Math.max(maxLngDiff, Math.abs(d.lng - pickup.lng));
+        });
+        const padding = 1.1; // 10% padding
+        if (typeof fitBounds === 'function') {
+            fitBounds([
+                { lat: pickup.lat - (maxLatDiff * padding), lng: pickup.lng - (maxLngDiff * padding) },
+                { lat: pickup.lat + (maxLatDiff * padding), lng: pickup.lng + (maxLngDiff * padding) }
+            ]);
+        }
+    };
+
     useEffect(() => {
         const calculateRoute = async () => {
             const allStops = [];
@@ -167,9 +190,9 @@ export default function BookingWizard({ prefillData, onOrderComplete, onCollapse
                     const route = await mapService.getFullyOptimizedRoute(pickupCoords, allStops, data.vehicle || 'Boda Boda');
                     if (route) {
                         setRoutePolyline(route.geometry);
-                        // Only fit bounds if we have stops, otherwise it zooms strangely.
+                        // Zoom out symmetrically from pickup
                         if (allStops.length > 0) {
-                            fitBounds([pickupCoords, ...allStops]);
+                            fitBoundsFromPickup(pickupCoords, allStops);
                         }
                         const distKm = route.distance / 1000;
                         const now = new Date();
@@ -248,7 +271,7 @@ export default function BookingWizard({ prefillData, onOrderComplete, onCollapse
         const dropoffCode = generateCode();
 
         const newOrder = {
-            id: `ORD-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+            id: prefillData?.id || `ORD-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
             pickup: data.pickup,
             dropoff: finalDropoffAddress,
             pickupCoords: pickupCoords || { lat: 0, lng: 0 },
@@ -261,8 +284,8 @@ export default function BookingWizard({ prefillData, onOrderComplete, onCollapse
                 fragile: false,
                 value: 0
             },
-            price: currentQuote,
-            driverRate: Math.max(100, currentQuote * 0.8),
+            price: (data as any).price || currentQuote,
+            driverRate: Math.max(100, ((data as any).price || currentQuote) * 0.8),
             status: 'pending',
             estimatedDuration: '45 mins',
             date: new Date().toISOString(),
@@ -352,10 +375,14 @@ export default function BookingWizard({ prefillData, onOrderComplete, onCollapse
                                                     <div className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-pulse" />
                                                     <span className="text-[11px] font-black text-brand-600 leading-none">{data.etaTime}</span>
                                                 </div>
-                                                <div className="w-[3px] h-[3px] bg-brand-200 rounded-full ml-1" />
-                                                <span className="text-[11px] font-black text-gray-900 leading-none ml-1">
-                                                    KES {currentQuote.toLocaleString()}
-                                                </span>
+                                                {(data as any).price > 0 && (
+                                                    <>
+                                                        <div className="w-[3px] h-[3px] bg-brand-200 rounded-full ml-1" />
+                                                        <span className="text-[11px] font-black text-gray-900 leading-none ml-1">
+                                                            KES {(data as any).price.toLocaleString()}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </>
                                         )}
                                     </motion.div>
@@ -592,7 +619,24 @@ const Step1Where = ({ data, update, next }: any) => {
                                                                 if (isFinalDropoff) {
                                                                     update({ dropoff: '' });
                                                                     setDropoffCoords(null);
-                                                                    if (pickupCoords) { setTimeout(() => { if (typeof fitBounds === 'function') fitBounds([pickupCoords, ...waypointCoords].filter(Boolean) as any); }, 150); }
+                                                                    if (pickupCoords) { setTimeout(() => { 
+                                                                        const remaining = waypointCoords.filter(Boolean);
+                                                                        if (remaining.length === 0) {
+                                                                            if (typeof fitBounds === 'function') fitBounds([pickupCoords]);
+                                                                        } else {
+                                                                            let maxLatDiff = 0;
+                                                                            let maxLngDiff = 0;
+                                                                            remaining.forEach(d => {
+                                                                                maxLatDiff = Math.max(maxLatDiff, Math.abs(d.lat - pickupCoords.lat));
+                                                                                maxLngDiff = Math.max(maxLngDiff, Math.abs(d.lng - pickupCoords.lng));
+                                                                            });
+                                                                            const padding = 1.1;
+                                                                            if (typeof fitBounds === 'function') fitBounds([
+                                                                                { lat: pickupCoords.lat - (maxLatDiff * padding), lng: pickupCoords.lng - (maxLngDiff * padding) },
+                                                                                { lat: pickupCoords.lat + (maxLatDiff * padding), lng: pickupCoords.lng + (maxLngDiff * padding) }
+                                                                            ]);
+                                                                        }
+                                                                    }, 150); }
                                                                 } else {
                                                                     const newWp = data.waypoints.filter((_: any, i: number) => i !== idx);
                                                                     const newCoords = waypointCoords.filter((_: any, i: number) => i !== idx);
@@ -600,8 +644,26 @@ const Step1Where = ({ data, update, next }: any) => {
                                                                     setWaypointCoords(newCoords);
                                                                     // Smoothly re-frame the map around remaining points
                                                                     if (pickupCoords) {
-                                                                        const remaining = [pickupCoords, ...newCoords].filter(Boolean);
-                                                                        setTimeout(() => fitBounds(remaining as any), 150);
+                                                                        const remaining = newCoords.filter(Boolean);
+                                                                        if (remaining.length === 0 && !data.dropoff) {
+                                                                            setTimeout(() => { if (typeof fitBounds === 'function') fitBounds([pickupCoords]); }, 150);
+                                                                        } else {
+                                                                            const allRemaining = [...remaining];
+                                                                            if (data.dropoff && dropoffCoords) allRemaining.push(dropoffCoords);
+                                                                            let maxLatDiff = 0;
+                                                                            let maxLngDiff = 0;
+                                                                            allRemaining.forEach(d => {
+                                                                                maxLatDiff = Math.max(maxLatDiff, Math.abs(d.lat - pickupCoords.lat));
+                                                                                maxLngDiff = Math.max(maxLngDiff, Math.abs(d.lng - pickupCoords.lng));
+                                                                            });
+                                                                            const padding = 1.1;
+                                                                            setTimeout(() => {
+                                                                                if (typeof fitBounds === 'function') fitBounds([
+                                                                                    { lat: pickupCoords.lat - (maxLatDiff * padding), lng: pickupCoords.lng - (maxLngDiff * padding) },
+                                                                                    { lat: pickupCoords.lat + (maxLatDiff * padding), lng: pickupCoords.lng + (maxLngDiff * padding) }
+                                                                                ]);
+                                                                            }, 150);
+                                                                        }
                                                                     }
                                                                 }
                                                             }} className="absolute -top-1 -right-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-red-50 hover:bg-red-100 p-1 rounded-full z-20 shadow-sm border border-red-100 cursor-pointer">
@@ -720,7 +782,21 @@ const Step1Where = ({ data, update, next }: any) => {
                                             const newCoords = [...waypointCoords, pinnedCoords];
                                             update({ waypoints: newWp, dropoff: '' });
                                             setWaypointCoords(newCoords);
-                                            if (pickupCoords) { setTimeout(() => { if (typeof fitBounds === 'function') fitBounds([pickupCoords, ...newCoords].filter(Boolean) as any); }, 150); }
+                                            if (pickupCoords) { 
+                                                setTimeout(() => { 
+                                                    let maxLatDiff = 0;
+                                                    let maxLngDiff = 0;
+                                                    newCoords.filter(Boolean).forEach(d => {
+                                                        maxLatDiff = Math.max(maxLatDiff, Math.abs(d.lat - pickupCoords.lat));
+                                                        maxLngDiff = Math.max(maxLngDiff, Math.abs(d.lng - pickupCoords.lng));
+                                                    });
+                                                    const padding = 1.1;
+                                                    if (typeof fitBounds === 'function') fitBounds([
+                                                        { lat: pickupCoords.lat - (maxLatDiff * padding), lng: pickupCoords.lng - (maxLngDiff * padding) },
+                                                        { lat: pickupCoords.lat + (maxLatDiff * padding), lng: pickupCoords.lng + (maxLngDiff * padding) }
+                                                    ]);
+                                                }, 150); 
+                                            }
                                         }
                                     } else {
                                         next();
@@ -971,10 +1047,7 @@ const Step3How = ({ data, update, next, prev }: any) => {
 
 // --- Step 4: WHO ---
 const Step4Who = ({ data, update, next, prev }: any) => {
-    const recentReceivers = [
-        { name: 'Jane Doe', phone: '0712345678', id: '12345678' },
-        { name: 'John Smith', phone: '0722000111', id: '87654321' }
-    ];
+    const recentReceivers: any[] = [];
 
     return (
         <div className="space-y-3">
