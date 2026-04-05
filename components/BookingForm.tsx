@@ -36,7 +36,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
         setAllowMarkerClick,
         waypointCoords, setWaypointCoords,
         requestUserLocation,
+        ensureFreshLocation,
         userLocation,
+        locationAccuracy,
         setDriverVehicleType,
         nearbyVehicles
     } = useMapState();
@@ -307,7 +309,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
     // Desktop Scroll & Drag Handler
     useEffect(() => {
-        const setupDragScroll = (ref: React.RefObject<HTMLDivElement>) => {
+        const setupDragScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
             const el = ref.current;
             if (!el) return;
 
@@ -417,8 +419,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                     setMapCenter(pCoords.lat, pCoords.lng);
                 }
             } else {
-                // Just request location to center map, don't fill input automatically
-                const coords = await requestUserLocation();
+                // Use ensureFreshLocation which triggers the native "Turn on Location Accuracy"
+                // dialog on Android via cordova.plugins.locationAccuracy.request()
+                const coords = await ensureFreshLocation();
                 if (coords && !pickup) {
                     fitBounds([coords]);
                 }
@@ -1147,9 +1150,16 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                     instructions: s.instructions || ''
                 }));
 
+            const safePickupCoords = pickupCoords;
+            const safeDropoffCoords = dropoffCoords;
+
+            if (!safePickupCoords || !safeDropoffCoords) {
+                throw new Error('Pickup and dropoff coordinates are required before optimizing stops.');
+            }
+
             const { optimizedStops: resultOptimizedStops, totalDistance, totalDuration, routeGeometry } = await mapService.optimizeStops(
-                { lat: pickupCoords.lat, lng: pickupCoords.lng, address: pickup },
-                { lat: dropoffCoords.lat, lng: dropoffCoords.lng, address: dropoff },
+                { lat: safePickupCoords.lat, lng: safePickupCoords.lng, address: pickup },
+                { lat: safeDropoffCoords.lat, lng: safeDropoffCoords.lng, address: dropoff },
                 waypoints.map(wp => ({
                     id: wp.id,
                     lat: wp.coords!.lat,
@@ -1960,7 +1970,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
                                     {historyItems.map(item => (
                                         <button
                                             key={item}
-                                            onClick={() => setItemDesc(prev => prev ? `${prev}, ${item}` : item)}
+                                            onClick={() => setItemDesc((prev: string) => prev ? `${prev}, ${item}` : item)}
                                             className="px-3 py-1.5 bg-white border border-gray-100 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-500 hover:border-brand-300 hover:text-brand-600 transition-all shadow-sm"
                                         >
                                             + {item}

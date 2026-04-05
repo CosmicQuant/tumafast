@@ -2,6 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Search Box Animations (Hero) ── */
+@keyframes search-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px 0 rgba(22, 163, 74, 0.0),
+                0 0 20px 0 rgba(22, 163, 74, 0.0);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(22, 163, 74, 0.15),
+                0 0 24px 4px rgba(22, 163, 74, 0.08);
+  }
+}
+
+@keyframes typewriter-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes placeholder-fade-in {
+  0% { opacity: 0; transform: translateY(6px); }
+  15% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
+.search-glow-idle {
+  animation: search-glow 2.5s ease-in-out infinite;
+}
+
+.search-glow-idle:focus-within {
+  animation: none;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+}
+
 /* Mobile First Optimizations */
 * {
   -webkit-tap-highlight-color: transparent;

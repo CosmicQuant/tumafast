@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Loader2, Users } from 'lucide-react';
 import { useBooking } from '../BookingContext';
@@ -10,6 +10,7 @@ export const Step3How = () => {
     const { data, updateData, nextStep, prevStep } = useBooking();
     const { pickupCoords, dropoffCoords, waypointCoords } = useMapState();
     const [fetchingQuote, setFetchingQuote] = useState(false);
+    const quoteRequestRef = useRef(0);
 
     const isStandard = data.serviceType === 'Standard';
     const weightVal = parseFloat(data.dimensions.weight) || 0;
@@ -20,6 +21,10 @@ export const Step3How = () => {
         if (data.category === 'A' && weightVal > v.maxWeight) return false;
         return true;
     });
+    const activeVehicle = VEHICLES.find(v => v.id === data.vehicle) || eligibleVehicles[0];
+    const previewBasePrice = activeVehicle ? activeVehicle.pricePerKm * data.distanceKm : 0;
+    const previewPrice = Math.round(Math.max(150, isStandard ? previewBasePrice : previewBasePrice * 1.5) / 10) * 10;
+    const displayPrice = data.price || previewPrice;
 
     // Auto-select first eligible vehicle if none selected
     useEffect(() => {
@@ -35,12 +40,14 @@ export const Step3How = () => {
             // Only require vehicle for non-standard or if vehicle is already picked
             if (!isStandard && !data.vehicle) return;
 
+            const requestId = ++quoteRequestRef.current;
+
             try {
                 setFetchingQuote(true);
                 updateData({ calculatingQuote: true });
 
                 const { functions } = await import('../../../firebase');
-                if(!functions) return;
+                if (!functions) return;
 
                 const actualDropoff = dropoffCoords || (waypointCoords.length > 0 ? waypointCoords[waypointCoords.length - 1] : null);
                 if (!actualDropoff) return; // Prevent calling backend without a destination
@@ -56,13 +63,18 @@ export const Step3How = () => {
                     isReturnTrip: data.isReturnTrip || false
                 });
 
+                if (requestId !== quoteRequestRef.current) return;
+
                 const { quoteId, price } = response.data;
                 updateData({ quoteId, price, calculatingQuote: false });
             } catch (error) {
+                if (requestId !== quoteRequestRef.current) return;
                 console.error("Live quote failed:", error);
                 updateData({ calculatingQuote: false });
             } finally {
-                setFetchingQuote(false);
+                if (requestId === quoteRequestRef.current) {
+                    setFetchingQuote(false);
+                }
             }
         };
 
@@ -146,27 +158,27 @@ export const Step3How = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button 
+                    <button
                         onClick={() => updateData({ helpersCount: Math.max(0, (data.helpersCount || 0) - 1) })}
                         className="w-8 h-8 rounded-full bg-white border border-gray-200 font-bold text-gray-700 hover:bg-gray-100 flex items-center justify-center"
                     >-</button>
                     <span className="font-bold text-sm w-4 text-center">{data.helpersCount || 0}</span>
-                    <button 
+                    <button
                         onClick={() => updateData({ helpersCount: (data.helpersCount || 0) + 1 })}
                         className="w-8 h-8 rounded-full bg-white border border-gray-200 font-bold text-gray-700 hover:bg-gray-100 flex items-center justify-center"
                     >+</button>
                 </div>
             </div>
 
-            <div className="flex items-center justify-end pt-2">
+            <div className="flex items-center justify-end pt-1">
                 <div className="flex gap-2 w-full">
                     <button onClick={() => prevStep()} className="px-3 bg-gray-100 text-gray-700 rounded-xl flex items-center justify-center hover:bg-gray-200"><ArrowLeft size={16} /></button>
-                    <button 
-                        onClick={handleContinue} 
-                        disabled={(!isStandard && !data.vehicle) || fetchingQuote} 
+                    <button
+                        onClick={handleContinue}
+                        disabled={(!isStandard && !data.vehicle) || fetchingQuote}
                         className="flex-1 py-3.5 bg-gray-900 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-gray-900/20 disabled:opacity-50"
                     >
-                        {fetchingQuote ? <Loader2 size={16} className="animate-spin" /> : "Continue to Details"} 
+                        {fetchingQuote ? <Loader2 size={16} className="animate-spin" /> : "Continue to Receiver"}
                         {!fetchingQuote && <ArrowRight size={16} />}
                     </button>
                 </div>

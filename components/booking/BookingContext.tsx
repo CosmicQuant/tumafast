@@ -63,9 +63,9 @@ interface BookingContextType {
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
-export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const BookingProvider: React.FC<{ children: React.ReactNode, initialStep?: number }> = ({ children, initialStep = 0 }) => {
     const [data, setData] = useState<BookingState>(INITIAL_STATE);
-    const [step, setStep] = useState(0);
+    const [step, setStep] = useState(initialStep);
     const [direction, setDirection] = useState(0);
 
     const updateData = React.useCallback((updates: Partial<BookingState>) => {
@@ -75,7 +75,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const nextStep = React.useCallback((skipTo?: number) => {
         setStep(prevStep => {
             const target = typeof skipTo === 'number' ? skipTo : prevStep + 1;
-            if (target <= 5) { setDirection(1); return target; }
+            if (target <= 4) { setDirection(1); return target; }
             return prevStep;
         });
     }, []);
@@ -83,7 +83,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const prevStep = React.useCallback((skipTo?: number) => {
         setStep(prevStepState => {
             const target = typeof skipTo === 'number' ? skipTo : prevStepState - 1;
-            if (target >= 0) { setDirection(-1); return target; }
+            if (target >= -1) { setDirection(-1); return target; }
             return prevStepState;
         });
     }, []);

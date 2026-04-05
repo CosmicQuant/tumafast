@@ -185,11 +185,18 @@ export const mapService = {
                         await new Promise<void>((resolve, reject) => {
                             const cordova = (window as any).cordova;
                             if (cordova && cordova.plugins && cordova.plugins.locationAccuracy) {
-                                // Bypass canRequest and force the native Google dialog
+                                // Always attempt to request high accuracy — this triggers the
+                                // native "For a better experience, turn on Location Accuracy" dialog
+                                // that the user sees in the screenshot. canRequest() is unreliable
+                                // when location services are completely off, so we try regardless.
                                 cordova.plugins.locationAccuracy.request(
                                     cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY,
                                     () => resolve(),
-                                    (error: any) => reject(error)
+                                    (error: any) => {
+                                        // Error code 4 = user rejected the dialog, still try GPS
+                                        console.warn("locationAccuracy.request error:", error);
+                                        resolve(); // Don't reject — let getCurrentPosition try
+                                    }
                                 );
                             } else {
                                 resolve();

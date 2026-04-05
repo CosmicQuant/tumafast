@@ -1,11 +1,12 @@
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { mapService } from '@/services/mapService';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { APP_CONFIG } from '@/config';
 import { GOOGLE_MAPS_LIBRARIES } from '@/constants';
 import { db } from '@/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { Capacitor } from '@capacitor/core';
 
 export type MapOrderState = 'IDLE' | 'DRAFTING' | 'MATCHING' | 'IN_TRANSIT' | 'COMPLETED';
 
@@ -20,6 +21,12 @@ interface VehicleMarker {
     position: Coordinates;
     bearing?: number;
 }
+
+type LocationAccuracy = 'none' | 'cached' | 'low' | 'high';
+type SheetDetent = 'default' | 'search' | 'pin';
+type SheetPlacement = 'bottom' | 'side';
+
+const LOCATION_CACHE_KEY = 'axon_last_known_location';
 
 interface MapContextType {
     isLoaded: boolean;
@@ -44,6 +51,9 @@ interface MapContextType {
     driverVehicleType: string;
     setDriverVehicleType: (type: string) => void;
 
+    driverLabel: string | null;
+    setDriverLabel: (label: string | null) => void;
+
     routePolyline: any;
     setRoutePolyline: (polyline: any) => void;
 
@@ -60,7 +70,9 @@ interface MapContextType {
     setIsPanning: (panning: boolean) => void;
 
     userLocation: Coordinates | null;
+    locationAccuracy: LocationAccuracy;
     requestUserLocation: () => Promise<Coordinates | null>;
+    ensureFreshLocation: () => Promise<Coordinates | null>;
 
     isMapSelecting: boolean;
     setIsMapSelecting: (selecting: boolean) => void;
@@ -71,8 +83,17 @@ interface MapContextType {
     allowMarkerClick: boolean;
     setAllowMarkerClick: (allow: boolean) => void;
 
-    driverLabel: string | null;
-    setDriverLabel: (label: string | null) => void;
+    bottomSheetHeight: number;
+    setBottomSheetHeight: (height: number) => void;
+
+    bottomSheetWidth: number;
+    setBottomSheetWidth: (width: number) => void;
+
+    bottomSheetDetent: SheetDetent;
+    setBottomSheetDetent: (detent: SheetDetent) => void;
+
+    bottomSheetPlacement: SheetPlacement;
+    setBottomSheetPlacement: (placement: SheetPlacement) => void;
 
     // Commands
     fitBounds: (markers: Coordinates[]) => void;
@@ -83,6 +104,32 @@ interface MapContextType {
 }
 
 const MapContext = createContext<MapContextType | undefined>(undefined);
+
+// Helper: read cached location from sessionStorage
+const getCachedLocation = (): Coordinates | null => {
+    try {
+        const cached = sessionStorage.getItem(LOCATION_CACHE_KEY);
+        if (cached) {
+            const parsed = JSON.parse(cached);
+            // Only use cache if it's less than 10 minutes old
+            if (parsed.timestamp && Date.now() - parsed.timestamp < 10 * 60 * 1000) {
+                return { lat: parsed.lat, lng: parsed.lng };
+            }
+        }
+    } catch { /* ignore */ }
+    return null;
+};
+
+// Helper: save location to sessionStorage
+const cacheLocation = (coords: Coordinates) => {
+    try {
+        sessionStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({
+            lat: coords.lat,
+            lng: coords.lng,
+            timestamp: Date.now()
+        }));
+    } catch { /* ignore */ }
+};
 
 export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { isLoaded } = useJsApiLoader({
@@ -148,39 +195,127 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setWaypointCoords([]);
             setRoutePolyline(null);
             setBoundsToFit(null);
-            // We keep nearbyVehicles as they should be visible in IDLE
         }
     }, [orderState]);
 
-    const [mapCenter, setMapCenterInternal] = useState<Coordinates>({ lat: -1.2921, lng: 36.8219 });
-    const [zoom, setZoom] = useState(12);
+    // Initialize map center from cache immediately (no Nairobi flash)
+    const cachedLoc = getCachedLocation();
+    const [mapCenter, setMapCenterInternal] = useState<Coordinates>(cachedLoc || { lat: -1.2921, lng: 36.8219 });
+    const [zoom, setZoom] = useState(cachedLoc ? 16 : 14);
     const [isPanning, setIsPanning] = useState(false);
     const [boundsToFit, setBoundsToFit] = useState<Coordinates[] | null>(null);
-    const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
+    const [userLocation, setUserLocation] = useState<Coordinates | null>(cachedLoc);
+    const [locationAccuracy, setLocationAccuracy] = useState<LocationAccuracy>(cachedLoc ? 'cached' : 'none');
     const [isMapSelecting, setIsMapSelecting] = useState(false);
     const [activeInput, setActiveInput] = useState<'pickup' | 'dropoff' | string | null>(null);
     const [allowMarkerClick, setAllowMarkerClick] = useState(false);
+    const [bottomSheetHeight, setBottomSheetHeight] = useState(0);
+    const [bottomSheetWidth, setBottomSheetWidth] = useState(0);
+    const [bottomSheetDetent, setBottomSheetDetent] = useState<SheetDetent>('default');
+    const [bottomSheetPlacement, setBottomSheetPlacement] = useState<SheetPlacement>('bottom');
+    const watchIdRef = useRef<number | null>(null);
+    const firstFixAppliedRef = useRef(!!cachedLoc); // True if cache already provided a center
+    const lastUserLocationRef = useRef<Coordinates | null>(cachedLoc);
+    const freshLocationRequestRef = useRef<Promise<Coordinates | null> | null>(null);
 
-    // Pre-fetch user location on mount to avoid starting at Nairobi
+    // Persistent location tracking with watchPosition (Uber/Bolt pattern)
     useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const coords = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
+        if (!navigator.geolocation) return;
+
+        // Minimum distance change (in degrees, ~11m) before updating userLocation
+        // This prevents the blue dot from jumping on every noisy GPS reading
+        const MIN_MOVE_THRESHOLD = 0.0001; // ~11 meters
+
+        // Start continuous location stream
+        const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                const coords = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                const accuracy = position.coords.accuracy;
+                const newAccuracy: LocationAccuracy = accuracy <= 50 ? 'high' : 'low';
+
+                // Only update userLocation if moved beyond threshold (prevents marker jitter)
+                const prev = lastUserLocationRef.current;
+                const moved = !prev || (
+                    Math.abs(coords.lat - prev.lat) > MIN_MOVE_THRESHOLD ||
+                    Math.abs(coords.lng - prev.lng) > MIN_MOVE_THRESHOLD
+                );
+
+                if (moved) {
+                    lastUserLocationRef.current = coords;
                     setUserLocation(coords);
+                    cacheLocation(coords);
+                }
+
+                setLocationAccuracy(newAccuracy);
+
+                // Center the map ONLY on the very first GPS fix (not on every update)
+                if (!firstFixAppliedRef.current) {
+                    firstFixAppliedRef.current = true;
                     setMapCenterInternal(coords);
                     setBoundsToFit([coords]);
-                },
-                (error) => {
-                    console.warn("Initial location pre-fetch failed:", error);
-                },
-                { enableHighAccuracy: false, timeout: 5000 }
-            );
-        }
-    }, []);
+                }
+            },
+            (error) => {
+                console.warn("watchPosition error:", error);
+                // On native platform, trigger the full Capacitor pipeline
+                // which shows the "Turn on Location Accuracy" native dialog
+                if (Capacitor.isNativePlatform() && !lastUserLocationRef.current) {
+                    mapService.getCurrentLocation().then(coords => {
+                        if (coords) {
+                            lastUserLocationRef.current = coords;
+                            setUserLocation(coords);
+                            setLocationAccuracy('high');
+                            cacheLocation(coords);
+                            if (!firstFixAppliedRef.current) {
+                                firstFixAppliedRef.current = true;
+                                setMapCenterInternal(coords);
+                                setBoundsToFit([coords]);
+                            }
+                        } else {
+                            setLocationAccuracy('none');
+                        }
+                    }).catch(() => setLocationAccuracy('none'));
+                } else if (!lastUserLocationRef.current) {
+                    // Web fallback — single attempt
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                            lastUserLocationRef.current = coords;
+                            setUserLocation(coords);
+                            setLocationAccuracy('low');
+                            cacheLocation(coords);
+                            if (!firstFixAppliedRef.current) {
+                                firstFixAppliedRef.current = true;
+                                setMapCenterInternal(coords);
+                                setBoundsToFit([coords]);
+                            }
+                        },
+                        () => {
+                            if (!lastUserLocationRef.current) setLocationAccuracy('none');
+                        },
+                        { enableHighAccuracy: false, timeout: 5000 }
+                    );
+                }
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 10000 // Accept cached positions up to 10s old to reduce jitter
+            }
+        );
+
+        watchIdRef.current = watchId;
+
+        return () => {
+            if (watchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+            }
+        };
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const setPickupCoords = useCallback((coords: Coordinates | null) => {
         setPickupCoordsInternal(prev => {
@@ -218,14 +353,90 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const requestUserLocation = useCallback(async (): Promise<Coordinates | null> => {
         try {
             const coords = await mapService.getCurrentLocation();
-            setUserLocation(coords);
-            setMapCenterInternal(coords);
+            if (coords) {
+                setUserLocation(coords);
+                setLocationAccuracy('high');
+                cacheLocation(coords);
+                setMapCenterInternal(coords);
+            }
             return coords;
         } catch (error: any) {
             console.error("Error getting location:", error);
             return null;
         }
     }, []);
+
+    // ensureFreshLocation — Bolt/Uber-style warm-start location pipeline.
+    //
+    // Phase 1 (instant): if we have a cached position, resolve immediately so the
+    //   booking UI can pre-fill pickup and center the map without waiting for GPS.
+    // Phase 2 (background): always kick off a real GPS fix in parallel.
+    //   On Android this triggers cordova.plugins.locationAccuracy.request() which
+    //   shows the native "Turn on Location Accuracy" dialog when precision is off.
+    //   When the fresh fix arrives we update userLocation + cache automatically.
+    //
+    // Callers that only need a "good enough" position get the cached result quickly.
+    // The map/UI silently upgrades when the fresh fix arrives via setUserLocation.
+    const ensureFreshLocation = useCallback(async (): Promise<Coordinates | null> => {
+        // De-duplicate: if a request is already in-flight, share it.
+        if (freshLocationRequestRef.current) {
+            return freshLocationRequestRef.current;
+        }
+
+        const requestPromise = (async () => {
+            try {
+                // Phase 1: Return cached location immediately for visual speed.
+                const cached = getCachedLocation();
+                if (cached && locationAccuracy !== 'none') {
+                    // Start the fresh GPS request in the background — don't await yet.
+                    mapService.getCurrentLocation().then(freshCoords => {
+                        if (freshCoords) {
+                            setUserLocation(freshCoords);
+                            setLocationAccuracy('high');
+                            cacheLocation(freshCoords);
+                            // Only move the map if no booking coords are set yet
+                            // (don't interrupt in-progress route building)
+                            setMapCenterInternal(prev => {
+                                const hasBookingPoints =
+                                    lastUserLocationRef.current &&
+                                    Math.abs(prev.lat - lastUserLocationRef.current.lat) > 0.001;
+                                if (!hasBookingPoints) return freshCoords;
+                                return prev;
+                            });
+                            lastUserLocationRef.current = freshCoords;
+                        }
+                    }).catch(() => { /* Background refresh failed — cached pos still valid */ });
+                    return cached;
+                }
+
+                // Phase 2: No usable cache — get precise location (may show OS prompt).
+                const coords = await mapService.getCurrentLocation();
+                if (coords) {
+                    setUserLocation(coords);
+                    setLocationAccuracy('high');
+                    cacheLocation(coords);
+                    setMapCenterInternal(coords);
+                    lastUserLocationRef.current = coords;
+                    if (!firstFixAppliedRef.current) {
+                        firstFixAppliedRef.current = true;
+                        setBoundsToFit([coords]);
+                    }
+                } else {
+                    setLocationAccuracy('none');
+                }
+                return coords;
+            } catch (error) {
+                console.warn("ensureFreshLocation failed:", error);
+                setLocationAccuracy('none');
+                return null;
+            } finally {
+                freshLocationRequestRef.current = null;
+            }
+        })();
+
+        freshLocationRequestRef.current = requestPromise;
+        return requestPromise;
+    }, [locationAccuracy]);
 
     // Automatic Routing Effect - Removed to allow pages to control routing logic (e.g. driver-to-destination)
     /*
@@ -273,13 +484,23 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             boundsToFit,
             resetBoundsTrigger,
             userLocation,
+            locationAccuracy,
             requestUserLocation,
+            ensureFreshLocation,
             isMapSelecting,
             setIsMapSelecting,
             activeInput,
             setActiveInput,
             allowMarkerClick,
             setAllowMarkerClick,
+            bottomSheetHeight,
+            setBottomSheetHeight,
+            bottomSheetWidth,
+            setBottomSheetWidth,
+            bottomSheetDetent,
+            setBottomSheetDetent,
+            bottomSheetPlacement,
+            setBottomSheetPlacement,
             waypointCoords,
             setWaypointCoords,
             driverLabel,

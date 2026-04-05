@@ -1,42 +1,13 @@
 
 const fs = require('fs');
-let code = fs.readFileSync('components/booking/BookingWizard.tsx', 'utf8');
+let code = fs.readFileSync('c:/Users/ADMIN/Desktop/axon/components/booking/BookingWizardModular.tsx', 'utf8');
 
-const regex = /useEffect\(\(\) => \{\s*if \(data\.pickup === 'Current Location' && userLocation\) \{[\s\S]*?\}\s*\}, \[userLocation, data\.pickup\]\);/g;
+code = code.replace(/import \{ Step2_5PackageDetails \} from \'\.\/steps\/Step2_5PackageDetails\';\r?\n/, '');
+code = code.replace(/\{step === 2 && <Step2_5PackageDetails \/>\}\r?\n\s+/, '');
+code = code.replace(/\{step === 3 && <Step3How \/>\}/, '{step === 2 && <Step3How />}');
+code = code.replace(/\{step === 4 && <Step4Who \/>\}/, '{step === 3 && <Step4Who />}');
+code = code.replace(/\{step === 5 && <Step5Payment submit=\{submitBooking\} \/>\}/, '{step === 4 && <Step5Payment submit={submitBooking} />}');
+code = code.replace(/\{ title: \'Package Details\', icon: Box \},.*?\r?\n\s+/, '');
 
-const replacement = \
-    // Auto-locate flow: On first load with empty pickup, snap map to user and start drag mode
-    useEffect(() => {
-        if (!data.pickup && userLocation && !pickupCoords && !isMapSelecting) {
-            setActiveInput('pickup');
-            setIsMapSelecting(true);
-            mapService.reverseGeocode(userLocation.lat, userLocation.lng).then(address => {
-                if (address) handleUpdate({ pickup: address });
-            }).catch(console.error);
-        }
-    }, [userLocation, data.pickup, pickupCoords, isMapSelecting, setActiveInput, setIsMapSelecting]);
-
-    // Live Reverse Geocode when dragging the map (Debounced)
-    useEffect(() => {
-        if (isMapSelecting && mapCenter) {
-            const timer = setTimeout(async () => {
-                try {
-                    const address = await mapService.reverseGeocode(mapCenter.lat, mapCenter.lng);
-                    if (address) {
-                        if (activeInput === 'pickup') {
-                            handleUpdate({ pickup: address });
-                        } else if (activeInput === 'dropoff') {
-                            handleUpdate({ dropoff: address });
-                        }
-                    }
-                } catch (e) {}
-            }, 600);
-            return () => clearTimeout(timer);
-        }
-    }, [mapCenter, isMapSelecting, activeInput, handleUpdate]);
-\;
-
-code = code.replace(regex, replacement);
-fs.writeFileSync('components/booking/BookingWizard.tsx', code);
-console.log('Done!');
+fs.writeFileSync('c:/Users/ADMIN/Desktop/axon/components/booking/BookingWizardModular.tsx', code, 'utf8');
 

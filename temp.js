@@ -1,0 +1,8 @@
+const fs = require('fs');
+let code = fs.readFileSync('c:/Users/ADMIN/Desktop/axon/components/booking/BookingWizardModular.tsx', 'utf8');
+code = code.replace(/<BookingProvider>/, '<BookingProvider initialStep={props.startAtDashboard ? -1 : 0}>');
+code = code.replace(/\{step === 0 && <Step1Where \/>\}\\r?\\n\\s*\{step === 1 && <Step2What \/>\}\\r?\\n\\s*\{step === 2 && <Step3How \/>\}\\r?\\n\\s*\{step === 3 && <Step4Who \/>\}\\r?\\n\\s*\{step === 4 && <Step5Payment submit=\{submitBooking\} \/>\}/, '{step === -1 && <Step0Dashboard />}\\n{step === 0 && <Step1Where />}\\n{step === 1 && <Step2What />}\\n{step === 2 && <Step3How />}\\n{step === 3 && <Step4Who />}\\n{step === 4 && <Step5Payment submit={submitBooking} />}');
+code = code.replace(/data\.isSearchingText \? 'h-\\[90vh\\]' : 'max-h-\\[90vh\\]'/, 'isMapSelecting ? \\'max-h-[35vh]\\' : data.isSearchingText ? \\'h-[90vh]\\' : step === -1 ? \\'max-h-[40vh]\\' : step === 0 ? \\'max-h-[85vh]\\' : \\'max-h-[60vh]\\'');
+code = code.replace(/<motion.div layout \\r?\\nkey=\{i\} className=\{\h-1.5 rounded-full \\\$\{i === step \\? 'w-5 bg-brand-600' : 'w-1.5 bg-gray-200'\}\\} \\/>\)}\\r?\\n\\s*<\\/div>\\r?\\n\\s*<\\/div>\\r?\\n\\s*<\\/div>\\r?\\n\\s*<\\/div>/, '<motion.div layout\\nkey={i} className={h-1.5 rounded-full } />)}\\n</div>\\n</div>\\n</div>\\n</div>)}');
+code = code.replace(/const ActiveStepIcon = STEP_INFO\\[step\\]\.icon;/, 'const ActiveStepIcon = step >= 0 && step < STEP_INFO.length ? STEP_INFO[step].icon : Navigation;');
+fs.writeFileSync('c:/Users/ADMIN/Desktop/axon/components/booking/BookingWizardModular.tsx', code, 'utf8');

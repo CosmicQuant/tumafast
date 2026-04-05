@@ -99,6 +99,7 @@ const MapLayer: React.FC = () => {
         mapCenter,
         setMapCenter,
         zoom,
+        setZoom,
         isPanning,
         setIsPanning,
         boundsToFit,
@@ -110,9 +111,10 @@ const MapLayer: React.FC = () => {
         driverLabel
     } = useMapState();
 
+    const isMapAnimatingRef = useRef(false);
+    const animationFrameRef = useRef<number | null>(null);
     const [map, setMap] = useState<google.maps.Map | null>(null);
     const [decodedPath, setDecodedPath] = useState<google.maps.LatLngLiteral[]>([]);
-    const wasPanned = useRef(false);
 
     useEffect(() => {
         if (routePolyline) {
@@ -135,52 +137,163 @@ const MapLayer: React.FC = () => {
         }
     }, [routePolyline]);
 
-    const onLoad = useCallback(function callback(map: google.maps.Map) {
-        setMap(map);
-    }, []);
+    const initialCenterSet = useRef(false);
+    const mapReadyRef = useRef(false);
+    const onLoad = useCallback(function callback(mapInstance: google.maps.Map) {
+        if (!initialCenterSet.current && mapCenter) {
+            mapInstance.setCenter(userLocation || mapCenter);
+            mapInstance.setZoom(14);
+            initialCenterSet.current = true;
+        }
+        // Mark ready immediately once tiles load (or after 3s failsafe for desktop)
+        const markReady = () => { mapReadyRef.current = true; };
+        google.maps.event.addListenerOnce(mapInstance, 'tilesloaded', markReady);
+        setTimeout(markReady, 3000); // Desktop failsafe — tilesloaded can stall on slow connections
+        setMap(mapInstance);
+    }, [mapCenter, zoom, userLocation]);
 
     const onUnmount = useCallback(function callback(map: google.maps.Map) {
         setMap(null);
     }, []);
 
     // Handle Fit Bounds — Uber/Bolt-style smooth camera transitions
+    const lastBoundsRef = useRef('');
+    const cameraTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
     useEffect(() => {
         if (map && boundsToFit && boundsToFit.length > 0) {
-            const PADDING = { top: 70, bottom: 300, left: 70, right: 70 };
+            const dynamicPadding = { top: 96, bottom: 400, left: 56, right: 56 };
+            const boundsKey = JSON.stringify(boundsToFit);
 
-            if (boundsToFit.length === 1) {
-                // Single point: smooth zoom in (e.g. pickup selected, or all dropoffs removed)
-                const target = boundsToFit[0];
-                const targetZoom = 18;
-                
-                // Pan first, then let the native camera ease into the zoom
-                map.panTo(target);
-                setTimeout(() => {
-                    if (map) map.setZoom(targetZoom);
-                }, 400); // 400ms delay allows the pan animation to finish or start smoothly before zooming
-
-            } else {
-                // Multi-point: native fitBounds (industry-grade)
-                const bounds = new google.maps.LatLngBounds();
-                boundsToFit.forEach(coord => bounds.extend(coord));
-                
-                // Let Google Maps perform the optimal layout computation natively
-                map.fitBounds(bounds, PADDING);
+            if (boundsKey === lastBoundsRef.current) {
+                resetBoundsTrigger();
+                return;
             }
-            resetBoundsTrigger();
+
+            lastBoundsRef.current = boundsKey;
+
+            cameraTimeoutsRef.current.forEach(t => clearTimeout(t));
+            cameraTimeoutsRef.current = [];
+
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
+                isMapAnimatingRef.current = false;
+            }
+
+            // ── Professional flyTo engine ──────────────────────────────────
+            // Direct animation with moveCamera — no screenshots, no hiding.
+            // Vector Maps (WebGL) handles progressive tile rendering with fade-in.
+            //
+            // Zoom-out uses easeInOutCubic (slow start gives nearby tiles time to
+            // render before the camera pulls away, slow end lets destination tiles
+            // settle). Zoom-in uses easeOutQuint (fast departure, gentle arrival).
+
+            const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
+            const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+            const flyTo = (
+                target: { lat: number; lng: number },
+                targetZoom: number,
+                durationMs: number,
+                ease: (t: number) => number,
+                onDone: () => void
+            ) => {
+                const startCenter = map.getCenter();
+                const startZoom = map.getZoom() ?? 14;
+                if (!startCenter) { onDone(); return; }
+                const sLat = startCenter.lat();
+                const sLng = startCenter.lng();
+                const t0 = performance.now();
+
+                isMapAnimatingRef.current = true;
+                const tick = (now: number) => {
+                    const p = Math.min((now - t0) / durationMs, 1);
+                    const e = ease(p);
+                    map.moveCamera({
+                        center: { lat: sLat + (target.lat - sLat) * e, lng: sLng + (target.lng - sLng) * e },
+                        zoom: startZoom + (targetZoom - startZoom) * e
+                    });
+                    if (p < 1) {
+                        animationFrameRef.current = requestAnimationFrame(tick);
+                    } else {
+                        isMapAnimatingRef.current = false;
+                        onDone();
+                    }
+                };
+                animationFrameRef.current = requestAnimationFrame(tick);
+            };
+
+            const applyCamera = () => {
+                if (boundsToFit.length === 1) {
+                    // Single point: zoom-in fly (2.8s, fast start/gentle landing)
+                    flyTo(boundsToFit[0], 18, 2800, easeOutQuint, () => resetBoundsTrigger());
+                } else {
+                    // Multi-point: compute exact target via fitBounds, then animate
+                    const bounds = new google.maps.LatLngBounds();
+                    boundsToFit.forEach(coord => bounds.extend(coord));
+
+                    // Save current position
+                    const startCenter = map.getCenter();
+                    const startZoom = map.getZoom() ?? 14;
+
+                    // Let Google compute exact target (synchronous on Vector Maps)
+                    map.fitBounds(bounds, dynamicPadding);
+                    const targetZoom = map.getZoom() ?? 14;
+                    const targetCenter = map.getCenter();
+                    const target = {
+                        lat: targetCenter?.lat() ?? bounds.getCenter().lat(),
+                        lng: targetCenter?.lng() ?? bounds.getCenter().lng()
+                    };
+
+                    // Snap back to origin instantly
+                    if (startCenter) {
+                        map.moveCamera({ center: startCenter, zoom: startZoom });
+                    }
+
+                    // Choose easing based on direction:
+                    // Zoom-out → slow start (tiles stay sharp longer) + slow end (settle)
+                    // Zoom-in  → fast departure + gentle arrival
+                    const isZoomingOut = targetZoom < startZoom;
+                    const duration = isZoomingOut ? 2400 : 2200;
+                    const ease = isZoomingOut ? easeInOutCubic : easeOutQuint;
+
+                    flyTo(target, targetZoom, duration, ease, () => resetBoundsTrigger());
+                }
+            };
+
+            // Fire immediately if tiles are ready, otherwise wait for tiles + failsafe
+            if (mapReadyRef.current) {
+                const t = setTimeout(applyCamera, 50);
+                cameraTimeoutsRef.current.push(t);
+            } else {
+                let started = false;
+                const go = () => { if (!started) { started = true; mapReadyRef.current = true; applyCamera(); } };
+                google.maps.event.addListenerOnce(map, 'tilesloaded', go);
+                cameraTimeoutsRef.current.push(setTimeout(go, 3000) as any);
+            }
         }
     }, [map, boundsToFit, resetBoundsTrigger]);
 
+    useEffect(() => {
+        return () => {
+            cameraTimeoutsRef.current.forEach(t => clearTimeout(t));
+        };
+    }, []);
+
     // Sync map center back to context when user pans
-    const onIdle = () => {
-        if (map && isMapSelecting && wasPanned.current) {
-            const center = map.getCenter();
-            if (center) {
-                setMapCenter(center.lat(), center.lng());
-            }
-            wasPanned.current = false;
+    const onIdle = useCallback(() => {
+        if (isMapAnimatingRef.current) return;
+        if (!map) return;
+        const currentZoom = map.getZoom();
+        if (currentZoom !== undefined && currentZoom !== zoom) {
+            setZoom(currentZoom);
         }
-    };
+        const c = map.getCenter();
+        if (c) {
+            setMapCenter(c.lat(), c.lng());
+        }
+    }, [map, zoom, setZoom, setMapCenter]);
 
     if (!isLoaded) return <div className="fixed inset-0 bg-gray-100 flex items-center justify-center"><Truck className="w-10 h-10 text-brand-600 animate-bounce" /></div>;
 
@@ -188,28 +301,35 @@ const MapLayer: React.FC = () => {
         <div className="w-full h-full z-0 pointer-events-auto">
             <GoogleMap
                 mapContainerStyle={containerStyle}
-                center={mapCenter || center}
-                zoom={zoom}
+                center={undefined}
+                zoom={undefined}
                 onLoad={onLoad}
                 onUnmount={onUnmount}
                 onIdle={onIdle}
+                onZoomChanged={() => {
+                    if (isMapAnimatingRef.current) return;
+                    if (map) {
+                        const currentZoom = map.getZoom();
+                        if (currentZoom !== undefined && currentZoom !== zoom) {
+                            setZoom(currentZoom);
+                        }
+                    }
+                }}
                 onClick={(e) => {
                     if (isMapSelecting && e.latLng) {
                         setMapCenter(e.latLng.lat(), e.latLng.lng());
-                        wasPanned.current = true;
                     }
                 }}
                 onDragStart={() => {
                     setIsPanning(true);
-                    wasPanned.current = true;
                 }}
                 onDragEnd={() => setIsPanning(false)}
                 options={{
+                    isFractionalZoomEnabled: true,
+                    mapId: "DEMO_MAP_ID",
                     disableDefaultUI: true,
                     backgroundColor: '#e8f4e8',
-                    gestureHandling: 'greedy', // Enables one-finger panning on mobile
-                    // Show points of interest labels by default to help with navigation
-                    styles: []
+                    gestureHandling: 'greedy' // Enables one-finger panning on mobile
                 }}
             >
                 {userLocation && !pickupCoords && !isMapSelecting && (
@@ -376,21 +496,23 @@ const MapLayer: React.FC = () => {
                     </React.Fragment>
                 ))}
 
-            <Polyline
-                path={decodedPath}
-                options={{
-                    strokeColor: '#2563eb',
-                    strokeOpacity: 1,
-                    strokeWeight: 6,
-                    geodesic: true,
-                    zIndex: 100,
-                    visible: decodedPath.length > 0
-                }}
-            />
-        </GoogleMap>
+                <Polyline
+                    path={decodedPath}
+                    options={{
+                        isFractionalZoomEnabled: true,
+                        mapId: "DEMO_MAP_ID",
+                        strokeColor: '#2563eb',
+                        strokeOpacity: 1,
+                        strokeWeight: 6,
+                        geodesic: true,
+                        zIndex: 100,
+                        visible: decodedPath.length > 0
+                    }}
+                />
+            </GoogleMap>
 
-        {isMapSelecting && (
-            <>
+            {isMapSelecting && (
+                <>
                     {/* Top Hint */}
                     <div className="absolute top-24 left-0 right-0 flex justify-center z-10 pointer-events-none">
                         <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl border border-white/50 flex items-center space-x-3 animate-in slide-in-from-top-4 duration-500">

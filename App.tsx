@@ -71,18 +71,18 @@ const App = () => {
           if (status.location !== 'granted') {
             await Geolocation.requestPermissions();
           }
-          
-            if (Capacitor.getPlatform() === 'android') {
-              const cordova = (window as any).cordova;
-              if (cordova && cordova.plugins && cordova.plugins.locationAccuracy) {
-                // Bypass canRequest to force Google Play Services Native Prompt
-                cordova.plugins.locationAccuracy.request(
-                  cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY,
-                  () => console.log('Location accuracy requested successfully'),
-                  (error: any) => console.warn('Error requesting location accuracy:', error)
-                );
-              }
+
+          if (Capacitor.getPlatform() === 'android') {
+            const cordova = (window as any).cordova;
+            if (cordova && cordova.plugins && cordova.plugins.locationAccuracy) {
+              // Bypass canRequest to force Google Play Services Native Prompt
+              cordova.plugins.locationAccuracy.request(
+                cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY,
+                () => console.log('Location accuracy requested successfully'),
+                (error: any) => console.warn('Error requesting location accuracy:', error)
+              );
             }
+          }
         } catch (error) {
           console.warn('Error requesting location permissions:', error);
         }
@@ -228,6 +228,7 @@ const App = () => {
     location.pathname.startsWith('/terms');
 
   const isMapPage = location.pathname === '/book' ||
+    (location.pathname === '/' && user?.role === 'customer') ||
     location.pathname.startsWith('/track') ||
     location.pathname.startsWith('/test-wizard');
 
@@ -277,14 +278,14 @@ const App = () => {
           />
 
           {/* Global Map Layer (Singleton) for caching and preloading */}
-          <div 
-            className={`fixed inset-0 transition-opacity duration-300 z-0 ${isMapPage || location.pathname.startsWith('/driver') ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
+          <div
+            className={`fixed inset-0 transition-opacity duration-300 z-0 ${isMapPage || location.pathname.startsWith('/driver') ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
             aria-hidden={!isMapPage && !location.pathname.startsWith('/driver')}
           >
             <MapLayer />
           </div>
 
-          <main className="flex-grow flex flex-col relative pb-16 md:pb-0 z-10">
+          <main className={`flex-grow flex flex-col relative pb-16 md:pb-0 z-10 ${isMapPage || location.pathname.startsWith('/driver') ? 'pointer-events-none' : ''}`}>
             <Suspense fallback={<SkeletonFallback />}>
               <Routes>
                 {/* Temporary Test Route */}
@@ -296,35 +297,39 @@ const App = () => {
                 } />
                 {/* Public Routes */}
                 <Route path="/" element={
-                  <Hero
-                    onStartBooking={(prefill) => {
-                      navigate('/book', { state: { prefill } });
-                    }}
-                    onBusinessClick={() => {
-                      if (user?.role === 'business') {
-                        navigate('/business-dashboard');
-                      } else {
-                        // Native App: Prompt explicitly for Business Auth
-                        if (Capacitor.isNativePlatform()) {
-                          setAuthModalRole('business');
-                          setAuthModalView('LOGIN');
-                          setAuthModalTitle('Enterprise Access');
-                          setAuthModalDesc('Sign in or register to access enterprise solutions.');
-                          setShowAuthModal(true);
+                  user?.role === 'customer' ? (
+                    <BookingPage isDashboardMode />
+                  ) : (
+                    <Hero
+                      onStartBooking={(prefill) => {
+                        navigate('/book', { state: { prefill } });
+                      }}
+                      onBusinessClick={() => {
+                        if (user?.role === 'business') {
+                          navigate('/business-dashboard');
                         } else {
-                          // Web: Go to Business Landing Page
-                          navigate('/business');
+                          // Native App: Prompt explicitly for Business Auth
+                          if (Capacitor.isNativePlatform()) {
+                            setAuthModalRole('business');
+                            setAuthModalView('LOGIN');
+                            setAuthModalTitle('Enterprise Access');
+                            setAuthModalDesc('Sign in or register to access enterprise solutions.');
+                            setShowAuthModal(true);
+                          } else {
+                            // Web: Go to Business Landing Page
+                            navigate('/business');
+                          }
                         }
-                      }
-                    }}
-                    onDriverClick={() => {
-                      setAuthModalRole('driver');
-                      setAuthModalView('LOGIN'); // User requested "Sign In"
-                      setAuthModalTitle('Driver Access');
-                      setAuthModalDesc('Login or Sign Up to start driving and earning.');
-                      setShowAuthModal(true);
-                    }}
-                  />
+                      }}
+                      onDriverClick={() => {
+                        setAuthModalRole('driver');
+                        setAuthModalView('LOGIN'); // User requested "Sign In"
+                        setAuthModalTitle('Driver Access');
+                        setAuthModalDesc('Login or Sign Up to start driving and earning.');
+                        setShowAuthModal(true);
+                      }}
+                    />
+                  )
                 } />
                 <Route path="/business" element={
                   <BusinessLanding

@@ -1,0 +1,12 @@
+const fs = require('fs');
+let wizard = fs.readFileSync('c:/Users/ADMIN/Desktop/axon/components/booking/BookingWizardModular.tsx', 'utf8');
+wizard = wizard.replace(/import \{ Step0Dashboard \} from '\\.\\/steps\\/Step0Dashboard';\\r?\\n/, '');
+wizard = wizard.replace(/\\{step === -1 && <Step0Dashboard \\/>\\}\\r?\\n\\s+/, '');
+wizard = wizard.replace(/initialStep=\\{props\\.startAtDashboard \\? -1 : 0\\}/, 'initialStep={0}');
+wizard = wizard.replace(/step === -1 \\? 'max-h-\\[40vh\\]' : step === 0 \\? 'max-h-\\[85vh\\]'/, 'step === 0 ? \\'max-h-[85vh]\\'');
+fs.writeFileSync('c:/Users/ADMIN/Desktop/axon/components/booking/BookingWizardModular.tsx', wizard, 'utf8');
+let ctx = fs.readFileSync('c:/Users/ADMIN/Desktop/axon/components/booking/BookingContext.tsx', 'utf8');
+ctx = ctx.replace(/prevStepState - 1 < -1 \\? -1 : prevStepState - 1/, 'prevStepState - 1 < 0 ? 0 : prevStepState - 1');
+ctx = ctx.replace(/target < -1/g, 'target < 0');
+ctx = ctx.replace(/target : -1/g, 'target : 0');
+fs.writeFileSync('c:/Users/ADMIN/Desktop/axon/components/booking/BookingContext.tsx', ctx, 'utf8');

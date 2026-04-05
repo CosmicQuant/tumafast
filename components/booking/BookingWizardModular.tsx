@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mapService } from '../../services/mapService';
 import { useMapState } from '@/context/MapContext';
@@ -7,8 +7,8 @@ import { BookingProvider, useBooking } from './BookingContext';
 import { VEHICLES } from './constants';
 
 import { Step1Where } from './steps/Step1Where';
+import { Step0Dashboard } from './steps/Step0Dashboard';
 import { Step2What } from './steps/Step2What';
-import { Step2_5PackageDetails } from './steps/Step2_5PackageDetails';
 import { Step3How } from './steps/Step3How';
 import { Step4Who } from './steps/Step4Who';
 import { Step5Payment } from './steps/Step5Payment';
@@ -24,11 +24,12 @@ interface BookingWizardProps {
     onOrderComplete?: (order: any) => void;
     onCollapseChange?: (isCollapsed: boolean) => void;
     onRequireAuth?: (title?: string, desc?: string) => void;
+    startAtDashboard?: boolean;
 }
 
-const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderComplete }) => {
+const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderComplete, onCollapseChange, startAtDashboard }) => {
     const { data, updateData, step, direction } = useBooking();
-    const { pickupCoords, dropoffCoords, waypointCoords, setRoutePolyline, setIsMapSelecting, setActiveInput, setPickupCoords, setWaypointCoords, setDropoffCoords, userLocation, requestUserLocation, isMapSelecting, activeInput, mapCenter, fitBounds } = useMapState();
+    const { pickupCoords, dropoffCoords, waypointCoords, setRoutePolyline, setIsMapSelecting, setActiveInput, setPickupCoords, setWaypointCoords, setDropoffCoords, userLocation, requestUserLocation, isMapSelecting, activeInput, mapCenter, setMapCenter, fitBounds, setBottomSheetHeight } = useMapState();
 
     useEffect(() => {
         if (prefillData) {
@@ -54,11 +55,15 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
         if (prefillData?.pickup || prefillData?.pickupCoords) return;
         requestUserLocation().then(loc => {
             if (loc && !data.pickup && !pickupCoords && !isMapSelecting) {
-                setActiveInput('pickup');
+                // Set initial location and enable map selection mode immediately
                 setIsMapSelecting(true);
+                setActiveInput('pickup');
+                setMapCenter(loc.lat, loc.lng);
                 fitBounds([loc]);
+                updateData({ pickup: 'Locating...' });
                 mapService.reverseGeocode(loc.lat, loc.lng).then(address => {
                     if (address) updateData({ pickup: address });
+                    else updateData({ pickup: 'Current Location' });
                 }).catch(console.error);
             }
         });
@@ -112,17 +117,26 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
                         if (route.full_optimized_order && stopInfo.length === route.full_optimized_order.length) {
                             const optimizedStops = route.full_optimized_order.map((optimizedIndex: number) => stopInfo[optimizedIndex]);
                             if (optimizedStops.length > 0) {
+                                const newWaypoints = optimizedStops.filter((info: any) => info.type === 'waypoint');
+                                const newDropoff = optimizedStops.find((info: any) => info.type === 'dropoff');
+
                                 updateData({
-                                    waypoints: optimizedStops.map((info: any) => info.name),
+                                    dropoff: newDropoff ? newDropoff.name : '',
+                                    waypoints: newWaypoints.map((info: any) => info.name),
                                     distanceKm: distKm,
                                     etaTime: timeStr,
                                     calculatingRoute: false
                                 });
-                                const newWpCoords = optimizedStops.map((info: any) => info.coord);
+
+                                const newWpCoords = newWaypoints.map((info: any) => info.coord);
                                 if (JSON.stringify(newWpCoords) !== JSON.stringify(waypointCoords)) {
                                     setWaypointCoords(newWpCoords);
                                 }
-                                if (dropoffCoords) setDropoffCoords(null);
+                                if (newDropoff) {
+                                    setDropoffCoords(newDropoff.coord);
+                                } else {
+                                    setDropoffCoords(null);
+                                }
                                 return;
                             }
                         }
@@ -227,9 +241,23 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
         else console.log('Final Payload:', newOrder);
     };
 
+    const bottomSheetRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!bottomSheetRef.current || !setBottomSheetHeight) return;
+        const observer = new ResizeObserver((entries) => {
+            const height = entries[0]?.borderBoxSize?.[0]?.blockSize ?? entries[0]?.contentRect.height;
+            // Native platform offset padding + actual height
+            if (height) setBottomSheetHeight(height + 10);
+        });
+        observer.observe(bottomSheetRef.current);
+        return () => observer.disconnect();
+    }, [step, data.isSearchingText, setBottomSheetHeight]);
+
     return (
         <div className="fixed bottom-0 inset-x-0 pointer-events-none z-[100] flex flex-col justify-end mx-auto max-w-lg">
             <motion.div
+                ref={bottomSheetRef}
                 layout
                 className={`w-full bg-white shadow-[0_-15px_40px_rgba(0,0,0,0.12)] rounded-t-[2.5rem] overflow-hidden pointer-events-auto border-t border-gray-100 flex flex-col pb-[env(safe-area-inset-bottom,0)] pb-1 transition-all duration-300 ${data.isSearchingText ? 'h-[90vh]' : 'max-h-[90vh]'}`}
                 transition={{ duration: 0.3, type: 'tween', ease: 'easeOut' }}
@@ -241,7 +269,6 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
                             const STEP_INFO = [
                                 { title: 'Route', icon: Navigation },
                                 { title: 'Cargo Type', icon: Box },
-                                { title: 'Package Details', icon: Box }, // Reuse Box or find Package icon
                                 { title: 'Choose Vehicle', icon: Truck },
                                 { title: 'Receiver Details', icon: User },
                                 { title: 'Payment Option', icon: Banknote }
@@ -255,8 +282,8 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
                         })()}
                         <div className="flex flex-col items-end gap-1.5 mt-[-4px]">
                             <AnimatePresence>
-                                {step >= 3 && (data.distanceKm > 0 || data.calculatingRoute) && (
-                                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="flex items-center gap-2 bg-white px-2 py-0.5 rounded-lg border border-brand-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.1)] mb-1">
+                                {step >= 2 && (data.distanceKm > 0 || data.calculatingRoute) && (
+                                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="flex items-center justify-between gap-2 bg-white px-2 py-0.5 rounded-lg border border-brand-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.1)] mb-1">
                                         {data.calculatingRoute ? (
                                             <span className="text-[10px] font-bold text-brand-600 animate-pulse w-full text-center px-2">Calculating Route...</span>
                                         ) : (
@@ -268,7 +295,7 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
                                                     <span className="text-[11px] font-black text-brand-600 leading-none">{data.etaTime}</span>
                                                 </div>
                                                 <div className="w-[3px] h-[3px] bg-brand-200 rounded-full ml-1" />
-                                                <span className="text-[11px] font-black text-gray-900 leading-none ml-1">KES {finalPrice.toLocaleString()}</span>
+                                                <span className="text-[11px] font-black text-gray-900 leading-none ml-1">KES {finalPrice.toLocaleString()} {activeVehicle ? `· ${activeVehicle.label.split(' ')[0]}` : ''}</span>
                                             </>
                                         )}
                                     </motion.div>
@@ -284,12 +311,12 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
                 <div className="relative px-5 pb-1 w-full flex-1 overflow-y-auto no-scrollbar" style={{ paddingBottom: "0.25rem" }}>
                     <AnimatePresence mode="popLayout" custom={direction} initial={false}>
                         <motion.div key={step} custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ type: 'spring', stiffness: 500, damping: 40 }} className="w-full h-full">
+                            {step === -1 && <Step0Dashboard />}
                             {step === 0 && <Step1Where />}
                             {step === 1 && <Step2What />}
-                            {step === 2 && <Step2_5PackageDetails />}
-                            {step === 3 && <Step3How />}
-                            {step === 4 && <Step4Who />}
-                            {step === 5 && <Step5Payment submit={submitBooking} />}
+                            {step === 2 && <Step3How />}
+                            {step === 3 && <Step4Who />}
+                            {step === 4 && <Step5Payment submit={submitBooking} />}
                         </motion.div>
                     </AnimatePresence>
                 </div>

@@ -21,6 +21,7 @@ import {
    Lock, ShieldCheck, Key, QrCode, RefreshCw, Power, Smartphone, ShieldAlert, FileCheck, Eye, EyeOff, Flag
 } from 'lucide-react';
 import { MarketplaceJobCard } from './driver/MarketplaceJobCard';
+import MapLayer from './MapLayer';
 
 interface DriverDashboardProps {
    user: User;
@@ -38,7 +39,7 @@ interface DashboardContentProps extends DriverDashboardProps {
 const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHome, onViewChange, currentView: propCurrentView }) => {
    const { logout, updateUser, deleteAccount } = useAuth();
    const { showAlert } = usePrompt();
-   const { isLoaded, setPickupCoords, setDropoffCoords, setWaypointCoords, setOrderState, fitBounds, setDriverCoords, setDriverBearing, setDriverVehicleType, setRoutePolyline, requestUserLocation, driverCoords } = useMapState();
+   const { isLoaded, setPickupCoords, setDropoffCoords, setWaypointCoords, setOrderState, fitBounds, setDriverCoords, setDriverBearing, setDriverVehicleType, setRoutePolyline, requestUserLocation, driverCoords, setBottomSheetHeight } = useMapState();
 
    // Internal state if not controlled
    const [internalView, setInternalView] = useState<DashboardView>('JOBS');
@@ -193,7 +194,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
             status: (activeJob.status === 'driver_assigned') ? 'pending' : 'completed',
             lat: activeJob.pickupCoords?.lat || activeJobCoords.pickup?.lat || 0,
             lng: activeJob.pickupCoords?.lng || activeJobCoords.pickup?.lng || 0,
-            coords: activeJob.pickupCoords || activeJobCoords.pickup,
+            coords: activeJob.pickupCoords || activeJobCoords.pickup || { lat: 0, lng: 0 },
             label: 'Pickup',
             verificationCode: activeJob.verificationCode, // Main order code for pickup
             sequenceOrder: 0
@@ -215,7 +216,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
             status: (activeJob.status === 'delivered') ? 'completed' : 'pending',
             lat: activeJob.dropoffCoords?.lat || activeJobCoords.dropoff?.lat || 0,
             lng: activeJob.dropoffCoords?.lng || activeJobCoords.dropoff?.lng || 0,
-            coords: activeJob.dropoffCoords || activeJobCoords.dropoff,
+            coords: activeJob.dropoffCoords || activeJobCoords.dropoff || { lat: 0, lng: 0 },
             label: 'Final Dropoff',
             verificationCode: activeJob.verificationCode,
             sequenceOrder: 999
@@ -377,10 +378,10 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                               totalDur = route.duration;
                               totalDist = Math.round((route.distance / 1000) * 10) / 10;
 
-                              setRouteDuration(remDur);
-                              setRouteDistance(remDist);
-                              setTotalRouteDuration(totalDur);
-                              setTotalRouteDistance(totalDist);
+                              setRouteDuration(remDur ?? null);
+                              setRouteDistance(remDist ?? null);
+                              setTotalRouteDuration(totalDur ?? null);
+                              setTotalRouteDistance(totalDist ?? null);
                            }
                         }
                      }
@@ -886,6 +887,28 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
          )}
       </button>
    );
+
+   // Bottom Sheet Height tracker for Map Padding
+   const bottomSheetRef = useRef<HTMLDivElement>(null);
+
+   useEffect(() => {
+      if (currentView !== 'JOBS') {
+         setBottomSheetHeight?.(0);
+         return;
+      }
+      if (!bottomSheetRef.current) return;
+
+      const observer = new ResizeObserver((entries) => {
+         for (let entry of entries) {
+            let height = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+            // Native platform navigation bar space + mb-16 -> roughly +60px padding
+            setBottomSheetHeight?.(height + 100);
+         }
+      });
+
+      observer.observe(bottomSheetRef.current);
+      return () => observer.disconnect();
+   }, [currentView, isDrawerCollapsed, hasActiveJob, isOnline, setBottomSheetHeight]);
 
    const StatCard = ({ title, value, icon: Icon, color, trend, onClick }: any) => (
       <div
@@ -1549,9 +1572,9 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                      ) : (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                            {filteredOrders.map(order => (
-                              <MarketplaceJobCard 
-                                 key={order.id} 
-                                 order={order} 
+                              <MarketplaceJobCard
+                                 key={order.id}
+                                 order={order}
                                  onAccept={handleAcceptJob}
                                  disabled={hasActiveJob || (user.vehicleType && order.vehicle !== user.vehicleType)}
                               />
@@ -1966,7 +1989,7 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
 
             {/* Active Job Overlay (Map View) */}
             {currentView === 'JOBS' && (
-               <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none pb-[env(safe-area-inset-bottom)] md:pb-6">
+               <div ref={bottomSheetRef} className="absolute inset-x-0 bottom-0 z-10 pointer-events-none pb-[env(safe-area-inset-bottom)] md:pb-6">
                   {hasActiveJob ? (
                      <div className={`w-full md:absolute md:left-auto md:right-8 md:w-96 bg-white/95 backdrop-blur-xl rounded-t-[2.5rem] md:rounded-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] md:shadow-2xl border-t md:border border-gray-200 transition-all duration-300 pointer-events-auto ${Capacitor.isNativePlatform() ? 'mb-[5rem] md:mb-0 md:bottom-28' : 'mb-16 md:mb-0 md:bottom-8'} ${isDrawerCollapsed ? 'p-4' : 'p-6 pt-4'}`}>
                         {/* Mobile Drag Handle */}

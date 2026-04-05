@@ -1,77 +1,142 @@
-const fs = require('fs');
-let code = fs.readFileSync('components/booking/BookingWizard.tsx', 'utf8');
+﻿const fs = require('fs');
+let text = fs.readFileSync('components/MapLayer.tsx', 'utf8');
 
-code = code.replace(/\{isMapSelecting && \([\s\S]*?<\/button>\s*<\/div>\s*\)\}/g, '');
+text = text.replace('center={mapCenter || center}', 'center={undefined}\n                zoom={undefined}');
+if (!text.includes('isFractionalZoomEnabled: true')) {
+    text = text.replace('options={{', 'options={{\n                    isFractionalZoomEnabled: true,\n                    mapId: "DEMO_MAP_ID",');
+}
 
-code = code.replace(
-    /<AnimatePresence mode="wait">/,
-    \{isMapSelecting && (
-                <div className="absolute top-[0%] -translate-y-[130%] left-0 right-0 z-[120] flex justify-center">
-                    <button
-                        onClick={async () => {
-                            setIsMapSelecting(false);
-                            if (mapCenter) {
-                                const lat = mapCenter.lat;
-                                const lng = mapCenter.lng;
-                                const address = await mapService.reverseGeocode(lat, lng) || 'Selected Location';
-                                
-                                if (activeInput === 'pickup') {
-                                    update({ pickup: address });
-                                    setPickupCoords({ lat, lng });
-                                    setActiveTab('dropoff');
-                                } else {
-                                    const newWp = [...data.waypoints, address];
-                                    const newCoords = [...waypointCoords, { lat, lng }];
-                                    update({ waypoints: newWp, dropoff: '' });
-                                    setWaypointCoords(newCoords);
-                                }
-                            }
-                        }}
-                        className="px-6 py-3 bg-brand-600 text-white rounded-full font-bold shadow-xl border-4 border-white flex items-center gap-2 hover:scale-105 transition-transform"
-                    >
-                        <Check size={18} /> Confirm {activeInput === 'pickup' ? 'Pickup' : 'Dropoff'} Here
-                    </button>
-                </div>
-            )}
-            <AnimatePresence mode="wait">\
-);
+const n1 = text.indexOf('const onLoad = useCallback(function callback(map: google.maps.Map) {');
+const n2 = text.indexOf('}, []);', n1) + 7;
+if (n1 !== -1) {
+    const new_load = \const initialCenterSet = useRef(false);
+    const onLoad = useCallback(function callback(mapInstance) {
+        if (!initialCenterSet.current && mapCenter) {
+            mapInstance.setCenter(userLocation || mapCenter);
+            mapInstance.setZoom(userLocation ? 14 : zoom);
+            initialCenterSet.current = true;
+        }
+        setMap(mapInstance);
+    }, [mapCenter, zoom, userLocation]);\;
+    text = text.substring(0, n1) + new_load + text.substring(n2);
+}
 
-code = code.replace(
-    /className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden max-h-48 overflow-y-auto"/g,
-    'className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-lg border border-gray-100 z-[150] overflow-hidden max-h-48 overflow-y-auto"'
-);
+const i1 = text.indexOf('const onIdle = () => {');
+const i2 = text.indexOf('};', text.indexOf('wasPanned.current = false;', i1)) + 2;
+if (i1 !== -1) {
+    const new_idle = \const onIdle = useCallback(() => {
+        if (isMapAnimatingRef.current) return;
+        if (!map) return;
+        const currentZoom = map.getZoom();
+        if (currentZoom !== undefined && currentZoom !== zoom) {
+            setZoom(currentZoom);
+        }
+        const c = map.getCenter();
+        if (c) {
+            setMapCenter(c.lat(), c.lng());
+        }
+    }, [map, zoom, setZoom, setMapCenter]);\;
+    text = text.substring(0, i1) + new_idle + text.substring(i2);
+}
 
-const pickupHandleChangeStr = 'value={data.pickup} onChange={e => handlePickupChange(e.target.value)}';
-code = code.replace(
-    pickupHandleChangeStr,
-    \alue={data.pickup}
-                                onChange={e => handlePickupChange(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        if (pickupSuggestions && pickupSuggestions.length > 0) {
-                                            handlePickupSelect(pickupSuggestions[0]);
-                                        } else if (data.pickup && data.pickup.length > 2) {
-                                            setActiveTab('dropoff');
-                                        }
-                                    }
-                                }}\
-);
+const b1 = text.indexOf('useEffect(() => {\\n        if (map && boundsToFit && boundsToFit.length > 0) {\\n            const PADDING');
+const b2 = text.indexOf('}, [map, boundsToFit, resetBoundsTrigger]);', b1) + 43;
+if (b1 !== -1) {
+    const new_bounds = \const lastBoundsRef = useRef('');
+    const cameraTimeoutsRef = useRef([]);
 
-const dpHandleChangeStr = 'value={data.dropoff} onChange={e => handleDropoffChange(e.target.value)}';
-code = code.replace(
-    dpHandleChangeStr,
-    \alue={data.dropoff}
-                                onChange={e => handleDropoffChange(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        if (dropoffSuggestions && dropoffSuggestions.length > 0) {
-                                            handleDropoffSelect(dropoffSuggestions[0]);
-                                        }
-                                    }
-                                }}\
-);
+    useEffect(() => {
+        if (map && boundsToFit && boundsToFit.length > 0) {
+            const dynamicPadding = { top: 96, bottom: 400, left: 56, right: 56 };
+            const boundsKey = JSON.stringify(boundsToFit);
+            
+            if (boundsKey === lastBoundsRef.current) {
+                resetBoundsTrigger();
+                return;
+            }
 
-fs.writeFileSync('components/booking/BookingWizard.tsx', code);
-console.log("Done");
+            lastBoundsRef.current = boundsKey;
+
+            cameraTimeoutsRef.current.forEach(t => clearTimeout(t));
+            cameraTimeoutsRef.current = [];
+            if (animationFrameRef.current !== null) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
+
+            const easeInOutCubic = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            const animateCamera = (targetCenter, targetZoom, durationMs, onComplete) => {
+                const startZoom = map.getZoom() || 14;
+                const startCenter = map.getCenter();
+                if (!startCenter) return;
+
+                const startLat = startCenter.lat();
+                const startLng = startCenter.lng();
+                const startTime = performance.now();
+
+                isMapAnimatingRef.current = true;
+                const tick = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / durationMs, 1);
+                    const ease = easeInOutCubic(progress);
+
+                    map.setZoom(startZoom + (targetZoom - startZoom) * ease);
+                    map.setCenter({
+                        lat: startLat + (targetCenter.lat - startLat) * ease,
+                        lng: startLng + (targetCenter.lng - startLng) * ease
+                    });
+
+                    if (progress < 1) {
+                        animationFrameRef.current = requestAnimationFrame(tick);
+                    } else {
+                        isMapAnimatingRef.current = false;
+                        if (onComplete) onComplete();
+                    }
+                };
+                animationFrameRef.current = requestAnimationFrame(tick);
+            };
+
+            const applyCamera = () => {
+                if (boundsToFit.length === 1) {
+                    animateCamera(boundsToFit[0], 19, 1200, () => {
+                        resetBoundsTrigger();
+                    });
+                } else {
+                    const bounds = new google.maps.LatLngBounds();
+                    boundsToFit.forEach(coord => bounds.extend(coord));
+                    if (map.panToBounds) {
+                        map.panToBounds(bounds, dynamicPadding);
+                    } else {
+                        map.fitBounds(bounds, dynamicPadding);
+                    }
+                    setTimeout(() => {
+                        resetBoundsTrigger();
+                    }, 1200);
+                }
+            };
+
+            const t = setTimeout(applyCamera, 200);
+            cameraTimeoutsRef.current.push(t);
+        }
+    }, [map, boundsToFit, resetBoundsTrigger]);
+
+    useEffect(() => {
+        return () => {
+            cameraTimeoutsRef.current.forEach(t => clearTimeout(t));
+        };
+    }, []);\;
+    text = text.substring(0, b1) + new_bounds + text.substring(b2);
+} else {
+    console.log("Could not find bounds regex!");
+}
+
+const r1 = text.indexOf('    const userPannedRef = useRef(false);\\n');
+if (r1 !== -1) {
+    text = text.replace('    const userPannedRef = useRef(false);\\n', '');
+}
+const r2 = text.indexOf('    const wasPanned = useRef(false);\\n');
+if (r2 !== -1) {
+    text = text.replace('    const wasPanned = useRef(false);\\n', '');
+}
+
+fs.writeFileSync('components/MapLayer.tsx', text);
+console.log("DONE!");
