@@ -218,7 +218,7 @@ export const Step2What = () => {
                 )}
             </AnimatePresence>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-2 sticky bottom-0 bg-white z-10 pb-2">
                 <button onClick={() => prevStep()} className="w-12 bg-gray-100 text-gray-700 rounded-xl flex items-center justify-center hover:bg-gray-200"><ArrowLeft size={16} /></button>
                 <button
                     onClick={() => nextStep()}

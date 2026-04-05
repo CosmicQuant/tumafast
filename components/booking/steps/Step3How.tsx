@@ -170,7 +170,7 @@ export const Step3How = () => {
                 </div>
             </div>
 
-            <div className="flex items-center justify-end pt-1">
+            <div className="flex items-center justify-end pt-1 sticky bottom-0 bg-white z-10 pb-2">
                 <div className="flex gap-2 w-full">
                     <button onClick={() => prevStep()} className="px-3 bg-gray-100 text-gray-700 rounded-xl flex items-center justify-center hover:bg-gray-200"><ArrowLeft size={16} /></button>
                     <button

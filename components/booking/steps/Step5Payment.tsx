@@ -199,7 +199,7 @@ export const Step5Payment: React.FC<Step5Props> = ({ submit }) => {
                 )}
             </AnimatePresence>
 
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2 pt-1 sticky bottom-0 bg-white z-10 pb-2">
                 <button onClick={() => prevStep()} className="w-12 bg-gray-100 text-gray-700 rounded-xl flex items-center justify-center hover:bg-gray-200"><ArrowLeft size={16} /></button>
                 <button onClick={submit} className="flex-1 py-3 bg-brand-600 text-white rounded-xl text-sm font-bold flex items-center gap-1.5 justify-center shadow-lg shadow-brand-600/30 hover:bg-brand-500 transition-colors">
                     Confirm Booking & Pay <Check size={16} />

@@ -108,7 +108,8 @@ const MapLayer: React.FC = () => {
         setActiveInput,
         waypointCoords,
         setWaypointCoords,
-        driverLabel
+        driverLabel,
+        bottomSheetHeight
     } = useMapState();
 
     const isMapAnimatingRef = useRef(false);
@@ -180,10 +181,12 @@ const MapLayer: React.FC = () => {
     // Handle Fit Bounds — Uber/Bolt-style smooth camera transitions
     const lastBoundsRef = useRef('');
     const cameraTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+    const lastSheetHeightRef = useRef(0);
 
     useEffect(() => {
         if (map && boundsToFit && boundsToFit.length > 0) {
-            const dynamicPadding = { top: 96, bottom: 400, left: 56, right: 56 };
+            const sheetPad = Math.max(120, (bottomSheetHeight || 300) + 24);
+            const dynamicPadding = { top: 56, bottom: sheetPad, left: 40, right: 40 };
             const boundsKey = JSON.stringify(boundsToFit);
 
             if (boundsKey === lastBoundsRef.current) {
@@ -314,6 +317,83 @@ const MapLayer: React.FC = () => {
             cameraTimeoutsRef.current.forEach(t => clearTimeout(t));
         };
     }, []);
+
+    // Re-fit route when bottom sheet height changes significantly
+    // (e.g. step 1→2 collapses the sheet, revealing more map space)
+    // Debounced: wait 400ms after the last height change so framer-motion settles
+    const sheetRefitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        if (!map || !bottomSheetHeight) return;
+
+        // Clear any pending refit — only the last height matters
+        if (sheetRefitTimerRef.current) clearTimeout(sheetRefitTimerRef.current);
+
+        sheetRefitTimerRef.current = setTimeout(() => {
+            if (isMapAnimatingRef.current) return;
+
+            // Skip if sheet is taller than 70% of viewport
+            const screenH = window.innerHeight;
+            if (bottomSheetHeight > screenH * 0.7) return;
+
+            // Only refit if height actually changed meaningfully
+            const delta = Math.abs(bottomSheetHeight - lastSheetHeightRef.current);
+            if (delta < 40) return;
+            lastSheetHeightRef.current = bottomSheetHeight;
+
+            // Need at least 2 points to show a route
+            const hasRoute = pickupCoords && (waypointCoords?.length > 0 || dropoffCoords);
+            if (!hasRoute) return;
+
+            const allPoints: google.maps.LatLngLiteral[] = [];
+            if (pickupCoords) allPoints.push(pickupCoords);
+            if (waypointCoords) waypointCoords.forEach((wp: any) => { if (wp) allPoints.push(wp); });
+            if (dropoffCoords) allPoints.push(dropoffCoords);
+            if (allPoints.length < 2) return;
+
+            const bounds = new google.maps.LatLngBounds();
+            allPoints.forEach(p => bounds.extend(p));
+
+            const padding = { top: 56, bottom: bottomSheetHeight + 24, left: 40, right: 40 };
+
+            // Compute target via fitBounds, snap back, animate
+            const startCenter = map.getCenter();
+            const startZoom = map.getZoom() ?? 14;
+            map.fitBounds(bounds, padding);
+            const targetZoom = map.getZoom() ?? 14;
+            const targetCenter = map.getCenter();
+            if (startCenter) map.moveCamera({ center: startCenter, zoom: startZoom });
+
+            // Skip if zoom/position barely changed
+            const zoomDelta = Math.abs(targetZoom - startZoom);
+            if (zoomDelta < 0.3) return;
+
+            const t0 = performance.now();
+            const ease = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            isMapAnimatingRef.current = true;
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            const sLat = startCenter?.lat() ?? 0, sLng = startCenter?.lng() ?? 0;
+            const tLat = targetCenter?.lat() ?? 0, tLng = targetCenter?.lng() ?? 0;
+            const tick = (now: number) => {
+                const p = Math.min((now - t0) / 600, 1);
+                const e = ease(p);
+                map.moveCamera({
+                    center: { lat: sLat + (tLat - sLat) * e, lng: sLng + (tLng - sLng) * e },
+                    zoom: startZoom + (targetZoom - startZoom) * e
+                });
+                if (p < 1) {
+                    animationFrameRef.current = requestAnimationFrame(tick);
+                } else {
+                    isMapAnimatingRef.current = false;
+                }
+            };
+            animationFrameRef.current = requestAnimationFrame(tick);
+        }, 400); // 400ms debounce — let framer-motion sheet animation finish
+
+        return () => {
+            if (sheetRefitTimerRef.current) clearTimeout(sheetRefitTimerRef.current);
+        };
+    }, [map, bottomSheetHeight, pickupCoords, dropoffCoords, waypointCoords]);
 
     // Sync map center back to context when user pans
     const onIdle = useCallback(() => {

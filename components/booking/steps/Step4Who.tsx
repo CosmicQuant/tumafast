@@ -59,7 +59,7 @@ export const Step4Who = () => {
                 />
             </div>
 
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2 pt-1 sticky bottom-0 bg-white z-10 pb-2">
                 <button onClick={() => prevStep()} className="px-4 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200"><ArrowLeft size={16} /></button>
                 <button onClick={() => nextStep()} disabled={!data.receiverName || !data.receiverPhone || !data.receiverId} className="flex-1 py-3 bg-gray-900 text-white rounded-xl text-sm font-bold flex flex-center gap-1.5 justify-center disabled:opacity-50">
                     Payment <ArrowRight size={16} />

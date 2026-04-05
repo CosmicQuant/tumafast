@@ -621,7 +621,7 @@ export const Step1Where = () => {
 
 
             {/* Continue Button */}
-            <div className="flex items-stretch gap-2 w-full mt-2 h-[48px]">
+            <div className="flex items-stretch gap-2 w-full mt-2 h-[48px] sticky bottom-0 bg-white z-10 py-2">
                 {pickupConfirmed && !isMapSelecting && (
                     <button
                         onClick={() => {
