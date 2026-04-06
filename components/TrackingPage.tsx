@@ -45,7 +45,7 @@ const TrackingPageContent: React.FC = () => {
                 : (order?.status === 'in_transit'
                     ? (order.remainingDuration ? `Delivering in ${Math.ceil(order.remainingDuration / 60)} mins` : 'Delivering')
                     : (order?.status === 'delivered' ? 'Arrived' : null));
-            
+
             setDriverLabel(dLabel);
 
         } else {
@@ -93,12 +93,12 @@ const TrackingPageContent: React.FC = () => {
                 if (order.routeGeometry) {
                     setRoutePolyline(order.routeGeometry);
                 } else {
-                    // Fallback: Update Route for customer (throttle to every 15s)
-                    const now = Date.now();
-                    if (now - lastRouteUpdate.current > 15000 || !lastRouteUpdate.current) {
-                        lastRouteUpdate.current = now;
+                    if (order.driverLocation) {
+                        // Throttle driver-location-triggered route updates to every 15s
+                        const now = Date.now();
+                        if (now - lastRouteUpdate.current > 15000 || !lastRouteUpdate.current) {
+                            lastRouteUpdate.current = now;
 
-                        if (order.driverLocation) {
                             // Multi-stop aware routing for customer
                             const remainingStops: { lat: number, lng: number }[] = [];
 
@@ -129,15 +129,15 @@ const TrackingPageContent: React.FC = () => {
                                 const route = await mapService.getRoute(start, end, waypoints, order.vehicle);
                                 if (route) setRoutePolyline(route.geometry);
                             }
-                        } else if (p && d) {
-                            // No driver yet, show full route with waypoints
-                            const waypoints = order.stops
-                                ?.filter(s => s.type !== 'dropoff')
-                                .sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0))
-                                .map(s => ({ lat: s.lat, lng: s.lng })) || [];
-                            const route = await mapService.getRoute(p, d, waypoints, order.vehicle, false); // No need to re-optimize, already optimized
-                            if (route) setRoutePolyline(route.geometry);
                         }
+                    } else if (p && d) {
+                        // No driver yet — always recalculate (no throttle needed)
+                        const waypoints = order.stops
+                            ?.filter(s => s.type !== 'dropoff')
+                            .sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0))
+                            .map(s => ({ lat: s.lat, lng: s.lng })) || [];
+                        const route = await mapService.getRoute(p, d, waypoints, order.vehicle, false);
+                        if (route) setRoutePolyline(route.geometry);
                     }
                 }
 
@@ -160,8 +160,14 @@ const TrackingPageContent: React.FC = () => {
                         fitBounds([driverPos, d]);
                     }
                 } else if (p && d) {
-                    // No driver yet, show full route bounds
-                    fitBounds([p, d]);
+                    // No driver yet, show full route bounds including waypoints
+                    const allPoints: Array<{ lat: number; lng: number }> = [p, d];
+                    order.stops?.forEach(s => {
+                        if (s.type !== 'dropoff' && s.lat && s.lng) {
+                            allPoints.push({ lat: s.lat, lng: s.lng });
+                        }
+                    });
+                    fitBounds(allPoints);
                 }
             } catch (error) {
                 console.error("Error syncing map in TrackingPage:", error);

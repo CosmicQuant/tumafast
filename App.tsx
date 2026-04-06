@@ -28,6 +28,7 @@ const DriverDashboard = lazy(() => import('./components/DriverDashboard'));
 const BusinessDashboard = lazy(() => import('./components/BusinessDashboard'));
 const BusinessLanding = lazy(() => import('./components/BusinessLanding'));
 const CustomerDashboard = lazy(() => import('./components/CustomerDashboard'));
+const CustomerHome = lazy(() => import('./components/CustomerHome'));
 const HistoryList = lazy(() => import('./components/HistoryList'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./components/TermsOfService'));
@@ -44,15 +45,80 @@ const PaymentCollection = lazy(() => import('./components/PaymentCollection'));
 const FleetManagement = lazy(() => import('./components/FleetManagement'));
 // Temporary test component for the new wizard framework
 const TestBookingWizard = lazy(() => import('./components/booking/BookingWizardModular'));
-const SkeletonFallback = () => (
+const LOCATION_CACHE_KEY = 'axon_last_known_location';
+
+const getCachedLoc = () => {
+  try {
+    const raw = localStorage.getItem(LOCATION_CACHE_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p.timestamp && Date.now() - p.timestamp < 30 * 60 * 1000) return p;
+    }
+  } catch { /* ignore */ }
+  return null;
+};
+
+const SkeletonFallback = ({ message }: { message?: string }) => (
   <div className="flex h-screen w-full items-center justify-center bg-white">
     <div className="flex flex-col items-center gap-4 animate-pulse">
       <Logo className="w-32 h-32 drop-shadow-lg" />
+      {message && <p className="text-sm text-gray-400 font-medium mt-2">{message}</p>}
     </div>
   </div>
 );
 
 const App = () => {
+  const [locationReady, setLocationReady] = useState(() => !!getCachedLoc());
+
+  // Resolve user location on cold start before rendering the app
+  useEffect(() => {
+    if (locationReady) return; // Already have cached location
+
+    let resolved = false;
+
+    // Timeout: don't block forever — 4s max
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        setLocationReady(true);
+      }
+    }, 4000);
+
+    // Try to get real location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (!resolved) {
+            resolved = true;
+            try {
+              localStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                timestamp: Date.now()
+              }));
+            } catch { /* ignore */ }
+            clearTimeout(timeout);
+            setLocationReady(true);
+          }
+        },
+        () => {
+          // Permission denied or error — proceed anyway
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            setLocationReady(true);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 3500, maximumAge: 60000 }
+      );
+    } else {
+      resolved = true;
+      clearTimeout(timeout);
+      setLocationReady(true);
+    }
+
+    return () => clearTimeout(timeout);
+  }, [locationReady]);
   const { user, isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
@@ -220,6 +286,8 @@ const App = () => {
 
   if (isLoading) return <SkeletonFallback />;
 
+  if (!locationReady) return <SkeletonFallback message="Finding your location..." />;
+
   // Determine dashboard routes to hide/adjust navbars
   const isDashboard = location.pathname.includes('dashboard') ||
     location.pathname.startsWith('/driver') ||
@@ -228,7 +296,6 @@ const App = () => {
     location.pathname.startsWith('/terms');
 
   const isMapPage = location.pathname === '/book' ||
-    (location.pathname === '/' && user?.role === 'customer') ||
     location.pathname.startsWith('/track') ||
     location.pathname.startsWith('/test-wizard');
 
@@ -298,7 +365,7 @@ const App = () => {
                 {/* Public Routes */}
                 <Route path="/" element={
                   user?.role === 'customer' ? (
-                    <BookingPage isDashboardMode />
+                    <CustomerHome />
                   ) : (
                     <Hero
                       onStartBooking={(prefill) => {

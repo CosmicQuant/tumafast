@@ -1093,18 +1093,22 @@ const Step5Payment = ({ data, update, submit, prev }: any) => (
             </button>
         </div>
 
-        <AnimatePresence mode="wait">
-            {data.paymentMethod === 'M-Pesa' && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-1">
-                    <label className="text-xs font-bold text-gray-600 ml-1">M-Pesa Phone Number</label>
-                    <input
-                        type="tel"
-                        className="w-full px-3.5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-green-500 text-sm font-bold transition-all text-gray-900"
-                        value={data.paymentPhone} onChange={e => update({ paymentPhone: e.target.value })}
-                    />
-                </motion.div>
+        {/* Price row — always same height */}
+        <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200 flex items-center justify-between gap-3">
+            {data.paymentMethod === 'M-Pesa' ? (
+                <input
+                    type="tel"
+                    placeholder="M-Pesa number"
+                    className="flex-1 min-w-0 px-0 py-0 bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-900 placeholder-gray-400 outline-none"
+                    value={data.paymentPhone} onChange={e => update({ paymentPhone: e.target.value })}
+                />
+            ) : (
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total</span>
             )}
-        </AnimatePresence>
+            <span className="text-lg font-black text-gray-900 whitespace-nowrap flex-shrink-0">
+                {data.price > 0 ? `KES ${data.price.toLocaleString()}` : <span className="text-sm text-gray-400 animate-pulse">Calculating...</span>}
+            </span>
+        </div>
 
         <div className="flex gap-2 pt-1">
             <button onClick={prev} className="px-4 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200"><ArrowLeft size={16} /></button>

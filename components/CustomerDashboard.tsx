@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import HistoryList from './HistoryList';
 import { mapService } from '../services/mapService';
+import { useUserOrders } from '../hooks/useOrders';
 import {
     Package, Settings, LogOut, ArrowLeft, Plus, Search,
     Copy, Clock, MapPin, ChevronRight, User, Truck,
@@ -9,7 +10,8 @@ import {
     Navigation, CheckCircle2, AlertCircle, LayoutDashboard,
     Bell, Lock, Eye, Trash2, ArrowRight, Smartphone,
     EyeOff, Key, ShieldCheck, FileText, Info, ChevronDown, ChevronUp,
-    RefreshCw, Check, Home, Briefcase, X as CloseIcon, Loader, AlertTriangle, Power, Menu, Globe
+    RefreshCw, Check, Home, Briefcase, X as CloseIcon, Loader, AlertTriangle, Power, Menu, Globe,
+    Send, Zap, RotateCcw, TrendingUp
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -40,6 +42,34 @@ const CustomerDashboard: React.FC = () => {
     }, [location.search]);
 
     const [trackingInput, setTrackingInput] = useState('');
+
+    // Orders data for stats
+    const { data: orders } = useUserOrders(user?.id || '');
+
+    const stats = useMemo(() => {
+        if (!orders) return { active: 0, delivered: 0, totalSpent: 0 };
+        const active = orders.filter(o => ['pending', 'driver_assigned', 'in_transit'].includes(o.status)).length;
+        const delivered = orders.filter(o => o.status === 'delivered').length;
+        const totalSpent = orders.reduce((sum, o) => sum + (o.price || 0), 0);
+        return { active, delivered, totalSpent };
+    }, [orders]);
+
+    const liveOrder = useMemo(() => {
+        if (!orders) return null;
+        return orders.find(o => o.status === 'in_transit') || orders.find(o => o.status === 'driver_assigned') || null;
+    }, [orders]);
+
+    const lastDelivered = useMemo(() => {
+        if (!orders) return null;
+        return orders.filter(o => o.status === 'delivered').sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime())[0] || null;
+    }, [orders]);
+
+    const getGreeting = () => {
+        const h = new Date().getHours();
+        if (h < 12) return 'Good morning';
+        if (h < 17) return 'Good afternoon';
+        return 'Good evening';
+    };
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // Settings States
@@ -411,45 +441,147 @@ const CustomerDashboard: React.FC = () => {
                 </header>
 
                 {/* VIEW CONTENT */}
-                <div className="p-4 sm:p-8 space-y-6 flex-1 w-full max-w-[100vw] overflow-x-hidden overflow-y-auto">
+                <div className="p-4 sm:p-8 space-y-5 flex-1 w-full max-w-[100vw] overflow-x-hidden overflow-y-auto">
                     {currentView === 'DELIVERIES' ? (
                         <>
-                            {/* Tracking Card - Now at top of deliveries */}
-                            <div className="bg-[#F0FDF4] p-6 sm:p-8 rounded-[2rem] border border-[#DCFCE7] relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-8 text-emerald-500 opacity-10">
-                                    <Search className="w-32 h-32 rotate-12 group-hover:scale-110 transition-transform duration-700" />
+                            {/* 1. Greeting + Stats Strip */}
+                            <div className="space-y-4">
+                                <div>
+                                    <h2 className="text-xl sm:text-2xl font-black text-slate-900">{getGreeting()}, {user?.name?.split(' ')[0] || 'there'}</h2>
+                                    <p className="text-sm text-gray-400 font-medium mt-0.5">Here's your delivery overview</p>
                                 </div>
-                                <div className="relative z-10 w-full">
-                                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 gap-4">
-                                        <div>
-                                            <h2 className="text-xl sm:text-2xl font-black text-slate-900 mb-1">Track a Package</h2>
-                                            <p className="text-gray-500 font-medium text-sm">
-                                                Enter tracking ID to see real-time status.
-                                            </p>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-100 shadow-sm">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center">
+                                                <Truck className="w-4 h-4 text-blue-600" />
+                                            </div>
                                         </div>
+                                        <p className="text-xl sm:text-2xl font-black text-slate-900">{stats.active}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active</p>
                                     </div>
-                                    <form onSubmit={handleTrack} className="flex flex-col sm:flex-row gap-3 w-full max-w-3xl">
-                                        <div className="relative flex-grow">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                            <input
-                                                type="text"
-                                                placeholder="Enter Order ID..."
-                                                value={trackingInput}
-                                                onChange={(e) => setTrackingInput(e.target.value)}
-                                                className="w-full pl-12 pr-4 py-3.5 bg-white border-2 border-transparent focus:border-emerald-500 rounded-xl font-bold text-slate-900 shadow-sm transition-all focus:ring-0 outline-none"
-                                            />
+                                    <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-100 shadow-sm">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center">
+                                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                            </div>
                                         </div>
-                                        <button
-                                            type="submit"
-                                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3.5 rounded-xl font-black shadow-lg shadow-emerald-100 transition-all active:scale-95 whitespace-nowrap"
-                                        >
-                                            Track
-                                        </button>
-                                    </form>
+                                        <p className="text-xl sm:text-2xl font-black text-slate-900">{stats.delivered}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Delivered</p>
+                                    </div>
+                                    <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-100 shadow-sm">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center">
+                                                <TrendingUp className="w-4 h-4 text-amber-600" />
+                                            </div>
+                                        </div>
+                                        <p className="text-xl sm:text-2xl font-black text-slate-900">{stats.totalSpent >= 1000 ? `${(stats.totalSpent / 1000).toFixed(1)}k` : stats.totalSpent}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">KES Spent</p>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Order History */}
+                            {/* 2. Compact Tracking Bar */}
+                            <form onSubmit={handleTrack} className="flex items-center gap-2 bg-emerald-50 rounded-2xl p-2.5 border border-emerald-100">
+                                <div className="relative flex-grow">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Track by Order ID..."
+                                        value={trackingInput}
+                                        onChange={(e) => setTrackingInput(e.target.value)}
+                                        className="w-full pl-9 pr-3 py-2.5 bg-white rounded-xl border border-transparent focus:border-emerald-400 font-bold text-sm text-slate-900 shadow-sm transition-all focus:ring-0 outline-none"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all active:scale-95 whitespace-nowrap"
+                                >
+                                    Track
+                                </button>
+                            </form>
+
+                            {/* 3. Quick Action Tiles */}
+                            <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+                                <button
+                                    onClick={() => navigate('/book')}
+                                    className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm hover:border-emerald-200 hover:bg-emerald-50 transition-all whitespace-nowrap flex-shrink-0"
+                                >
+                                    <Send className="w-4 h-4 text-emerald-600" />
+                                    <span className="text-sm font-bold text-slate-900">Send Package</span>
+                                </button>
+                                <button
+                                    onClick={() => navigate('/book', { state: { prefill: { serviceType: 'express' } } })}
+                                    className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm hover:border-amber-200 hover:bg-amber-50 transition-all whitespace-nowrap flex-shrink-0"
+                                >
+                                    <Zap className="w-4 h-4 text-amber-500" />
+                                    <span className="text-sm font-bold text-slate-900">Express</span>
+                                </button>
+                                {lastDelivered && (
+                                    <button
+                                        onClick={() => navigate('/book', {
+                                            state: {
+                                                prefill: {
+                                                    pickup: lastDelivered.pickup,
+                                                    dropoff: lastDelivered.dropoff,
+                                                    pickupCoords: lastDelivered.pickupCoords,
+                                                    dropoffCoords: lastDelivered.dropoffCoords,
+                                                    vehicle: lastDelivered.vehicle,
+                                                    serviceType: lastDelivered.serviceType,
+                                                    itemDescription: lastDelivered.itemDescription || lastDelivered.items?.itemDesc,
+                                                    sender: lastDelivered.sender,
+                                                    recipient: lastDelivered.recipient,
+                                                    stops: lastDelivered.stops,
+                                                    isReorder: true
+                                                }
+                                            }
+                                        })}
+                                        className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm hover:border-blue-200 hover:bg-blue-50 transition-all whitespace-nowrap flex-shrink-0"
+                                    >
+                                        <RotateCcw className="w-4 h-4 text-blue-600" />
+                                        <span className="text-sm font-bold text-slate-900">Reorder Last</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* 4. Live Order Hero Card */}
+                            {liveOrder && (
+                                <div
+                                    onClick={() => navigate(`/track?id=${liveOrder.id}`)}
+                                    className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-2xl p-4 sm:p-5 cursor-pointer hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-lg shadow-emerald-200 active:scale-[0.98]"
+                                >
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse"></div>
+                                            <span className="text-[10px] font-black text-emerald-100 uppercase tracking-widest">
+                                                {liveOrder.status === 'in_transit' ? 'In Transit' : 'Driver Assigned'}
+                                            </span>
+                                        </div>
+                                        <ChevronRight className="w-5 h-5 text-emerald-200" />
+                                    </div>
+                                    <h3 className="text-white font-black text-base sm:text-lg mb-1 truncate">{liveOrder.items?.itemDesc || 'Package'}</h3>
+                                    <div className="flex items-center gap-4 text-emerald-100 text-xs font-bold">
+                                        {liveOrder.driver?.name && (
+                                            <span className="flex items-center gap-1">
+                                                <User className="w-3 h-3" />
+                                                {liveOrder.driver.name}
+                                            </span>
+                                        )}
+                                        <span className="flex items-center gap-1">
+                                            <MapPin className="w-3 h-3" />
+                                            {liveOrder.dropoff?.split(',')[0]}
+                                        </span>
+                                        {liveOrder.estimatedDuration && (
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="w-3 h-3" />
+                                                ETA {liveOrder.estimatedDuration}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 5. Order History */}
                             <div className="space-y-6">
                                 <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-4 sm:p-6">
                                     <HistoryList
@@ -458,6 +590,15 @@ const CustomerDashboard: React.FC = () => {
                                     />
                                 </div>
                             </div>
+
+                            {/* 6. Mobile FAB - Book Delivery */}
+                            <button
+                                onClick={() => navigate('/book')}
+                                className="sm:hidden fixed bottom-20 right-4 z-50 w-14 h-14 bg-emerald-600 hover:bg-emerald-700 rounded-2xl shadow-xl shadow-emerald-300/50 flex items-center justify-center text-white active:scale-90 transition-all"
+                                style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+                            >
+                                <Plus className="w-6 h-6" />
+                            </button>
                         </>
                     ) : (
                         /* Professional Settings View - Wider Layout */

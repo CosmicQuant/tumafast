@@ -848,21 +848,45 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
       setDeliveryConfirmationFile(null);
    };
 
-   const openGoogleMaps = (locationName: string) => {
-      const normalize = (s: string) => s.toLowerCase().trim();
-      const target = normalize(locationName);
-      const keys = Object.keys(LOCATION_COORDINATES).sort((a, b) => b.length - a.length);
-      const match = keys.find(k => target.includes(normalize(k)));
+   const openGoogleMaps = (locationName?: string) => {
+      // If there's an active job, open full route with ordered waypoints
+      if (activeJob && allStops.length > 0) {
+         const remaining = allStops.filter(s => s.status !== 'completed');
+         if (remaining.length > 0) {
+            const destination = remaining[remaining.length - 1];
+            const waypoints = remaining.slice(0, -1);
 
-      let destinationQuery = encodeURIComponent(locationName);
-
-      if (match) {
-         const [lat, lng] = LOCATION_COORDINATES[match];
-         destinationQuery = `${lat},${lng}`;
+            let url = `https://www.google.com/maps/dir/?api=1`;
+            if (destination.lat && destination.lng) {
+               url += `&destination=${destination.lat},${destination.lng}`;
+            } else {
+               url += `&destination=${encodeURIComponent(destination.address)}`;
+            }
+            if (waypoints.length > 0) {
+               const wpStr = waypoints
+                  .map(w => (w.lat && w.lng) ? `${w.lat},${w.lng}` : encodeURIComponent(w.address))
+                  .join('|');
+               url += `&waypoints=${wpStr}`;
+            }
+            url += `&travelmode=driving`;
+            window.open(url, '_blank');
+            return;
+         }
       }
-
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${destinationQuery}`;
-      window.open(url, '_blank');
+      // Fallback: single destination
+      if (locationName) {
+         const normalize = (s: string) => s.toLowerCase().trim();
+         const target = normalize(locationName);
+         const keys = Object.keys(LOCATION_COORDINATES).sort((a, b) => b.length - a.length);
+         const match = keys.find(k => target.includes(normalize(k)));
+         let destinationQuery = encodeURIComponent(locationName);
+         if (match) {
+            const [lat, lng] = LOCATION_COORDINATES[match];
+            destinationQuery = `${lat},${lng}`;
+         }
+         const url = `https://www.google.com/maps/dir/?api=1&destination=${destinationQuery}`;
+         window.open(url, '_blank');
+      }
    };
 
    // --- SUB-COMPONENTS ---
@@ -2139,10 +2163,10 @@ const DriverDashboardContent: React.FC<DashboardContentProps> = ({ user, onGoHom
                                  </div>
                               </div>
                               <div className="flex space-x-2">
-                                 <button className="p-2 bg-gray-100 rounded-full text-gray-900 hover:bg-gray-200">
+                                 <button className="p-2 bg-gray-100 rounded-full text-gray-900 hover:bg-gray-200" onClick={() => { if (activeJob?.recipient?.phone) window.open(`tel:${activeJob.recipient.phone}`); }}>
                                     <Phone className="w-4 h-4" />
                                  </button>
-                                 <button className="p-2 bg-gray-100 rounded-full text-gray-900 hover:bg-gray-200">
+                                 <button className="p-2 bg-brand-500 rounded-full text-white hover:bg-brand-600" onClick={() => openGoogleMaps()}>
                                     <Navigation className="w-4 h-4" />
                                  </button>
                               </div>

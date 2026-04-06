@@ -62,8 +62,8 @@ export const Step3How = () => {
 
                 if (requestId !== quoteRequestRef.current) return;
 
-                const { quoteId, price } = response.data;
-                updateData({ quoteId, price, calculatingQuote: false });
+                const { quoteId, price, driverRate, distanceKm, durationMinutes, breakdown } = response.data;
+                updateData({ quoteId, price, driverRate, calculatingQuote: false });
             } catch (error) {
                 if (requestId !== quoteRequestRef.current) return;
                 console.error("Live quote failed:", error);

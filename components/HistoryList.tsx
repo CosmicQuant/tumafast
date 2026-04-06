@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DeliveryOrder } from '../types';
 import { VehicleType, ServiceType } from '../types';
-import { Package, Clock, CheckCircle, MapPin, Truck, ChevronRight, User, Bike, Car, Loader, Shield, XCircle, Star, AlertCircle, ArrowRight, Box, Scale, Zap, Rocket, Navigation, RefreshCw, FileText, Download, Copy, Check } from 'lucide-react';
+import { Package, Clock, CheckCircle, MapPin, Truck, ChevronRight, User, Bike, Car, Loader, Shield, XCircle, Star, AlertCircle, ArrowRight, Box, Scale, Zap, Rocket, Navigation, RefreshCw, FileText, Download, Copy, Check, Send } from 'lucide-react';
 import { useUserOrders } from '../hooks/useOrders';
 import { useAuth } from '../context/AuthContext';
 import { orderService } from '../services/orderService';
 import { usePrompt } from '../context/PromptContext';
+import { useNavigate } from 'react-router-dom';
 
 interface HistoryListProps {
   onTrackOrder: (orderId: string) => void;
@@ -17,6 +18,7 @@ interface HistoryListProps {
 const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) => {
   const { user } = useAuth();
   const { showAlert } = usePrompt();
+  const navigate = useNavigate();
   const { data: orders, isLoading, refetch } = useUserOrders(user.id);
   const [activeTab, setActiveTab] = useState<'ongoing' | 'delivered'>('ongoing');
 
@@ -151,10 +153,21 @@ const HistoryList: React.FC<HistoryListProps> = ({ onTrackOrder, onReorder }) =>
       </div>
 
       {displayOrders.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
-          <Package className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-gray-900">No {activeTab} orders</h3>
-          <p className="text-gray-500">Your {activeTab} deliveries will appear here.</p>
+        <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Package className="w-10 h-10 text-gray-200" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-1">No {activeTab} orders</h3>
+          <p className="text-gray-400 text-sm mb-5">Your {activeTab} deliveries will appear here.</p>
+          {activeTab === 'ongoing' && (
+            <button
+              onClick={() => navigate('/book')}
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-emerald-100 transition-all active:scale-95"
+            >
+              <Send className="w-4 h-4" />
+              Send Your First Package
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">

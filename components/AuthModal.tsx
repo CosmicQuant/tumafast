@@ -85,9 +85,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
       if (role && gUser.role && gUser.role !== role) {
         await logout();
         const roleName = gUser.role.charAt(0).toUpperCase() + gUser.role.slice(1);
-        const portalName = gUser.role === 'customer' ? 'Customer portal ("Sign In")' : 
-                          gUser.role === 'driver' ? 'Driver portal ("Drive")' : 
-                          'Enterprise portal ("Enterprise Login")';
+        const portalName = gUser.role === 'customer' ? 'Customer portal ("Sign In")' :
+          gUser.role === 'driver' ? 'Driver portal ("Drive")' :
+            'Enterprise portal ("Enterprise Login")';
         throw new Error(`This email is registered as a ${roleName}. Please use the ${portalName} to log in.`);
       }
 
@@ -95,7 +95,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
       onClose(); // Close modal on success
       if (gUser?.role === 'driver') navigate('/driver');
       else if (gUser?.role === 'business') navigate('/business-dashboard');
-      else navigate('/dashboard'); // Default
+      else navigate('/'); // Customer home
     } catch (err: any) {
       console.error("Google Auth Error:", err);
       setError(err.message || 'Google authentication failed');
@@ -114,7 +114,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
       onClose();
       if (selectedRole === 'driver') navigate('/driver');
       else if (selectedRole === 'business') navigate('/business-dashboard');
-      else navigate('/dashboard');
+      else navigate('/');
     } catch (err: any) {
       setError(err.message || 'Failed to complete signup');
     } finally {
@@ -174,9 +174,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
         if (role && loggedUser.role !== role) {
           await logout();
           const roleName = loggedUser.role.charAt(0).toUpperCase() + loggedUser.role.slice(1);
-          const portalName = loggedUser.role === 'customer' ? 'Customer portal ("Sign In")' : 
-                             loggedUser.role === 'driver' ? 'Driver portal ("Drive")' : 
-                             'Enterprise portal ("Enterprise Login")';
+          const portalName = loggedUser.role === 'customer' ? 'Customer portal ("Sign In")' :
+            loggedUser.role === 'driver' ? 'Driver portal ("Drive")' :
+              'Enterprise portal ("Enterprise Login")';
           throw new Error(`This email is registered as a ${roleName}. Please use the ${portalName} to log in.`);
         }
 

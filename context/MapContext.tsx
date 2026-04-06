@@ -108,11 +108,11 @@ const MapContext = createContext<MapContextType | undefined>(undefined);
 // Helper: read cached location from sessionStorage
 const getCachedLocation = (): Coordinates | null => {
     try {
-        const cached = sessionStorage.getItem(LOCATION_CACHE_KEY);
+        const cached = localStorage.getItem(LOCATION_CACHE_KEY);
         if (cached) {
             const parsed = JSON.parse(cached);
-            // Only use cache if it's less than 10 minutes old
-            if (parsed.timestamp && Date.now() - parsed.timestamp < 10 * 60 * 1000) {
+            // Use cache if less than 30 minutes old
+            if (parsed.timestamp && Date.now() - parsed.timestamp < 30 * 60 * 1000) {
                 return { lat: parsed.lat, lng: parsed.lng };
             }
         }
@@ -120,10 +120,10 @@ const getCachedLocation = (): Coordinates | null => {
     return null;
 };
 
-// Helper: save location to sessionStorage
+// Helper: save location to localStorage
 const cacheLocation = (coords: Coordinates) => {
     try {
-        sessionStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({
+        localStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({
             lat: coords.lat,
             lng: coords.lng,
             timestamp: Date.now()

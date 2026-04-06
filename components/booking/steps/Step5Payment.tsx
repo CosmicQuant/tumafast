@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Banknote, Check, ArrowLeft, ChevronRight } from 'lucide-react';
 import { useBooking } from '../BookingContext';
 import { VEHICLES } from '../constants';
@@ -48,23 +47,19 @@ export const Step5Payment: React.FC<Step5Props> = ({ submit }) => {
                 </button>
             </div>
 
-            <AnimatePresence mode="wait">
-                {data.paymentMethod === 'M-Pesa' && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                        <input
-                            type="tel"
-                            placeholder="M-Pesa phone number"
-                            className="w-full px-3.5 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:bg-white focus:ring-2 focus:ring-green-500 text-sm font-bold transition-all text-gray-900"
-                            value={data.paymentPhone} onChange={e => updateData({ paymentPhone: e.target.value })}
-                        />
-                    </motion.div>
+            {/* Price row — always same height */}
+            <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-200 flex items-center justify-between gap-3">
+                {data.paymentMethod === 'M-Pesa' ? (
+                    <input
+                        type="tel"
+                        placeholder="M-Pesa number"
+                        className="flex-1 min-w-0 px-0 py-0 bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-900 placeholder-gray-400 outline-none"
+                        value={data.paymentPhone} onChange={e => updateData({ paymentPhone: e.target.value })}
+                    />
+                ) : (
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total</span>
                 )}
-            </AnimatePresence>
-
-            {/* Price banner */}
-            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total</span>
-                <span className="text-lg font-black text-gray-900">
+                <span className="text-lg font-black text-gray-900 whitespace-nowrap flex-shrink-0">
                     {displayPrice > 0 ? `KES ${displayPrice.toLocaleString()}` : <span className="text-sm text-gray-400 animate-pulse">Calculating...</span>}
                 </span>
             </div>

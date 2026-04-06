@@ -195,13 +195,14 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
         prevCoordsRef.current = coordsKey;
     }, [pickupCoords, waypointCoords, dropoffCoords]);
 
-    // Re-fit map on final step so route is visible above the sheet
+    // Re-fit map when step changes so route stays visible above the bottom sheet
     useEffect(() => {
-        if (step === 4 && pickupCoords && dropoffCoords) {
-            const pts = [pickupCoords, ...waypointCoords, dropoffCoords];
+        if (step >= 1 && pickupCoords && (dropoffCoords || waypointCoords.length > 0)) {
+            const pts = [pickupCoords, ...waypointCoords];
+            if (dropoffCoords) pts.push(dropoffCoords);
             setTimeout(() => fitBounds(pts), 350);
         }
-    }, [step]);
+    }, [step, data.paymentMethod]);
 
     const weightVal = parseFloat(data.dimensions.weight) || 0;
     const eligibleVehicles = VEHICLES.filter(v => {
@@ -211,13 +212,12 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
         return true;
     });
     const activeVehicle = VEHICLES.find(v => v.id === data.vehicle) || eligibleVehicles[0];
-    const liveBasePrice = activeVehicle ? (activeVehicle.pricePerKm * data.distanceKm) : 0;
-    const currentQuote = Math.round(Math.max(150, data.serviceType === 'Express' ? liveBasePrice * 1.5 : liveBasePrice) / 10) * 10;
 
-    // Enterprise Pricing Check
-    const finalPrice = data.price || currentQuote;
+    // Server-only pricing — no client-side fallback
+    const finalPrice = data.price || 0;
 
     const submitBooking = () => {
+        if (!finalPrice) return; // Block submit until server quote received
         let finalDropoffAddress = data.dropoff;
         let finalDropoffCoords = dropoffCoords;
         let intermediateWaypoints = [...data.waypoints];
@@ -248,7 +248,7 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
                 value: 0
             },
             price: finalPrice,
-            driverRate: Math.max(100, finalPrice * 0.8),
+            driverRate: data.driverRate || Math.max(100, Math.round(finalPrice * 0.8)),
             status: 'pending',
             estimatedDuration: '45 mins',
             date: new Date().toISOString(),

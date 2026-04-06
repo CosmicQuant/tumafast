@@ -191,9 +191,9 @@ const MapLayer: React.FC = () => {
             const maxBottomPad = Math.floor(screenH * 0.55); // never eat more than 55% of screen
             const sheetPad = Math.min(maxBottomPad, Math.max(100, (bottomSheetHeight || 280) + 16));
             const dynamicPadding = isDesktop
-                ? { top: 40, bottom: 40, left: 32, right: 440 }
-                : { top: 40, bottom: sheetPad, left: 32, right: 32 };
-            const boundsKey = JSON.stringify(boundsToFit);
+                ? { top: 50, bottom: 50, left: 40, right: 440 }
+                : { top: 50, bottom: sheetPad, left: 48, right: 48 };
+            const boundsKey = JSON.stringify(boundsToFit) + '|' + (bottomSheetHeight || 0);
 
             if (boundsKey === lastBoundsRef.current) {
                 resetBoundsTrigger();
@@ -262,6 +262,12 @@ const MapLayer: React.FC = () => {
                     // Multi-point: compute exact target via fitBounds, then animate
                     const bounds = new google.maps.LatLngBounds();
                     boundsToFit.forEach(coord => bounds.extend(coord));
+                    // Include polyline path so curved routes aren't clipped by screen edges
+                    if (decodedPath.length > 0) {
+                        const step = Math.max(1, Math.floor(decodedPath.length / 20));
+                        for (let i = 0; i < decodedPath.length; i += step) bounds.extend(decodedPath[i]);
+                        bounds.extend(decodedPath[decodedPath.length - 1]);
+                    }
 
                     // Save current position
                     const startCenter = map.getCenter();
@@ -338,13 +344,13 @@ const MapLayer: React.FC = () => {
         sheetRefitTimerRef.current = setTimeout(() => {
             if (isMapAnimatingRef.current) return;
 
-            // Skip if sheet is taller than 70% of viewport
+            // Skip if sheet is taller than 85% of viewport
             const screenH = window.innerHeight;
-            if (bottomSheetHeight > screenH * 0.7) return;
+            if (bottomSheetHeight > screenH * 0.85) return;
 
             // Only refit if height actually changed meaningfully
             const delta = Math.abs(bottomSheetHeight - lastSheetHeightRef.current);
-            if (delta < 40) return;
+            if (delta < 15) return;
             lastSheetHeightRef.current = bottomSheetHeight;
 
             // Need at least 2 points to show a route
@@ -355,6 +361,12 @@ const MapLayer: React.FC = () => {
             if (pickupCoords) allPoints.push(pickupCoords);
             if (waypointCoords) waypointCoords.forEach((wp: any) => { if (wp) allPoints.push(wp); });
             if (dropoffCoords) allPoints.push(dropoffCoords);
+            // Include polyline path points so curved routes aren't clipped
+            if (decodedPath.length > 0) {
+                const step = Math.max(1, Math.floor(decodedPath.length / 20));
+                for (let i = 0; i < decodedPath.length; i += step) allPoints.push(decodedPath[i]);
+                allPoints.push(decodedPath[decodedPath.length - 1]);
+            }
             if (allPoints.length < 2) return;
 
             const bounds = new google.maps.LatLngBounds();
@@ -364,8 +376,8 @@ const MapLayer: React.FC = () => {
             const isDesktop = window.innerWidth >= 768;
             const sheetPad = Math.min(maxBottomPad, Math.max(100, bottomSheetHeight + 16));
             const padding = isDesktop
-                ? { top: 40, bottom: 40, left: 32, right: 440 }
-                : { top: 40, bottom: sheetPad, left: 32, right: 32 };
+                ? { top: 50, bottom: 50, left: 40, right: 440 }
+                : { top: 50, bottom: sheetPad, left: 48, right: 48 };
 
             // Compute target via fitBounds, snap back, animate
             const startCenter = map.getCenter();
@@ -375,9 +387,12 @@ const MapLayer: React.FC = () => {
             const targetCenter = map.getCenter();
             if (startCenter) map.moveCamera({ center: startCenter, zoom: startZoom });
 
-            // Skip if zoom/position barely changed
+            // Skip if both zoom and center barely changed
             const zoomDelta = Math.abs(targetZoom - startZoom);
-            if (zoomDelta < 0.3) return;
+            const centerDelta = targetCenter && startCenter
+                ? Math.abs(targetCenter.lat() - startCenter.lat()) + Math.abs(targetCenter.lng() - startCenter.lng())
+                : 1;
+            if (zoomDelta < 0.15 && centerDelta < 0.0005) return;
 
             const t0 = performance.now();
             const ease = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -521,7 +536,7 @@ const MapLayer: React.FC = () => {
                             mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
                         >
                             <div className="absolute -translate-x-1/2 -translate-y-12 flex flex-col items-center z-[9998] pointer-events-none">
-                                <div className="bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20">
+                                <div className="bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20 whitespace-nowrap">
                                     Drop-Off
                                 </div>
                                 <div className="w-2 h-2 bg-red-600 rotate-45 -mt-1 shadow-sm"></div>
@@ -561,7 +576,7 @@ const MapLayer: React.FC = () => {
                                     mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
                                 >
                                     <div className="absolute -translate-x-1/2 -translate-y-12 flex flex-col items-center z-[9997] pointer-events-none">
-                                        <div className={`${labelBg} text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20`}>
+                                        <div className={`${labelBg} text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20 whitespace-nowrap`}>
                                             {labelText}
                                         </div>
                                         <div className={`w-2 h-2 ${labelBg} rotate-45 -mt-1 shadow-sm`}></div>
@@ -620,14 +635,25 @@ const MapLayer: React.FC = () => {
                     </React.Fragment>
                 ))}
 
+                {/* Shadow outline for depth */}
                 <Polyline
                     path={decodedPath}
                     options={{
-                        isFractionalZoomEnabled: true,
-                        mapId: "DEMO_MAP_ID",
-                        strokeColor: '#2563eb',
+                        strokeColor: '#1e3a5f',
+                        strokeOpacity: 0.25,
+                        strokeWeight: 8,
+                        geodesic: true,
+                        zIndex: 99,
+                        visible: decodedPath.length > 0
+                    }}
+                />
+                {/* Main route polyline — 5px industry standard */}
+                <Polyline
+                    path={decodedPath}
+                    options={{
+                        strokeColor: '#4285F4',
                         strokeOpacity: 1,
-                        strokeWeight: 6,
+                        strokeWeight: 5,
                         geodesic: true,
                         zIndex: 100,
                         visible: decodedPath.length > 0
