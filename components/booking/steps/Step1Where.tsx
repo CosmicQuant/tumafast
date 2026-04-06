@@ -38,25 +38,8 @@ export const Step1Where = () => {
         requestUserLocation,
     } = useMapState();
 
-    // Auto-locate if no pickup is set
-    useEffect(() => {
-        if (!data.pickup && !pickupCoords && !isMapSelecting) {
-            updateData({ pickup: 'Locating...' });
-            requestUserLocation().then(loc => {
-                if (loc) {
-                    setIsMapSelecting(true);
-                    setActiveInput('pickup');
-                    setMapCenter(loc.lat, loc.lng);
-                    fitBounds([loc]);
-                    mapService.reverseGeocode(loc.lat, loc.lng).then(addr => {
-                        if (addr) updateData({ pickup: addr });
-                    }).catch(() => updateData({ pickup: '' }));
-                } else {
-                    updateData({ pickup: '' });
-                }
-            }).catch(() => updateData({ pickup: '' }));
-        }
-    }, [data.pickup, pickupCoords, isMapSelecting, requestUserLocation, setPickupCoords, fitBounds, updateData]);
+    // Auto-locate is handled by BookingWizardModular's WizardContent on mount.
+    // We only need to handle the case where the user clears the pickup field manually.
 
     const recentPickups = useMemo(() => {
         if (!orders) return [];

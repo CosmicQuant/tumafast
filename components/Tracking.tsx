@@ -27,6 +27,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
   const [editField, setEditField] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [routeExpanded, setRouteExpanded] = useState(false);
+  const [editMenuOpen, setEditMenuOpen] = useState(false);
 
   // ── Location edit state ────────────────────────────────
   const [editingStopId, setEditingStopId] = useState<string | null>(null);
@@ -151,6 +152,15 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
   };
 
   const etaMinutes = order.remainingDuration ? Math.ceil(order.remainingDuration / 60) : null;
+
+  // ── Journey step info for header ───────────────────────
+  const getJourneyStep = () => {
+    if (isPending) return { label: 'Order Placed', sublabel: 'Finding your driver...', gradient: 'from-amber-500 to-amber-600', textColor: 'text-amber-100', dotColor: 'bg-white', step: 1 };
+    if (isAssigned) return { label: 'Driver En Route', sublabel: `Heading to ${order.pickup.split(',')[0]}`, gradient: 'from-blue-500 to-blue-600', textColor: 'text-blue-100', dotColor: 'bg-white', step: 2 };
+    if (isInTransit) return { label: 'In Transit', sublabel: `To ${order.dropoff.split(',')[0]}`, gradient: 'from-brand-600 to-emerald-600', textColor: 'text-emerald-100', dotColor: 'bg-white', step: 4 };
+    return { label: 'Processing', sublabel: '', gradient: 'from-gray-500 to-gray-600', textColor: 'text-gray-200', dotColor: 'bg-white', step: 0 };
+  };
+  const journeyStep = getJourneyStep();
 
   // ── Stop editing handlers ──────────────────────────────
   const fetchSuggestions = useCallback(async (query: string) => {
@@ -655,34 +665,97 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
   return (
     <div className="fixed bottom-0 inset-x-0 md:inset-x-auto md:right-4 md:top-4 md:bottom-4 md:w-[400px] pointer-events-none z-[100] flex flex-col justify-end mx-auto max-w-lg md:max-w-none md:mx-0">
       <div
-        className={`w-full bg-white shadow-[0_-15px_40px_rgba(0,0,0,0.12)] md:shadow-2xl rounded-t-[2.5rem] md:rounded-2xl overflow-hidden pointer-events-auto border-t border-gray-100 md:border flex flex-col pb-[env(safe-area-inset-bottom,0)] transition-all duration-300 ${isLocationEditing ? 'max-h-[70vh]' : isCollapsed ? 'max-h-[180px]' : 'max-h-[90vh] md:max-h-[calc(100vh-2rem)]'}`}
+        className={`w-full bg-white shadow-[0_-15px_40px_rgba(0,0,0,0.12)] md:shadow-2xl rounded-t-[2.5rem] md:rounded-2xl overflow-hidden pointer-events-auto border-t border-gray-100 md:border flex flex-col pb-[env(safe-area-inset-bottom,0)] transition-all duration-300 ${isLocationEditing ? 'max-h-[70vh]' : isCollapsed ? 'max-h-[220px]' : 'max-h-[90vh] md:max-h-[calc(100vh-2rem)]'}`}
       >
-        {/* ── Header / collapsed bar ────────────────────────── */}
+        {/* ── Colored Header with Journey Animation ────────── */}
         <div
-          className="px-5 pt-3 pb-3 flex flex-col items-center w-full z-10 bg-white flex-shrink-0 cursor-pointer"
+          className={`bg-gradient-to-r ${journeyStep.gradient} px-5 pt-3 pb-4 flex flex-col items-center w-full z-10 flex-shrink-0 cursor-pointer rounded-t-[2.5rem] md:rounded-t-2xl`}
           onClick={() => { if (!isLocationEditing) setIsCollapsed(!isCollapsed); }}
         >
-          <div className="w-12 h-1 bg-gray-200 rounded-full mb-3 md:hidden" />
-          <div className="w-full flex items-center justify-between">
-            <div className="flex-1 min-w-0 pr-3">
-              <div className="flex items-center gap-2 mb-1">
-                <div className={`w-2 h-2 rounded-full animate-pulse ${getStatusColor()}`} />
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">{getStatusText()}</span>
-              </div>
-              <div className="text-sm font-black text-gray-900 truncate flex items-center gap-1.5">
+          <div className="w-12 h-1 bg-white/30 rounded-full mb-3 md:hidden" />
+
+          {/* Status + ETA row */}
+          <div className="w-full flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/80">{journeyStep.label}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {etaMinutes && (
+                <div className="bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                  <span className="text-xs font-black text-white">{etaMinutes} min</span>
+                </div>
+              )}
+              <ChevronUp className={`w-5 h-5 text-white/60 transition-transform duration-300 ${!isCollapsed && !isLocationEditing ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+
+          {/* Route summary */}
+          <div className="w-full flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="text-white font-black text-sm truncate flex items-center gap-1.5">
                 {order.pickup.split(',')[0]}
-                <ArrowRight size={12} className="text-gray-300 flex-shrink-0" />
+                <ArrowRight size={12} className="text-white/50 flex-shrink-0" />
                 {order.dropoff.split(',')[0]}
               </div>
+              <p className={`text-[11px] font-bold ${journeyStep.textColor} mt-0.5`}>{journeyStep.sublabel}</p>
             </div>
-            <div className="text-right flex-shrink-0">
-              <div className="text-base font-black text-gray-900">
-                {etaMinutes ? `${etaMinutes} min` : '--'}
-              </div>
-              <div className="text-[8px] font-bold text-gray-400 uppercase">ETA</div>
-            </div>
-            <ChevronUp className={`ml-3 w-5 h-5 text-gray-400 transition-transform duration-300 ${!isCollapsed && !isLocationEditing ? 'rotate-180' : ''}`} />
           </div>
+
+          {/* Journey progress dots */}
+          <div className="w-full flex items-center gap-1 mt-3">
+            {[1, 2, 3, 4, 5].map(s => (
+              <div key={s} className="flex-1 h-1 rounded-full overflow-hidden bg-white/20">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ${s <= journeyStep.step ? 'bg-white' : ''} ${s === journeyStep.step ? 'animate-pulse' : ''}`}
+                  style={{ width: s <= journeyStep.step ? '100%' : '0%' }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Driver info (inline when assigned) */}
+          {order.driver && (isAssigned || isInTransit) && (
+            <div className="w-full flex items-center gap-3 mt-3 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2">
+              <img
+                src={order.driver.avatar || 'https://via.placeholder.com/150'}
+                className="w-9 h-9 rounded-lg object-cover border-2 border-white/30 flex-shrink-0"
+                alt={order.driver.name}
+              />
+              <div className="flex-1 min-w-0">
+                <h4 className="text-white font-black text-xs truncate">{order.driver.name}</h4>
+                <p className="text-white/60 text-[10px] font-bold truncate">{order.driver.plate} · {order.vehicle}</p>
+              </div>
+              <div className="flex gap-1.5 flex-shrink-0">
+                <button onClick={(e) => { e.stopPropagation(); handleFocusDriver(); }} className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center active:scale-90 transition-all">
+                  <MapPin size={14} className="text-white" />
+                </button>
+                {order.driver.phone && (
+                  <a href={`tel:${order.driver.phone}`} onClick={e => e.stopPropagation()} className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center active:scale-90 transition-all">
+                    <Phone size={14} className="text-white" />
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Searching animation (pending — no driver yet) */}
+          {isPending && (
+            <div className="w-full flex items-center gap-3 mt-3 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2.5">
+              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Loader2 size={16} className="text-white animate-spin" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-white font-black text-[11px]">Finding your Axon Pro</h4>
+                <p className="text-white/60 text-[9px] font-bold">Matching with nearest driver...</p>
+              </div>
+              <div className="flex gap-1">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="w-1.5 h-1.5 bg-white/40 rounded-full animate-pulse" style={{ animationDelay: `${i * 200}ms` }} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Inline Route Editor (booking-style) ──────────── */}
@@ -958,15 +1031,6 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
         {/* ── Expanded content ──────────────────────────────── */}
         <div className={`px-5 pb-4 space-y-3 overflow-y-auto no-scrollbar flex-1 ${isCollapsed || isLocationEditing ? 'hidden' : ''}`}>
 
-          {/* Driver Card */}
-          <DriverCard
-            driver={order.driver}
-            status={order.status}
-            vehicleType={order.vehicle}
-            onFocusDriver={handleFocusDriver}
-            onShare={handleShare}
-          />
-
           {/* Verification PIN */}
           {order.verificationCode && (isAssigned || isInTransit) && (
             <div className="flex items-center justify-between bg-gray-900 rounded-xl px-4 py-3">
@@ -989,213 +1053,220 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
             etaMinutes={etaMinutes}
           />
 
-          {/* ── Route Card (Expandable + Editable) ──────────── */}
-          <div className="rounded-xl bg-emerald-50 border border-emerald-200/60 overflow-hidden">
-            <button
-              onClick={() => setRouteExpanded(!routeExpanded)}
-              className="w-full flex items-center justify-between px-3 py-2.5 text-left"
-            >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <MapPin size={14} className="text-emerald-600 flex-shrink-0" />
-                <span className="text-xs font-bold text-gray-900 truncate">
-                  {order.pickup.split(',')[0]} → {order.dropoff.split(',')[0]}
-                </span>
-                {waypoints.length > 0 && (
-                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded flex-shrink-0">
-                    +{waypoints.length}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {hasEditableRoute && (
-                  <span className="text-[8px] font-black text-emerald-500 uppercase">Edit</span>
-                )}
-                <ChevronDown size={14} className={`text-emerald-400 transition-transform ${routeExpanded ? 'rotate-180' : ''}`} />
-              </div>
-            </button>
-
-            {/* Expanded route stops */}
-            {routeExpanded && (
-              <div className="px-3 pb-3 space-y-0">
-                {/* Pickup */}
-                <div className="flex items-center gap-2 py-2 border-t border-emerald-200/40">
-                  <div className="w-5 flex justify-center flex-shrink-0">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-emerald-300" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Pickup</div>
-                    <div className="text-[11px] font-bold text-gray-900 truncate">{order.pickup}</div>
-                  </div>
-                  {canEditPickup() && (
-                    <button onClick={() => openLocationEdit('pickup')} className="p-1.5 rounded-lg hover:bg-emerald-100 transition-colors flex-shrink-0">
-                      <Pencil size={12} className="text-emerald-500" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Waypoints (intermediate stops) */}
-                {waypoints.map((stop, idx) => {
-                  const badge = getStopStatusBadge(stop);
-                  const editable = canEditStop(stop);
-                  const removable = canRemoveStop(stop);
-                  return (
-                    <div key={stop.id} className="flex items-center gap-2 py-2 border-t border-emerald-200/40">
-                      <div className="w-5 flex justify-center flex-shrink-0">
-                        <div className={`w-2 h-2 rounded-full ${stop.status === 'completed' ? 'bg-emerald-400' : stop.status === 'arrived' ? 'bg-blue-400' : 'bg-amber-400'}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[8px] font-black text-amber-500 uppercase tracking-wider">Stop {idx + 1}</span>
-                          {badge && (
-                            <span className={`text-[7px] font-black px-1 py-0.5 rounded ${badge.color}`}>{badge.text}</span>
-                          )}
-                          {stop.verificationCode && stop.status !== 'completed' && (
-                            <span className="text-[7px] font-mono font-bold text-gray-400">PIN: {stop.verificationCode}</span>
-                          )}
-                        </div>
-                        <div className="text-[11px] font-bold text-gray-900 truncate">{stop.address}</div>
-                      </div>
-                      {editable && (
-                        <div className="flex items-center gap-0.5 flex-shrink-0">
-                          <button onClick={() => openLocationEdit('stop', stop.id)} className="p-1.5 rounded-lg hover:bg-emerald-100 transition-colors">
-                            <Pencil size={11} className="text-emerald-500" />
-                          </button>
-                          {removable && (
-                            <button onClick={() => handleRemoveStop(stop.id)} className="p-1.5 rounded-lg hover:bg-red-100 transition-colors">
-                              <Trash2 size={11} className="text-red-400" />
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {!editable && (
-                        <div className="text-[8px] font-bold text-gray-300 uppercase flex-shrink-0">Locked</div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Dropoff */}
-                <div className="flex items-center gap-2 py-2 border-t border-emerald-200/40">
-                  <div className="w-5 flex justify-center flex-shrink-0">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-red-300" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[8px] font-black text-red-500 uppercase tracking-wider">Dropoff</div>
-                    <div className="text-[11px] font-bold text-gray-900 truncate">{order.dropoff}</div>
-                  </div>
-                  {canEditDropoff() && (
-                    <button onClick={() => openLocationEdit('dropoff')} className="p-1.5 rounded-lg hover:bg-emerald-100 transition-colors flex-shrink-0">
-                      <Pencil size={12} className="text-emerald-500" />
-                    </button>
-                  )}
-                  {!canEditDropoff() && !isPending && (
-                    <div className="text-[8px] font-bold text-gray-300 uppercase flex-shrink-0">Locked</div>
-                  )}
-                </div>
-
-                {/* Add Stop button */}
-                {canAddStop() && (
-                  <div className="flex gap-2 pt-2 border-t border-emerald-200/40">
-                    <button
-                      onClick={openAddStop}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[10px] font-bold transition-colors"
-                    >
-                      <Plus size={12} /> Add Stop
-                      <span className="text-[8px] text-emerald-500 ml-0.5">({(order.stops || []).length}/5)</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+          {/* Price change banner */}
+          <AnimatePresence>
+            {requoting && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-200">
+                <Loader2 size={14} className="text-blue-500 animate-spin flex-shrink-0" />
+                <span className="text-[11px] font-bold text-blue-700">Recalculating price & ETA...</span>
+              </motion.div>
             )}
-          </div>
-
-          {/* Order Summary Cards */}
-          <div className="space-y-1.5">
-            {/* Package + Vehicle */}
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => openPackageEdit()}
-                className={`flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl bg-blue-50 border transition-colors text-left ${canEditField('items') ? 'border-blue-300 hover:bg-blue-100/70 cursor-pointer' : 'border-blue-200/60 cursor-default'}`}
-              >
-                <div className="min-w-0">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-blue-400">Package</div>
-                  <div className="text-xs font-bold text-gray-900 truncate">{order.items?.itemDesc || 'Package'}</div>
-                </div>
-                {canEditField('items') && <Pencil size={11} className="text-blue-400 flex-shrink-0" />}
-              </button>
-              <button
-                onClick={() => openVehicleEdit()}
-                className={`flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl bg-amber-50 border transition-colors text-left ${canEditField('vehicle') ? 'border-amber-300 hover:bg-amber-100/70 cursor-pointer' : 'border-amber-200/60 cursor-default'}`}
-              >
-                <div className="min-w-0">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-amber-500">Vehicle</div>
-                  <div className="text-xs font-bold text-gray-900 truncate">{order.vehicle}</div>
-                </div>
-                {canEditField('vehicle') && <Pencil size={11} className="text-amber-400 flex-shrink-0" />}
-              </button>
-            </div>
-
-            {/* Receiver */}
-            <button
-              onClick={() => openReceiverEdit()}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-purple-50 border transition-colors text-left ${canEditField('receiver') ? 'border-purple-300 hover:bg-purple-100/70 cursor-pointer' : 'border-purple-200/60 cursor-default'}`}
-            >
-              <div className="min-w-0">
-                <div className="text-[9px] font-bold uppercase tracking-wider text-purple-400">Receiver</div>
-                <div className="text-xs font-bold text-gray-900">
-                  {order.recipient?.name || 'Not set'}
-                  <span className="font-normal text-gray-500 ml-1">{order.recipient?.phone}</span>
-                </div>
-              </div>
-              {canEditField('receiver') && (
-                <Pencil size={11} className="text-purple-400 flex-shrink-0" />
-              )}
-            </button>
-
-            {/* Price change banner */}
-            <AnimatePresence>
-              {requoting && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-200">
-                  <Loader2 size={14} className="text-blue-500 animate-spin flex-shrink-0" />
-                  <span className="text-[11px] font-bold text-blue-700">Recalculating price & ETA...</span>
-                </motion.div>
-              )}
-              {priceChange && !requoting && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                  className={`px-3 py-2.5 rounded-xl border ${priceChange.newPrice > priceChange.oldPrice ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-[9px] font-black uppercase tracking-wider text-gray-500">Price Updated</div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-gray-400 line-through">KES {priceChange.oldPrice.toLocaleString()}</span>
-                        <ArrowRight size={10} className="text-gray-400" />
-                        <span className="text-sm font-black text-gray-900">KES {priceChange.newPrice.toLocaleString()}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-xs font-black ${priceChange.newPrice > priceChange.oldPrice ? 'text-amber-600' : 'text-emerald-600'}`}>
-                        {priceChange.newPrice > priceChange.oldPrice ? '+' : ''}KES {(priceChange.newPrice - priceChange.oldPrice).toLocaleString()}
-                      </div>
-                      <div className="text-[9px] font-bold text-gray-400">ETA: {priceChange.newEta}</div>
+            {priceChange && !requoting && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                className={`px-3 py-2.5 rounded-xl border ${priceChange.newPrice > priceChange.oldPrice ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-wider text-gray-500">Price Updated</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-gray-400 line-through">KES {priceChange.oldPrice.toLocaleString()}</span>
+                      <ArrowRight size={10} className="text-gray-400" />
+                      <span className="text-sm font-black text-gray-900">KES {priceChange.newPrice.toLocaleString()}</span>
                     </div>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  <div className="text-right">
+                    <div className={`text-xs font-black ${priceChange.newPrice > priceChange.oldPrice ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {priceChange.newPrice > priceChange.oldPrice ? '+' : ''}KES {(priceChange.newPrice - priceChange.oldPrice).toLocaleString()}
+                    </div>
+                    <div className="text-[9px] font-bold text-gray-400">ETA: {priceChange.newEta}</div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            {/* Payment + Order ID */}
-            <div className="flex gap-1.5">
-              <div className="flex-1 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200/60">
-                <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Payment</div>
-                <div className="text-xs font-bold text-gray-900">{order.paymentMethod} · KES {order.price?.toLocaleString()}</div>
-              </div>
-              <div className="flex-1 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200/60">
-                <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Order</div>
-                <div className="text-xs font-mono font-bold text-gray-500">#{order.id.substring(0, 8)}</div>
-              </div>
+          {/* Payment + Order ID */}
+          <div className="flex gap-1.5">
+            <div className="flex-1 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200/60">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Payment</div>
+              <div className="text-xs font-bold text-gray-900">{order.paymentMethod} · KES {order.price?.toLocaleString()}</div>
+            </div>
+            <div className="flex-1 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200/60">
+              <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Order</div>
+              <div className="text-xs font-mono font-bold text-gray-500">#{order.id.substring(0, 8)}</div>
             </div>
           </div>
+
+          {/* ── Edit Order (collapsed section) ────────────── */}
+          {(canEditField('items') || canEditField('vehicle') || canEditField('receiver') || hasEditableRoute) && (
+            <div className="rounded-xl border border-gray-200 overflow-hidden">
+              <button
+                onClick={() => setEditMenuOpen(!editMenuOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Pencil size={14} className="text-gray-500" />
+                  <span className="text-xs font-black text-gray-700">Edit Order</span>
+                </div>
+                <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${editMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {editMenuOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-3 space-y-1.5 border-t border-gray-200">
+                      {/* Route */}
+                      {hasEditableRoute && (
+                        <div className="rounded-xl bg-emerald-50 border border-emerald-200/60 overflow-hidden">
+                          <button
+                            onClick={() => setRouteExpanded(!routeExpanded)}
+                            className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+                          >
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <MapPin size={14} className="text-emerald-600 flex-shrink-0" />
+                              <span className="text-xs font-bold text-gray-900 truncate">
+                                {order.pickup.split(',')[0]} → {order.dropoff.split(',')[0]}
+                              </span>
+                              {waypoints.length > 0 && (
+                                <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                                  +{waypoints.length}
+                                </span>
+                              )}
+                            </div>
+                            <ChevronDown size={14} className={`text-emerald-400 transition-transform ${routeExpanded ? 'rotate-180' : ''}`} />
+                          </button>
+                          {routeExpanded && (
+                            <div className="px-3 pb-3 space-y-0">
+                              <div className="flex items-center gap-2 py-2 border-t border-emerald-200/40">
+                                <div className="w-5 flex justify-center flex-shrink-0">
+                                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-emerald-300" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[8px] font-black text-emerald-500 uppercase tracking-wider">Pickup</div>
+                                  <div className="text-[11px] font-bold text-gray-900 truncate">{order.pickup}</div>
+                                </div>
+                                {canEditPickup() && (
+                                  <button onClick={() => openLocationEdit('pickup')} className="p-1.5 rounded-lg hover:bg-emerald-100 transition-colors flex-shrink-0">
+                                    <Pencil size={12} className="text-emerald-500" />
+                                  </button>
+                                )}
+                              </div>
+                              {waypoints.map((stop, idx) => {
+                                const badge = getStopStatusBadge(stop);
+                                const editable = canEditStop(stop);
+                                const removable = canRemoveStop(stop);
+                                return (
+                                  <div key={stop.id} className="flex items-center gap-2 py-2 border-t border-emerald-200/40">
+                                    <div className="w-5 flex justify-center flex-shrink-0">
+                                      <div className={`w-2 h-2 rounded-full ${stop.status === 'completed' ? 'bg-emerald-400' : stop.status === 'arrived' ? 'bg-blue-400' : 'bg-amber-400'}`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[8px] font-black text-amber-500 uppercase tracking-wider">Stop {idx + 1}</span>
+                                        {badge && <span className={`text-[7px] font-black px-1 py-0.5 rounded ${badge.color}`}>{badge.text}</span>}
+                                        {stop.verificationCode && stop.status !== 'completed' && (
+                                          <span className="text-[7px] font-mono font-bold text-gray-400">PIN: {stop.verificationCode}</span>
+                                        )}
+                                      </div>
+                                      <div className="text-[11px] font-bold text-gray-900 truncate">{stop.address}</div>
+                                    </div>
+                                    {editable && (
+                                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                                        <button onClick={() => openLocationEdit('stop', stop.id)} className="p-1.5 rounded-lg hover:bg-emerald-100 transition-colors">
+                                          <Pencil size={11} className="text-emerald-500" />
+                                        </button>
+                                        {removable && (
+                                          <button onClick={() => handleRemoveStop(stop.id)} className="p-1.5 rounded-lg hover:bg-red-100 transition-colors">
+                                            <Trash2 size={11} className="text-red-400" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                    {!editable && <div className="text-[8px] font-bold text-gray-300 uppercase flex-shrink-0">Locked</div>}
+                                  </div>
+                                );
+                              })}
+                              <div className="flex items-center gap-2 py-2 border-t border-emerald-200/40">
+                                <div className="w-5 flex justify-center flex-shrink-0">
+                                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-red-300" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[8px] font-black text-red-500 uppercase tracking-wider">Dropoff</div>
+                                  <div className="text-[11px] font-bold text-gray-900 truncate">{order.dropoff}</div>
+                                </div>
+                                {canEditDropoff() && (
+                                  <button onClick={() => openLocationEdit('dropoff')} className="p-1.5 rounded-lg hover:bg-emerald-100 transition-colors flex-shrink-0">
+                                    <Pencil size={12} className="text-emerald-500" />
+                                  </button>
+                                )}
+                                {!canEditDropoff() && !isPending && (
+                                  <div className="text-[8px] font-bold text-gray-300 uppercase flex-shrink-0">Locked</div>
+                                )}
+                              </div>
+                              {canAddStop() && (
+                                <div className="flex gap-2 pt-2 border-t border-emerald-200/40">
+                                  <button onClick={openAddStop} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[10px] font-bold transition-colors">
+                                    <Plus size={12} /> Add Stop <span className="text-[8px] text-emerald-500 ml-0.5">({(order.stops || []).length}/5)</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Package + Vehicle */}
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => openPackageEdit()}
+                          className={`flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl bg-blue-50 border transition-colors text-left ${canEditField('items') ? 'border-blue-300 hover:bg-blue-100/70 cursor-pointer' : 'border-blue-200/60 cursor-default'}`}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-[9px] font-bold uppercase tracking-wider text-blue-400">Package</div>
+                            <div className="text-xs font-bold text-gray-900 truncate">{order.items?.itemDesc || 'Package'}</div>
+                          </div>
+                          {canEditField('items') && <Pencil size={11} className="text-blue-400 flex-shrink-0" />}
+                        </button>
+                        <button
+                          onClick={() => openVehicleEdit()}
+                          className={`flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl bg-amber-50 border transition-colors text-left ${canEditField('vehicle') ? 'border-amber-300 hover:bg-amber-100/70 cursor-pointer' : 'border-amber-200/60 cursor-default'}`}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-[9px] font-bold uppercase tracking-wider text-amber-500">Vehicle</div>
+                            <div className="text-xs font-bold text-gray-900 truncate">{order.vehicle}</div>
+                          </div>
+                          {canEditField('vehicle') && <Pencil size={11} className="text-amber-400 flex-shrink-0" />}
+                        </button>
+                      </div>
+
+                      {/* Receiver */}
+                      <button
+                        onClick={() => openReceiverEdit()}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-purple-50 border transition-colors text-left ${canEditField('receiver') ? 'border-purple-300 hover:bg-purple-100/70 cursor-pointer' : 'border-purple-200/60 cursor-default'}`}
+                      >
+                        <div className="min-w-0">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-purple-400">Receiver</div>
+                          <div className="text-xs font-bold text-gray-900">
+                            {order.recipient?.name || 'Not set'}
+                            <span className="font-normal text-gray-500 ml-1">{order.recipient?.phone}</span>
+                          </div>
+                        </div>
+                        {canEditField('receiver') && (
+                          <Pencil size={11} className="text-purple-400 flex-shrink-0" />
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="flex gap-2">

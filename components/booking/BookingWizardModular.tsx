@@ -30,6 +30,9 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
     const { data, updateData, step, direction } = useBooking();
     const { pickupCoords, dropoffCoords, waypointCoords, setRoutePolyline, setIsMapSelecting, setActiveInput, setPickupCoords, setWaypointCoords, setDropoffCoords, userLocation, requestUserLocation, isMapSelecting, activeInput, mapCenter, setMapCenter, fitBounds, setBottomSheetHeight, setOrderState } = useMapState();
 
+    // Guard: skip mapCenter watcher until initial location is settled
+    const initialSettled = useRef(false);
+
     // Only allow map marker dragging on route-editing step (Step 0)
     useEffect(() => {
         if (step === 0) {
@@ -41,6 +44,7 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
         }
     }, [step]);
 
+    // Effect 1: Apply prefill data on mount
     useEffect(() => {
         if (prefillData) {
             const updates: any = {};
@@ -57,16 +61,24 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
 
             if (prefillData.pickupCoords && prefillData.dropoffCoords) {
                 fitBounds([prefillData.pickupCoords, prefillData.dropoffCoords]);
+            } else if (prefillData.pickupCoords) {
+                // Center on pickup only (e.g. quick action with resolved location)
+                fitBounds([prefillData.pickupCoords]);
+            }
+
+            // If we already have a pickup address, mark as settled so mapCenter watcher won't overwrite
+            if (prefillData.pickup || prefillData.pickupCoords) {
+                setTimeout(() => { initialSettled.current = true; }, 1500);
             }
         }
     }, []);
 
+    // Effect 2: Auto-locate only when no pickup was prefilled
     useEffect(() => {
         if (prefillData?.pickup || prefillData?.pickupCoords) return;
         requestUserLocation().then(loc => {
             if (loc && !data.pickup && !pickupCoords && !isMapSelecting) {
-                // Set initial location and enable map selection mode immediately
-                setIsMapSelecting(true);
+                setPickupCoords(loc);
                 setActiveInput('pickup');
                 setMapCenter(loc.lat, loc.lng);
                 fitBounds([loc]);
@@ -75,11 +87,23 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
                     if (address) updateData({ pickup: address });
                     else updateData({ pickup: 'Current Location' });
                 }).catch(console.error);
+                // Allow mapCenter watcher after initial locate settles
+                setTimeout(() => {
+                    initialSettled.current = true;
+                    setIsMapSelecting(true);
+                }, 1500);
+            } else {
+                // No location or already set — allow map interactions
+                initialSettled.current = true;
             }
+        }).catch(() => {
+            initialSettled.current = true;
         });
     }, []);
 
+    // Effect 3: Reverse-geocode when user drags the map pin (NOT during initial settle)
     useEffect(() => {
+        if (!initialSettled.current) return;
         if (isMapSelecting && mapCenter) {
             const timer = setTimeout(async () => {
                 try {
