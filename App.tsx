@@ -516,7 +516,7 @@ const App = () => {
           )}
 
           {/* Global Footer */}
-          {!isDashboard && !isMapPage && !Capacitor.isNativePlatform() && (
+          {!isDashboard && !isMapPage && !Capacitor.isNativePlatform() && !(user?.role === 'customer' && location.pathname === '/') && (
             <footer className="bg-slate-900 text-gray-300 py-16 border-t border-white/5 pointer-events-auto relative z-10">
               <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12">
                 <div className="flex flex-col items-center md:items-start text-center md:text-left">

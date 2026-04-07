@@ -13,6 +13,13 @@ export const Step1Where = () => {
     const { user } = useAuth();
     const { data: orders } = useUserOrders(user?.id ?? '');
 
+    // Auto-confirm pickup when both pickup and dropoff are prefilled (e.g. Send Again, search bar)
+    useEffect(() => {
+        if (data.dropoff && data.pickup && !pickupConfirmed) {
+            setPickupConfirmed(true);
+        }
+    }, [data.dropoff, data.pickup]);
+
     const maxDropoffsReached = data.waypoints.length >= 5;
 
     const [pickupSuggestions, setPickupSuggestions] = useState<any[]>([]);

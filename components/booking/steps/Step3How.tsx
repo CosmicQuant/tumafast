@@ -25,7 +25,9 @@ export const Step3How = () => {
 
     // Auto-select first eligible vehicle if none selected
     useEffect(() => {
-        if (!isStandard && eligibleVehicles.length > 0 && !data.vehicle) {
+        if (isStandard) {
+            if (data.vehicle) updateData({ vehicle: '' });
+        } else if (eligibleVehicles.length > 0 && !data.vehicle) {
             updateData({ vehicle: eligibleVehicles[0].id });
         }
     }, [isStandard, eligibleVehicles, data.vehicle, updateData]);

@@ -4,11 +4,46 @@ import { useAuth } from '../context/AuthContext';
 import { useUserOrders } from '../hooks/useOrders';
 import { useMapState } from '../context/MapContext';
 import { mapService } from '../services/mapService';
+import { APP_CONFIG } from '../config';
 import {
     Package, MapPin, Clock,
-    ChevronRight, Truck, Navigation2, Search, Bike, Zap, Container, Fuel, ArrowRight, BadgePercent
+    ChevronRight, Truck, Navigation2, Search, Container, Fuel, BadgePercent, Car, CarFront, Forklift, CarTaxiFront, ArrowRight, Bike
 } from 'lucide-react';
 import { ServiceType } from '../types';
+
+// Generate a Google Maps Static thumbnail URL for a lat/lng
+const getMapThumbnail = (lat: number, lng: number, size = '80x80') =>
+    `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=16&size=${size}&scale=2&maptype=roadmap&markers=size:small%7Ccolor:0x10b981%7C${lat},${lng}&key=${APP_CONFIG.GOOGLE_MAPS_API_KEY}`;
+
+// Extract best available coords from an order (dropoffCoords → last stop → null)
+const getOrderDropoffCoords = (order: any): { lat: number; lng: number } | null => {
+    if (order.dropoffCoords?.lat && order.dropoffCoords?.lng) return order.dropoffCoords;
+    if (order.stops?.length) {
+        const last = order.stops[order.stops.length - 1];
+        if (last?.lat && last?.lng) return { lat: last.lat, lng: last.lng };
+    }
+    return null;
+};
+
+// Small thumbnail component with fallback
+const LocationThumb: React.FC<{ coords: { lat: number; lng: number } | null; size?: string; className?: string }> = ({ coords, size = '80x80', className = '' }) => {
+    const [failed, setFailed] = useState(false);
+    if (!coords || failed) {
+        return (
+            <div className={`bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 ${className}`}>
+                <MapPin className="w-4 h-4 text-gray-300" />
+            </div>
+        );
+    }
+    return (
+        <img
+            src={getMapThumbnail(coords.lat, coords.lng, size)}
+            alt="Location"
+            onError={() => setFailed(true)}
+            className={`rounded-lg object-cover flex-shrink-0 ${className}`}
+        />
+    );
+};
 
 const CustomerHome: React.FC = () => {
     const { user } = useAuth();
@@ -137,7 +172,7 @@ const CustomerHome: React.FC = () => {
                 const key = order.dropoff.split(',')[0].trim().toLowerCase();
                 const existing = locationMap.get(key);
                 if (existing) existing.count++;
-                else locationMap.set(key, { address: order.dropoff, coords: order.dropoffCoords || null, count: 1 });
+                else locationMap.set(key, { address: order.dropoff, coords: getOrderDropoffCoords(order), count: 1 });
             }
         }
         return Array.from(locationMap.values()).sort((a, b) => b.count - a.count).slice(0, 5);
@@ -170,152 +205,138 @@ const CustomerHome: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-8">
-            <div className="max-w-xl mx-auto px-4 pt-20 space-y-5">
+            {/* Animated border keyframe injected once */}
+            <style>{`
+                @keyframes border-spin {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+                .search-glow {
+                    background: linear-gradient(90deg, #10b981, #06b6d4, #8b5cf6, #f59e0b, #10b981);
+                    background-size: 300% 300%;
+                    animation: border-spin 4s ease infinite;
+                }
+            `}</style>
+            <div className="max-w-xl mx-auto px-4 pt-20 space-y-4">
 
                 {/* Greeting */}
                 <div>
                     <h1 className="text-2xl font-black text-slate-900">
                         {getGreeting()}, {user?.name?.split(' ')[0] || 'there'}
                     </h1>
-                    <p className="text-sm text-gray-400 font-medium mt-0.5">Trucks, Containers &amp; Tankers — On Demand</p>
+                    <p className="text-sm text-gray-400 font-medium mt-0.5">Send anything, Fast &amp; Reliable.</p>
                 </div>
 
-                {/* ── Hero Banner — primary CTA ── */}
-                <button
-                    onClick={() => handleQuickAction({ serviceType: ServiceType.EXPRESS })}
-                    className="relative w-full overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 rounded-2xl p-5 text-left shadow-xl active:scale-[0.98] transition-transform group"
-                >
-                    <div className="absolute -right-4 -bottom-4 opacity-[0.07]">
-                        <Truck className="w-32 h-32 text-white" />
-                    </div>
-                    <div className="relative z-10">
-                        <p className="text-white/60 text-xs font-bold uppercase tracking-wider mb-1">Dedicated Transport</p>
-                        <h2 className="text-white text-xl font-black leading-tight">Need a Truck?</h2>
-                        <p className="text-white/50 text-xs font-semibold mt-1">Lorries · Containers · Tippers · Tankers — instant pricing</p>
-                        <div className="mt-3.5 inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors group-hover:bg-emerald-400">
-                            Get a Quote <ArrowRight className="w-3.5 h-3.5" />
-                        </div>
-                    </div>
-                </button>
+                {/* ── Side-by-side: Standard (left) | Vehicles (right) ── */}
+                <div className="flex gap-2.5 min-[360px]:flex-row flex-col">
 
-                {/* ── Vehicle Category Grid — 2×2 heavy vehicles ── */}
-                <div className="grid grid-cols-2 gap-3">
-                    {/* Lorry */}
+                    {/* ── LEFT: Standard Consolidated — tall card with CTA ── */}
                     <button
-                        onClick={() => handleQuickAction({ vehicle: 'Lorry 10T' })}
-                        className="relative overflow-hidden bg-gradient-to-br from-slate-600 to-slate-700 rounded-2xl p-3.5 text-left shadow-lg shadow-slate-200 hover:shadow-slate-300 transition-all active:scale-[0.97] group"
+                        onClick={() => handleQuickAction({ serviceType: ServiceType.STANDARD })}
+                        className="relative overflow-hidden bg-gradient-to-b from-emerald-50 to-emerald-100 border-2 border-emerald-200 rounded-2xl p-3.5 text-left shadow-sm hover:shadow-lg hover:border-emerald-300 transition-all active:scale-[0.98] group min-[360px]:w-[36%] flex-shrink-0 flex flex-col"
                     >
-                        <div className="absolute -right-2 -bottom-2 opacity-10">
-                            <Truck className="w-14 h-14 text-white" />
+                        <div className="absolute -right-3 -bottom-3 opacity-[0.08]">
+                            <Package className="w-24 h-24 text-emerald-600" />
                         </div>
-                        <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center mb-2 group-hover:bg-white/25 transition-colors">
-                            <Truck className="w-5 h-5 text-white" />
-                        </div>
-                        <p className="text-white font-black text-[13px] leading-tight">Lorry 10T</p>
-                        <p className="text-slate-300 text-[10px] font-semibold mt-0.5">Up to 10,000 kg</p>
-                    </button>
-
-                    {/* Container */}
-                    <button
-                        onClick={() => handleQuickAction({ vehicle: 'Container' })}
-                        className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-3.5 text-left shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all active:scale-[0.97] group"
-                    >
-                        <div className="absolute -right-2 -bottom-2 opacity-10">
-                            <Container className="w-14 h-14 text-white" />
-                        </div>
-                        <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center mb-2 group-hover:bg-white/25 transition-colors">
-                            <Container className="w-5 h-5 text-white" />
-                        </div>
-                        <p className="text-white font-black text-[13px] leading-tight">Container</p>
-                        <p className="text-blue-200 text-[10px] font-semibold mt-0.5">20ft &amp; 40ft</p>
-                    </button>
-
-                    {/* Tipper */}
-                    <button
-                        onClick={() => handleQuickAction({ vehicle: 'Tipper' })}
-                        className="relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-3.5 text-left shadow-lg shadow-amber-100 hover:shadow-amber-200 transition-all active:scale-[0.97] group"
-                    >
-                        <div className="absolute -right-2 -bottom-2 opacity-10">
-                            <Truck className="w-14 h-14 text-white" />
-                        </div>
-                        <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center mb-2 group-hover:bg-white/25 transition-colors">
-                            <Truck className="w-5 h-5 text-white" />
-                        </div>
-                        <p className="text-white font-black text-[13px] leading-tight">Tipper</p>
-                        <p className="text-amber-100 text-[10px] font-semibold mt-0.5">Sand, ballast, stone</p>
-                    </button>
-
-                    {/* Tanker — LPG & Petroleum */}
-                    <button
-                        onClick={() => handleQuickAction({ vehicle: 'Tanker' })}
-                        className="relative overflow-hidden bg-gradient-to-br from-rose-600 to-red-700 rounded-2xl p-3.5 text-left shadow-lg shadow-rose-100 hover:shadow-rose-200 transition-all active:scale-[0.97] group"
-                    >
-                        <div className="absolute -right-2 -bottom-2 opacity-10">
-                            <Fuel className="w-14 h-14 text-white" />
-                        </div>
-                        <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center mb-2 group-hover:bg-white/25 transition-colors">
-                            <Fuel className="w-5 h-5 text-white" />
-                        </div>
-                        <p className="text-white font-black text-[13px] leading-tight">Tanker</p>
-                        <p className="text-rose-200 text-[10px] font-semibold mt-0.5">LPG &amp; Petroleum</p>
-                    </button>
-                </div>
-
-                {/* ── Standard Consolidated — lowest price selling point ── */}
-                <button
-                    onClick={() => handleQuickAction({ serviceType: ServiceType.STANDARD })}
-                    className="relative w-full overflow-hidden bg-white border-2 border-emerald-200 rounded-2xl p-4 text-left shadow-sm hover:shadow-md hover:border-emerald-300 transition-all active:scale-[0.98] group"
-                >
-                    <div className="absolute -right-3 -bottom-3 opacity-[0.06]">
-                        <Package className="w-20 h-20 text-emerald-600" />
-                    </div>
-                    <div className="flex items-center gap-3.5 relative z-10">
-                        <div className="w-11 h-11 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-100 transition-colors">
-                            <Package className="w-5.5 h-5.5 text-emerald-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                                <p className="text-slate-900 font-black text-sm">Standard Consolidated</p>
-                                <span className="inline-flex items-center gap-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md">
-                                    <BadgePercent className="w-2.5 h-2.5" /> LOWEST PRICE
-                                </span>
+                        <div className="relative z-10 flex flex-col h-full">
+                            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center mb-3 shadow-md shadow-emerald-200">
+                                <Package className="w-5 h-5 text-white" />
                             </div>
-                            <p className="text-gray-400 text-[11px] font-semibold mt-0.5">Parcels &amp; boxes · Same-day · Share a truck, save more</p>
+                            <p className="text-slate-900 font-black text-sm leading-tight">Standard</p>
+                            <p className="text-slate-900 font-black text-sm leading-tight">Consolidated</p>
+                            <span className="inline-flex items-center gap-0.5 bg-emerald-500 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded-md mt-2 w-fit">
+                                <BadgePercent className="w-2.5 h-2.5" /> LOWEST PRICE
+                            </span>
+                            <p className="text-emerald-700/60 text-[10px] font-semibold mt-2 leading-relaxed">Intercounty,<br />countrywide<br />at the lowest price</p>
+                            <div className="flex-1" />
+                            <div className="mt-3 bg-emerald-500 group-hover:bg-emerald-600 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg text-center transition-colors flex items-center justify-center gap-1">
+                                Book Now <ArrowRight className="w-3 h-3" />
+                            </div>
                         </div>
-                        <ChevronRight className="w-4.5 h-4.5 text-gray-300 flex-shrink-0 group-hover:text-emerald-400 transition-colors" />
-                    </div>
-                </button>
+                    </button>
 
-                {/* ── Boda — compact small card ── */}
-                <button
-                    onClick={() => handleQuickAction({ vehicle: 'Boda Boda' })}
-                    className="w-full flex items-center gap-3 bg-white rounded-xl px-3.5 py-2.5 border border-gray-150 shadow-sm hover:shadow-md hover:border-gray-200 transition-all text-left active:scale-[0.98]"
-                >
-                    <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Bike className="w-4 h-4 text-indigo-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-slate-900">Boda Boda</p>
-                        <p className="text-[10px] text-gray-400 font-medium">Small parcels · Motorbike</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                </button>
+                    {/* ── RIGHT: Vehicle stacks ── */}
+                    <div className="flex-1 flex flex-col gap-2">
 
-                {/* Search Input — Google Places Autocomplete */}
+                        {/* 2×2 heavy truck grid with colored cells */}
+                        <div className="grid grid-cols-2 gap-1.5">
+                            <button onClick={() => handleQuickAction({ vehicle: 'Lorry 10T' })} className="relative overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl p-2.5 text-left shadow-md hover:shadow-lg transition-all active:scale-[0.96]">
+                                <Truck className="w-5 h-5 text-slate-300 mb-1.5" />
+                                <p className="text-white font-bold text-[11px] leading-tight">Lorry 10T</p>
+                                <p className="text-slate-400 text-[9px] font-semibold">10,000 kg</p>
+                            </button>
+                            <button onClick={() => handleQuickAction({ vehicle: 'Container' })} className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl p-2.5 text-left shadow-md hover:shadow-lg transition-all active:scale-[0.96]">
+                                <Container className="w-5 h-5 text-blue-200 mb-1.5" />
+                                <p className="text-white font-bold text-[11px] leading-tight">Container</p>
+                                <p className="text-blue-300 text-[9px] font-semibold">20ft &amp; 40ft</p>
+                            </button>
+                            <button onClick={() => handleQuickAction({ vehicle: 'Tipper' })} className="relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-2.5 text-left shadow-md hover:shadow-lg transition-all active:scale-[0.96]">
+                                <Forklift className="w-5 h-5 text-amber-100 mb-1.5" />
+                                <p className="text-white font-bold text-[11px] leading-tight">Tipper</p>
+                                <p className="text-amber-200 text-[9px] font-semibold">Sand, ballast</p>
+                            </button>
+                            <button onClick={() => handleQuickAction({ vehicle: 'Tanker' })} className="relative overflow-hidden bg-gradient-to-br from-rose-600 to-red-700 rounded-xl p-2.5 text-left shadow-md hover:shadow-lg transition-all active:scale-[0.96]">
+                                <Fuel className="w-5 h-5 text-rose-200 mb-1.5" />
+                                <p className="text-white font-bold text-[11px] leading-tight">Tanker</p>
+                                <p className="text-rose-200 text-[9px] font-semibold">LPG &amp; Petroleum</p>
+                            </button>
+                        </div>
+
+                        {/* 4-column mid-tier vehicles */}
+                        <div className="grid grid-cols-4 gap-1.5">
+                            <button onClick={() => handleQuickAction({ vehicle: 'Pickup Truck' })} className="bg-gradient-to-b from-teal-50 to-teal-100 border border-teal-200 rounded-xl p-2 text-center shadow-sm hover:shadow-md transition-all active:scale-[0.96]">
+                                <CarTaxiFront className="w-4 h-4 text-teal-600 mx-auto mb-0.5" />
+                                <p className="text-teal-800 font-bold text-[9px]">Pickup</p>
+                            </button>
+                            <button onClick={() => handleQuickAction({ vehicle: 'Probox' })} className="bg-gradient-to-b from-violet-50 to-violet-100 border border-violet-200 rounded-xl p-2 text-center shadow-sm hover:shadow-md transition-all active:scale-[0.96]">
+                                <Car className="w-4 h-4 text-violet-600 mx-auto mb-0.5" />
+                                <p className="text-violet-800 font-bold text-[9px]">Probox</p>
+                            </button>
+                            <button onClick={() => handleQuickAction({ vehicle: 'Cargo Van' })} className="bg-gradient-to-b from-sky-50 to-sky-100 border border-sky-200 rounded-xl p-2 text-center shadow-sm hover:shadow-md transition-all active:scale-[0.96]">
+                                <CarFront className="w-4 h-4 text-sky-600 mx-auto mb-0.5" />
+                                <p className="text-sky-800 font-bold text-[9px]">Van</p>
+                            </button>
+                            <button onClick={() => handleQuickAction({ vehicle: 'Tuk-Tuk' })} className="bg-gradient-to-b from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-2 text-center shadow-sm hover:shadow-md transition-all active:scale-[0.96]">
+                                <svg className="w-4 h-4 text-orange-600 mx-auto mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M8 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" /><path d="M18 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                                    <path d="M10 16H5V6h9l3 5h2a1 1 0 0 1 1 1v4h-2" /><path d="M14 16h-4" /><path d="M14 11V6" /><path d="M5 11h9" />
+                                </svg>
+                                <p className="text-orange-800 font-bold text-[9px]">Tuk-Tuk</p>
+                            </button>
+                        </div>
+
+                        {/* Boda — colored compact strip */}
+                        <button onClick={() => handleQuickAction({ vehicle: 'Boda Boda' })} className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl px-2.5 py-2 shadow-md shadow-indigo-200 hover:shadow-lg transition-all text-left active:scale-[0.98]">
+                            <div className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Bike className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[11px] font-bold text-white">Boda Boda</p>
+                                <p className="text-[9px] text-indigo-200 font-medium">Small parcels · Motorbike</p>
+                            </div>
+                            <ChevronRight className="w-3.5 h-3.5 text-white/50 flex-shrink-0" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* ── SEARCH BAR — animated glowing border ── */}
                 <div ref={searchRef} className="relative">
-                    <div className="flex items-center gap-3 bg-white rounded-2xl px-4 py-3.5 border border-gray-200 shadow-sm focus-within:border-emerald-300 focus-within:shadow-md transition-all">
-                        <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => handleSearchChange(e.target.value)}
-                            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                            placeholder="Where are you sending?"
-                            className="flex-1 text-sm font-medium text-slate-900 placeholder:text-gray-400 outline-none bg-transparent"
-                        />
-                        {isSearching && (
-                            <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                        )}
+                    <div className="search-glow rounded-2xl p-[2.5px]">
+                        <div className="flex items-center gap-3 bg-white rounded-[14px] px-4 py-3.5">
+                            <Search className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => handleSearchChange(e.target.value)}
+                                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                                placeholder="Where are you sending to?"
+                                className="flex-1 text-sm font-semibold text-slate-900 placeholder:text-gray-400 outline-none bg-transparent"
+                            />
+                            {isSearching && (
+                                <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                            )}
+                        </div>
                     </div>
 
                     {/* Suggestions dropdown */}
@@ -335,7 +356,7 @@ const CustomerHome: React.FC = () => {
                     )}
                 </div>
 
-                {/* Location History — Send again */}
+                {/* Location History — Send again (with map thumbnails) */}
                 {frequentLocations.length > 0 && (
                     <div>
                         <h2 className="text-sm font-black text-slate-900 mb-2">Send again</h2>
@@ -346,13 +367,7 @@ const CustomerHome: React.FC = () => {
                                     onClick={() => handleSendAgain(loc.address, loc.coords)}
                                     className="w-full flex items-center gap-3 bg-white rounded-xl px-3 py-2.5 border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all text-left active:scale-[0.98]"
                                 >
-                                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                                        {loc.count >= 3 ? (
-                                            <Navigation2 className="w-4 h-4 text-emerald-500" />
-                                        ) : (
-                                            <Clock className="w-4 h-4 text-gray-400" />
-                                        )}
-                                    </div>
+                                    <LocationThumb coords={loc.coords} size="80x80" className="w-10 h-10" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-bold text-slate-900 truncate">{loc.address.split(',')[0]}</p>
                                         <p className="text-[11px] text-gray-400 font-medium truncate">{loc.address}</p>
@@ -366,7 +381,7 @@ const CustomerHome: React.FC = () => {
                     </div>
                 )}
 
-                {/* Active Orders — compact summary */}
+                {/* Active Orders — with map thumbnails */}
                 {activeOrders.length > 0 && (
                     <div>
                         <div className="flex items-center justify-between mb-2">
@@ -385,9 +400,7 @@ const CustomerHome: React.FC = () => {
                                     onClick={() => navigate(`/track?id=${order.id}`)}
                                     className="w-full flex items-center gap-3 bg-white rounded-xl px-3 py-2.5 border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all text-left active:scale-[0.98]"
                                 >
-                                    <div className="relative flex-shrink-0">
-                                        <div className={`w-2.5 h-2.5 rounded-full ${getStatusDot(order.status)} ${order.status === 'in_transit' ? 'animate-pulse' : ''}`} />
-                                    </div>
+                                    <LocationThumb coords={getOrderDropoffCoords(order)} size="80x80" className="w-10 h-10" />
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-bold text-slate-900 truncate">
                                             {order.dropoff?.split(',')[0] || 'Delivery'}
@@ -397,7 +410,10 @@ const CustomerHome: React.FC = () => {
                                             {order.driver?.name ? ` · ${order.driver.name}` : ''}
                                         </p>
                                     </div>
-                                    <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                        <div className={`w-2 h-2 rounded-full ${getStatusDot(order.status)} ${order.status === 'in_transit' ? 'animate-pulse' : ''}`} />
+                                        <ChevronRight className="w-4 h-4 text-gray-300" />
+                                    </div>
                                 </button>
                             ))}
                         </div>

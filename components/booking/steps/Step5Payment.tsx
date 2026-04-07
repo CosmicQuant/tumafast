@@ -89,20 +89,22 @@ export const Step5Payment: React.FC<Step5Props> = ({ submit }) => {
 
                 {/* Package + Vehicle row */}
                 <div className="flex gap-1.5">
-                    <button onClick={() => setStep(1)} className="flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-200/60 hover:bg-blue-100/70 transition-colors">
+                    <button onClick={() => setStep(1)} className={`${data.serviceType === 'Standard' ? 'w-full' : 'flex-1'} flex items-center justify-between px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-200/60 hover:bg-blue-100/70 transition-colors`}>
                         <div className="min-w-0">
                             <div className="text-[9px] font-bold uppercase tracking-wider text-blue-400">Package</div>
                             <div className="text-xs font-bold text-gray-900 truncate">{data.subCategory || 'Not set'}</div>
                         </div>
                         <ChevronRight size={14} className="text-blue-300 flex-shrink-0" />
                     </button>
-                    <button onClick={() => setStep(2)} className="flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200/60 hover:bg-amber-100/70 transition-colors">
-                        <div className="min-w-0">
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-amber-500">Vehicle</div>
-                            <div className="text-xs font-bold text-gray-900 truncate">{activeVehicle?.label || data.serviceType}</div>
-                        </div>
-                        <ChevronRight size={14} className="text-amber-300 flex-shrink-0" />
-                    </button>
+                    {data.serviceType !== 'Standard' && (
+                        <button onClick={() => setStep(2)} className="flex-1 flex items-center justify-between px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200/60 hover:bg-amber-100/70 transition-colors">
+                            <div className="min-w-0">
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-amber-500">Vehicle</div>
+                                <div className="text-xs font-bold text-gray-900 truncate">{activeVehicle?.label || data.serviceType}</div>
+                            </div>
+                            <ChevronRight size={14} className="text-amber-300 flex-shrink-0" />
+                        </button>
+                    )}
                 </div>
 
                 {/* Receiver row */}

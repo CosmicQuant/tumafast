@@ -27,7 +27,7 @@ interface BookingWizardProps {
 }
 
 const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderComplete, onCollapseChange, startAtDashboard }) => {
-    const { data, updateData, step, direction } = useBooking();
+    const { data, updateData, step, direction, nextStep } = useBooking();
     const { pickupCoords, dropoffCoords, waypointCoords, setRoutePolyline, setIsMapSelecting, setActiveInput, setPickupCoords, setWaypointCoords, setDropoffCoords, userLocation, requestUserLocation, isMapSelecting, activeInput, mapCenter, setMapCenter, fitBounds, setBottomSheetHeight, setOrderState } = useMapState();
 
     // Guard: skip mapCenter watcher until initial location is settled
@@ -68,7 +68,14 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
 
             // If we already have a pickup address, mark as settled so mapCenter watcher won't overwrite
             if (prefillData.pickup || prefillData.pickupCoords) {
-                setTimeout(() => { initialSettled.current = true; }, 1500);
+                setTimeout(() => {
+                    initialSettled.current = true;
+                    // Enable map pin dragging so user sees the pickup pin and can adjust
+                    if (!prefillData.dropoff && !prefillData.dropoffCoords) {
+                        setActiveInput('pickup');
+                        setIsMapSelecting(true);
+                    }
+                }, 1500);
             }
         }
     }, []);

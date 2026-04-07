@@ -137,7 +137,7 @@ const ChatAssistant: React.FC = () => {
         <div className="fixed bottom-24 right-4 z-[90] safe-area-pb">
           <button
             onClick={toggleChat}
-            className="group flex items-center justify-center w-14 h-14 rounded-2xl shadow-xl shadow-brand-500/30 transition-all duration-300 bg-brand-600 hover:bg-brand-700 hover:scale-105 active:scale-95"
+            className="group flex items-center justify-center w-14 h-14 rounded-full shadow-xl shadow-brand-500/30 transition-all duration-300 bg-brand-600 hover:bg-brand-700 hover:scale-105 active:scale-95"
           >
             <MessageSquare className="w-6 h-6 text-white group-hover:rotate-12 transition-transform" />
             <span className="absolute -top-1 -right-1 flex h-4 w-4">

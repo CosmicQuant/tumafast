@@ -560,7 +560,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                      /* LOGGED OUT VIEW: Detailed Cards, Single Row */
                      <div className="grid grid-cols-3 gap-2 sm:gap-4">
                         {/* 1. Send Anything */}
-                        <div onClick={handleSendAnything} className="relative bg-white p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-slate-100 flex flex-col justify-between h-32 sm:h-36 cursor-pointer hover:border-brand-300 hover:-translate-y-1 transition-all group overflow-hidden">
+                        <div onClick={handleSendAnything} className="relative bg-white p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-slate-100 flex flex-col justify-between h-32 sm:h-44 cursor-pointer hover:border-brand-300 hover:-translate-y-1 transition-all group overflow-hidden">
                            <div className="absolute top-0 left-0 p-2 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                               <Package className="w-10 h-10 sm:w-14 sm:h-14 text-brand-600" />
                            </div>
@@ -581,7 +581,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                         </div>
 
                         {/* 2. Enterprise Solutions */}
-                        <div onClick={handleBusinessClick} className="relative bg-slate-900 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-slate-700 flex flex-col justify-between h-32 sm:h-36 cursor-pointer hover:ring-2 hover:ring-slate-700 hover:-translate-y-1 transition-all group overflow-hidden">
+                        <div onClick={handleBusinessClick} className="relative bg-slate-900 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-slate-700 flex flex-col justify-between h-32 sm:h-44 cursor-pointer hover:ring-2 hover:ring-slate-700 hover:-translate-y-1 transition-all group overflow-hidden">
                            <div className="absolute top-0 left-0 p-2 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                               <Briefcase className="w-10 h-10 sm:w-14 sm:h-14 text-white" />
                            </div>
@@ -597,12 +597,12 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                            </div>
 
                            <div className="relative z-10 pt-1 sm:pt-2 flex items-center text-white font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
-                              FullFill <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
+                              Fulfill at Scale <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
                            </div>
                         </div>
 
                         {/* 3. Deliver With Us */}
-                        <div onClick={() => onDriverClick ? onDriverClick() : navigate('/driver')} className="relative bg-brand-600 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-brand-500 flex flex-col justify-between h-32 sm:h-36 cursor-pointer hover:bg-brand-700 hover:-translate-y-1 transition-all group overflow-hidden">
+                        <div onClick={() => onDriverClick ? onDriverClick() : navigate('/driver')} className="relative bg-brand-600 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-brand-500 flex flex-col justify-between h-32 sm:h-44 cursor-pointer hover:bg-brand-700 hover:-translate-y-1 transition-all group overflow-hidden">
                            <div className="absolute top-0 left-0 p-2 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                               <Users className="w-10 h-10 sm:w-14 sm:h-14 text-white" />
                            </div>
@@ -626,60 +626,72 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                </div>
 
                {/* Dropoff Location Picker — Animated Search */}
+               <style>{`
+                  @keyframes hero-border-spin {
+                     0% { background-position: 0% 50%; }
+                     50% { background-position: 100% 50%; }
+                     100% { background-position: 0% 50%; }
+                  }
+                  .hero-search-glow {
+                     background: linear-gradient(90deg, #10b981, #06b6d4, #8b5cf6, #f59e0b, #10b981);
+                     background-size: 300% 300%;
+                     animation: hero-border-spin 4s ease infinite;
+                  }
+               `}</style>
                <div className="max-w-2xl mx-auto w-full pt-1 mb-3" ref={suggestionsRef}>
                   <form onSubmit={handleQuickSubmit} className="relative group">
-                     <div className="absolute -inset-1 bg-gradient-to-r from-brand-400 to-green-300 rounded-2xl blur opacity-10 group-hover:opacity-25 transition duration-1000"></div>
-
-                     <div className={`relative bg-white rounded-2xl shadow-xl p-1 flex items-center gap-2 border border-gray-100 transition-all duration-300 ${!quickInput ? 'search-glow-idle' : ''}`}>
-                        <div className="pl-4 self-center">
-                           <MapPin className={`w-5 h-5 text-brand-500 transition-transform duration-500 ${!quickInput ? 'animate-bounce' : ''}`} style={!quickInput ? { animationDuration: '2s' } : {}} />
-                        </div>
-
-                        <div className="relative flex-1 min-w-0">
-                           <input
-                              type="text"
-                              className="w-full bg-transparent border-none focus:ring-0 text-gray-900 text-sm sm:text-lg font-medium py-2.5 sm:py-3 placeholder-transparent"
-                              placeholder="Where are you sending to?"
-                              value={quickInput}
-                              onChange={handleInputChange}
-                              onFocus={() => {
-                                 setSearchFocused(true);
-                                 if (quickInput.length >= 2 && suggestions.length > 0) setShowSuggestions(true);
-                              }}
-                              onBlur={() => setSearchFocused(false)}
-                              autoComplete="off"
-                           />
-                           {/* Animated cycling placeholder — only visible when input is empty and not focused */}
-                           {!quickInput && !searchFocused && (
-                              <div className="absolute inset-0 flex items-center pointer-events-none overflow-hidden">
-                                 <span
-                                    key={cyclingIndex}
-                                    className="text-sm sm:text-lg font-medium text-slate-400"
-                                    style={{ animation: 'placeholder-fade-in 3s ease-in-out' }}
-                                 >
-                                    {CYCLING_PLACEHOLDERS[cyclingIndex]}
-                                 </span>
-                              </div>
-                           )}
-                           {!quickInput && searchFocused && (
-                              <div className="absolute inset-0 flex items-center pointer-events-none">
-                                 <span className="text-sm sm:text-lg font-medium text-slate-300">
-                                    Type a destination...
-                                 </span>
-                              </div>
-                           )}
-                        </div>
-
-                        {isAnalyzing && (
-                           <div className="pr-4">
-                              <div className="w-5 h-5 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin" />
+                     <div className="hero-search-glow rounded-2xl p-[2.5px]">
+                        <div className="relative bg-white rounded-[14px] shadow-xl p-1 flex items-center gap-2 transition-all duration-300">
+                           <div className="pl-4 self-center">
+                              <MapPin className={`w-5 h-5 text-brand-500 transition-transform duration-500 ${!quickInput ? 'animate-bounce' : ''}`} style={!quickInput ? { animationDuration: '2s' } : {}} />
                            </div>
-                        )}
-                        {!isAnalyzing && quickInput && (
-                           <button type="submit" className="mr-2 px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl hover:bg-brand-700 transition-colors shadow-md">
-                              Go
-                           </button>
-                        )}
+
+                           <div className="relative flex-1 min-w-0">
+                              <input
+                                 type="text"
+                                 className="w-full bg-transparent border-none focus:ring-0 text-gray-900 text-sm sm:text-lg font-medium py-2.5 sm:py-3 placeholder-transparent"
+                                 placeholder="Where are you sending to?"
+                                 value={quickInput}
+                                 onChange={handleInputChange}
+                                 onFocus={() => {
+                                    setSearchFocused(true);
+                                    if (quickInput.length >= 2 && suggestions.length > 0) setShowSuggestions(true);
+                                 }}
+                                 onBlur={() => setSearchFocused(false)}
+                                 autoComplete="off"
+                              />
+                              {/* Animated cycling placeholder — only visible when input is empty and not focused */}
+                              {!quickInput && !searchFocused && (
+                                 <div className="absolute inset-0 flex items-center pointer-events-none overflow-hidden">
+                                    <span
+                                       key={cyclingIndex}
+                                       className="text-sm sm:text-lg font-medium text-slate-400"
+                                       style={{ animation: 'placeholder-fade-in 3s ease-in-out' }}
+                                    >
+                                       {CYCLING_PLACEHOLDERS[cyclingIndex]}
+                                    </span>
+                                 </div>
+                              )}
+                              {!quickInput && searchFocused && (
+                                 <div className="absolute inset-0 flex items-center pointer-events-none">
+                                    <span className="text-sm sm:text-lg font-medium text-slate-300">
+                                       Type a destination...
+                                    </span>
+                                 </div>
+                              )}
+                           </div>
+
+                           {isAnalyzing && (
+                              <div className="pr-4">
+                                 <div className="w-5 h-5 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin" />
+                              </div>
+                           )}
+                           {!isAnalyzing && quickInput && (
+                              <button type="submit" className="mr-2 px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl hover:bg-brand-700 transition-colors shadow-md">
+                                 Go
+                              </button>
+                           )}
+                        </div>
                      </div>
 
                      {/* Suggestions Dropdown */}
