@@ -75,46 +75,87 @@ const App = () => {
     if (locationReady) return; // Already have cached location
 
     let resolved = false;
-
-    // Timeout: don't block forever — 4s max
-    const timeout = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        setLocationReady(true);
-      }
-    }, 4000);
-
-    // Try to get real location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          if (!resolved) {
-            resolved = true;
-            try {
-              localStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude,
-                timestamp: Date.now()
-              }));
-            } catch { /* ignore */ }
-            clearTimeout(timeout);
-            setLocationReady(true);
-          }
-        },
-        () => {
-          // Permission denied or error — proceed anyway
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeout);
-            setLocationReady(true);
-          }
-        },
-        { enableHighAccuracy: true, timeout: 3500, maximumAge: 60000 }
-      );
-    } else {
+    const finish = (lat?: number, lng?: number) => {
+      if (resolved) return;
       resolved = true;
-      clearTimeout(timeout);
+      if (lat !== undefined && lng !== undefined) {
+        try {
+          localStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({ lat, lng, timestamp: Date.now() }));
+        } catch { /* ignore */ }
+      }
       setLocationReady(true);
+    };
+
+    // Hard timeout: never block longer than 8s native / 15s web (browser prompt needs user time)
+    const timeout = setTimeout(() => finish(), Capacitor.isNativePlatform() ? 8000 : 15000);
+
+    if (Capacitor.isNativePlatform()) {
+      // ── NATIVE: Request permission → trigger "Turn on Location" dialog → get position ──
+      (async () => {
+        try {
+          // 1. Request location permissions
+          const status = await Geolocation.checkPermissions();
+          if (status.location !== 'granted') {
+            await Geolocation.requestPermissions();
+          }
+
+          // 2. On Android, trigger the native "Turn on Location / High Accuracy" dialog
+          //    This is the Google Play Services prompt (no need to leave the app)
+          if (Capacitor.getPlatform() === 'android') {
+            const cordova = (window as any).cordova;
+            if (cordova?.plugins?.locationAccuracy) {
+              await new Promise<void>((resolve) => {
+                cordova.plugins.locationAccuracy.request(
+                  cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY,
+                  () => resolve(),
+                  () => resolve() // Don't block on rejection
+                );
+              });
+            }
+          }
+
+          // 3. Now get the actual position (location should be on after step 2)
+          const pos = await Geolocation.getCurrentPosition({
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 60000
+          });
+          clearTimeout(timeout);
+          finish(pos.coords.latitude, pos.coords.longitude);
+        } catch {
+          clearTimeout(timeout);
+          finish(); // Proceed without location
+        }
+      })();
+    } else {
+      // ── WEB: Check permission state, then request ──
+      if (navigator.geolocation) {
+        // Check if already denied — skip the blocking wait
+        (async () => {
+          let permState: PermissionState | null = null;
+          try {
+            const perm = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+            permState = perm.state;
+          } catch { /* Permissions API not available */ }
+
+          if (permState === 'denied') {
+            // Already denied — don't block, just proceed without location
+            clearTimeout(timeout);
+            finish();
+            return;
+          }
+
+          // 'prompt' or 'granted' — actually request (this triggers the browser prompt)
+          navigator.geolocation.getCurrentPosition(
+            (pos) => { clearTimeout(timeout); finish(pos.coords.latitude, pos.coords.longitude); },
+            () => { clearTimeout(timeout); finish(); },
+            { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+          );
+        })();
+      } else {
+        clearTimeout(timeout);
+        finish();
+      }
     }
 
     return () => clearTimeout(timeout);
@@ -130,30 +171,7 @@ const App = () => {
         grantOfflineAccess: true,
       });
 
-      // Request Location Permissions
-      const requestPermissions = async () => {
-        try {
-          const status = await Geolocation.checkPermissions();
-          if (status.location !== 'granted') {
-            await Geolocation.requestPermissions();
-          }
-
-          if (Capacitor.getPlatform() === 'android') {
-            const cordova = (window as any).cordova;
-            if (cordova && cordova.plugins && cordova.plugins.locationAccuracy) {
-              // Bypass canRequest to force Google Play Services Native Prompt
-              cordova.plugins.locationAccuracy.request(
-                cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY,
-                () => console.log('Location accuracy requested successfully'),
-                (error: any) => console.warn('Error requesting location accuracy:', error)
-              );
-            }
-          }
-        } catch (error) {
-          console.warn('Error requesting location permissions:', error);
-        }
-      };
-      requestPermissions();
+      // Location permissions + high accuracy are now handled in the cold start effect above
 
       // Configure Status Bar for Native App
       const configureStatusBar = async () => {

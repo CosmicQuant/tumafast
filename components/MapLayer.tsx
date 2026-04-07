@@ -42,10 +42,7 @@ const containerStyle = {
     height: '100%'
 };
 
-const center = {
-    lat: -1.2921,
-    lng: 36.8219
-};
+// No hard-coded center — map initialises from user's real location via onLoad
 
 // Helper to decode Google's encoded polyline
 const decodePolyline = (encoded: string) => {
@@ -167,6 +164,15 @@ const MapLayer: React.FC = () => {
 
         setMap(mapInstance);
     }, [mapCenter, zoom, userLocation]);
+
+    // First-fix effect: center map when location arrives after map loaded with null center
+    useEffect(() => {
+        if (map && !initialCenterSet.current && (userLocation || mapCenter)) {
+            map.setCenter(userLocation || mapCenter!);
+            map.setZoom(14);
+            initialCenterSet.current = true;
+        }
+    }, [map, userLocation, mapCenter]);
 
     const onUnmount = useCallback(function callback(map: google.maps.Map) {
         setMap(null);

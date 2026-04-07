@@ -24,6 +24,8 @@ interface BookingWizardProps {
     onCollapseChange?: (isCollapsed: boolean) => void;
     onRequireAuth?: (title?: string, desc?: string) => void;
     startAtDashboard?: boolean;
+    savedBookingData?: any;
+    savedStep?: number;
 }
 
 const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderComplete, onCollapseChange, startAtDashboard }) => {
@@ -384,7 +386,7 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
 
 export default function BookingWizardModular(props: BookingWizardProps) {
     return (
-        <BookingProvider>
+        <BookingProvider initialStep={props.savedStep} initialData={props.savedBookingData}>
             <WizardContent {...props} />
         </BookingProvider>
     );

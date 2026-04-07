@@ -60,7 +60,7 @@ interface MapContextType {
     nearbyVehicles: VehicleMarker[];
     setNearbyVehicles: (vehicles: VehicleMarker[]) => void;
 
-    mapCenter: Coordinates;
+    mapCenter: Coordinates | null;
     setMapCenter: (lat: number, lng: number) => void;
 
     zoom: number;
@@ -198,9 +198,9 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, [orderState]);
 
-    // Initialize map center from cache immediately (no Nairobi flash)
+    // Initialize map center from cache (null until real GPS fix arrives)
     const cachedLoc = getCachedLocation();
-    const [mapCenter, setMapCenterInternal] = useState<Coordinates>(cachedLoc || { lat: -1.2921, lng: 36.8219 });
+    const [mapCenter, setMapCenterInternal] = useState<Coordinates | null>(cachedLoc || null);
     const [zoom, setZoom] = useState(cachedLoc ? 16 : 14);
     const [isPanning, setIsPanning] = useState(false);
     const [boundsToFit, setBoundsToFit] = useState<Coordinates[] | null>(null);
@@ -226,88 +226,89 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // This prevents the blue dot from jumping on every noisy GPS reading
         const MIN_MOVE_THRESHOLD = 0.0001; // ~11 meters
 
-        // Start continuous location stream
-        const watchId = navigator.geolocation.watchPosition(
-            (position) => {
-                const coords = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                };
-                const accuracy = position.coords.accuracy;
-                const newAccuracy: LocationAccuracy = accuracy <= 50 ? 'high' : 'low';
+        const startWatch = () => {
+            // Start continuous location stream
+            const watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const coords = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                    const accuracy = position.coords.accuracy;
+                    const newAccuracy: LocationAccuracy = accuracy <= 50 ? 'high' : 'low';
 
-                // Only update userLocation if moved beyond threshold (prevents marker jitter)
-                const prev = lastUserLocationRef.current;
-                const moved = !prev || (
-                    Math.abs(coords.lat - prev.lat) > MIN_MOVE_THRESHOLD ||
-                    Math.abs(coords.lng - prev.lng) > MIN_MOVE_THRESHOLD
-                );
-
-                if (moved) {
-                    lastUserLocationRef.current = coords;
-                    setUserLocation(coords);
-                    cacheLocation(coords);
-                }
-
-                setLocationAccuracy(newAccuracy);
-
-                // Center the map ONLY on the very first GPS fix (not on every update)
-                if (!firstFixAppliedRef.current) {
-                    firstFixAppliedRef.current = true;
-                    setMapCenterInternal(coords);
-                    setBoundsToFit([coords]);
-                }
-            },
-            (error) => {
-                console.warn("watchPosition error:", error);
-                // On native platform, trigger the full Capacitor pipeline
-                // which shows the "Turn on Location Accuracy" native dialog
-                if (Capacitor.isNativePlatform() && !lastUserLocationRef.current) {
-                    mapService.getCurrentLocation().then(coords => {
-                        if (coords) {
-                            lastUserLocationRef.current = coords;
-                            setUserLocation(coords);
-                            setLocationAccuracy('high');
-                            cacheLocation(coords);
-                            if (!firstFixAppliedRef.current) {
-                                firstFixAppliedRef.current = true;
-                                setMapCenterInternal(coords);
-                                setBoundsToFit([coords]);
-                            }
-                        } else {
-                            setLocationAccuracy('none');
-                        }
-                    }).catch(() => setLocationAccuracy('none'));
-                } else if (!lastUserLocationRef.current) {
-                    // Web fallback — single attempt
-                    navigator.geolocation.getCurrentPosition(
-                        (pos) => {
-                            const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                            lastUserLocationRef.current = coords;
-                            setUserLocation(coords);
-                            setLocationAccuracy('low');
-                            cacheLocation(coords);
-                            if (!firstFixAppliedRef.current) {
-                                firstFixAppliedRef.current = true;
-                                setMapCenterInternal(coords);
-                                setBoundsToFit([coords]);
-                            }
-                        },
-                        () => {
-                            if (!lastUserLocationRef.current) setLocationAccuracy('none');
-                        },
-                        { enableHighAccuracy: false, timeout: 5000 }
+                    // Only update userLocation if moved beyond threshold (prevents marker jitter)
+                    const prev = lastUserLocationRef.current;
+                    const moved = !prev || (
+                        Math.abs(coords.lat - prev.lat) > MIN_MOVE_THRESHOLD ||
+                        Math.abs(coords.lng - prev.lng) > MIN_MOVE_THRESHOLD
                     );
-                }
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 10000 // Accept cached positions up to 10s old to reduce jitter
-            }
-        );
 
-        watchIdRef.current = watchId;
+                    if (moved) {
+                        lastUserLocationRef.current = coords;
+                        setUserLocation(coords);
+                        cacheLocation(coords);
+                    }
+
+                    setLocationAccuracy(newAccuracy);
+
+                    // Center the map ONLY on the very first GPS fix (not on every update)
+                    if (!firstFixAppliedRef.current) {
+                        firstFixAppliedRef.current = true;
+                        setMapCenterInternal(coords);
+                        setBoundsToFit([coords]);
+                    }
+                },
+                (error) => {
+                    console.warn("watchPosition error:", error);
+                    // On native platform, trigger the full Capacitor pipeline
+                    if (Capacitor.isNativePlatform() && !lastUserLocationRef.current) {
+                        mapService.getCurrentLocation().then(coords => {
+                            if (coords) {
+                                lastUserLocationRef.current = coords;
+                                setUserLocation(coords);
+                                setLocationAccuracy('high');
+                                cacheLocation(coords);
+                                if (!firstFixAppliedRef.current) {
+                                    firstFixAppliedRef.current = true;
+                                    setMapCenterInternal(coords);
+                                    setBoundsToFit([coords]);
+                                }
+                            } else {
+                                setLocationAccuracy('none');
+                            }
+                        }).catch(() => setLocationAccuracy('none'));
+                    } else if (!lastUserLocationRef.current) {
+                        // Web: permission already handled by cold start — just set none
+                        setLocationAccuracy('none');
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 10000
+                }
+            );
+
+            watchIdRef.current = watchId;
+        };
+
+        if (Capacitor.isNativePlatform()) {
+            // Native: start immediately — cold start already handled permissions
+            startWatch();
+        } else {
+            // Web: delay to avoid racing with App.tsx cold-start prompt
+            // The cold start triggers the browser permission dialog; watchPosition
+            // would consume the same prompt and potentially create confusing UX
+            const delay = setTimeout(startWatch, 2000);
+            return () => {
+                clearTimeout(delay);
+                if (watchIdRef.current !== null) {
+                    navigator.geolocation.clearWatch(watchIdRef.current);
+                    watchIdRef.current = null;
+                }
+            };
+        }
 
         return () => {
             if (watchIdRef.current !== null) {
@@ -335,7 +336,7 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const setMapCenter = useCallback((lat: number, lng: number) => {
         setMapCenterInternal(prev => {
-            if (Math.abs(prev.lat - lat) < 0.000001 && Math.abs(prev.lng - lng) < 0.000001) {
+            if (prev && Math.abs(prev.lat - lat) < 0.000001 && Math.abs(prev.lng - lng) < 0.000001) {
                 return prev;
             }
             return { lat, lng };
@@ -397,6 +398,7 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                             // Only move the map if no booking coords are set yet
                             // (don't interrupt in-progress route building)
                             setMapCenterInternal(prev => {
+                                if (!prev) return freshCoords;
                                 const hasBookingPoints =
                                     lastUserLocationRef.current &&
                                     Math.abs(prev.lat - lastUserLocationRef.current.lat) > 0.001;

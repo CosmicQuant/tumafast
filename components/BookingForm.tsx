@@ -454,7 +454,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ prefillData, onOrderComplete,
 
     // Feature B: Reverse Geocoding on Map Idle (Only when explicitly selecting on map)
     useEffect(() => {
-        if (!isPanning && activeInput && orderState === 'DRAFTING' && isMapSelecting && isLoaded) {
+        if (!isPanning && activeInput && orderState === 'DRAFTING' && isMapSelecting && isLoaded && mapCenter) {
             const timer = setTimeout(async () => {
                 // Check if map center has actually moved significantly from current coords to avoid loops
                 let currentCoords = null;

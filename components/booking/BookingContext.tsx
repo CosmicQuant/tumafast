@@ -63,8 +63,8 @@ interface BookingContextType {
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
-export const BookingProvider: React.FC<{ children: React.ReactNode, initialStep?: number }> = ({ children, initialStep = 0 }) => {
-    const [data, setData] = useState<BookingState>(INITIAL_STATE);
+export const BookingProvider: React.FC<{ children: React.ReactNode, initialStep?: number, initialData?: Partial<BookingState> }> = ({ children, initialStep = 0, initialData }) => {
+    const [data, setData] = useState<BookingState>({ ...INITIAL_STATE, ...initialData });
     const [step, setStep] = useState(initialStep);
     const [direction, setDirection] = useState(0);
 

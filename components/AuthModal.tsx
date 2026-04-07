@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { X, Mail, Lock, User, ArrowRight, Loader, Truck, ArrowLeft, CheckCircle, Briefcase, FileText, Phone, CreditCard, MapPin, Globe, Upload, Camera, Shield } from 'lucide-react';
+import { PENDING_BOOKING_KEY } from './BookingPage';
 import { VehicleType } from '../types';
 import { authService } from '../services/authService';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -95,7 +96,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
       onClose(); // Close modal on success
       if (gUser?.role === 'driver') navigate('/driver');
       else if (gUser?.role === 'business') navigate('/business-dashboard');
-      else navigate('/'); // Customer home
+      else navigate(sessionStorage.getItem(PENDING_BOOKING_KEY) ? '/book' : '/');
     } catch (err: any) {
       console.error("Google Auth Error:", err);
       setError(err.message || 'Google authentication failed');
@@ -114,7 +115,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
       onClose();
       if (selectedRole === 'driver') navigate('/driver');
       else if (selectedRole === 'business') navigate('/business-dashboard');
-      else navigate('/');
+      else navigate(sessionStorage.getItem(PENDING_BOOKING_KEY) ? '/book' : '/');
     } catch (err: any) {
       setError(err.message || 'Failed to complete signup');
     } finally {

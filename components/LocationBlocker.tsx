@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, AlertCircle, RefreshCw } from 'lucide-react';
+import { MapPin, AlertCircle, RefreshCw, Lock } from 'lucide-react';
 import { useMapState } from '../context/MapContext';
 import { Capacitor } from '@capacitor/core';
 
@@ -8,7 +8,23 @@ const LocationBlocker: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [autoAttempted, setAutoAttempted] = useState(false);
+    const [isDenied, setIsDenied] = useState(false);
     const autoAttemptStartedRef = useRef(false);
+
+    // Check browser permission state
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) return;
+        navigator.permissions?.query({ name: 'geolocation' as PermissionName }).then(perm => {
+            setIsDenied(perm.state === 'denied');
+            perm.onchange = () => {
+                setIsDenied(perm.state === 'denied');
+                if (perm.state === 'granted') {
+                    // Permission just got unblocked — retry automatically
+                    handleEnableLocation(true);
+                }
+            };
+        }).catch(() => { });
+    }, []);
 
     const handleEnableLocation = async (silent = false) => {
         setIsLoading(true);
@@ -66,6 +82,13 @@ const LocationBlocker: React.FC = () => {
                 <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium border border-red-100 flex items-start gap-3 text-left w-full max-w-sm">
                     <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                     <span>{error}</span>
+                </div>
+            )}
+
+            {isDenied && !Capacitor.isNativePlatform() && (
+                <div className="mb-6 bg-amber-50 text-amber-700 p-4 rounded-xl text-sm font-medium border border-amber-200 flex items-start gap-3 text-left w-full max-w-sm">
+                    <Lock className="w-5 h-5 shrink-0 mt-0.5" />
+                    <span>Location is blocked in your browser. Click the <strong>lock/site settings icon</strong> in the URL bar, set Location to <strong>Allow</strong>, then refresh this page.</span>
                 </div>
             )}
 

@@ -220,7 +220,20 @@ export const mapService = {
                     lng: position.coords.longitude
                 };
             } else {
-                // Web Fallback
+                // Web: Check permission state first
+                let permState: PermissionState | null = null;
+                try {
+                    const perm = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+                    permState = perm.state;
+                } catch { /* Permissions API not supported — proceed anyway */ }
+
+                if (permState === 'denied') {
+                    const err = new Error('Location permission denied in browser settings');
+                    (err as any).code = 'PERMISSION_DENIED';
+                    throw err;
+                }
+
+                // 'prompt' or 'granted' — request position (browser will show prompt if needed)
                 return new Promise((resolve, reject) => {
                     if (!navigator.geolocation) {
                         reject(new Error("Geolocation not supported"));
@@ -232,7 +245,7 @@ export const mapService = {
                             lng: pos.coords.longitude
                         }),
                         (err) => reject(err),
-                        { enableHighAccuracy: true }
+                        { enableHighAccuracy: true, timeout: 15000 }
                     );
                 });
             }

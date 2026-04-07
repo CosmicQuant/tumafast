@@ -22,8 +22,8 @@ interface BusinessDashboardProps {
 }
 
 // Helper to resolve coordinates
-const resolveCoords = (locationName: string): [number, number] => {
-    if (!locationName) return [-1.2921, 36.8219]; // Default Nairobi
+const resolveCoords = (locationName: string): [number, number] | null => {
+    if (!locationName) return null; // No fallback — skip unresolvable locations
 
     const normalize = (s: string) => s.toLowerCase().trim();
     const target = normalize(locationName);
@@ -36,7 +36,7 @@ const resolveCoords = (locationName: string): [number, number] => {
         const base = LOCATION_COORDINATES[match];
         return [base[0] + (Math.random() * 0.005 - 0.0025), base[1] + (Math.random() * 0.005 - 0.0025)];
     }
-    return [-1.2921, 36.8219];
+    return null;
 };
 
 // Helper for Icons
@@ -448,8 +448,9 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
 
                 setFleet(fleetData.length > 0 ? fleetData.map(v => {
                     if (!v.lat || !v.lng) {
-                        const [lat, lng] = resolveCoords(v.location);
-                        return { ...v, lat, lng };
+                        const coords = resolveCoords(v.location);
+                        if (coords) return { ...v, lat: coords[0], lng: coords[1] };
+                        return v;
                     }
                     return v;
                 }) : []);
@@ -917,7 +918,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
 
         try {
             for (let i = 0; i < count; i++) {
-                const [lat, lng] = resolveCoords(newFleetLocation || 'Westlands');
+                const coords = resolveCoords(newFleetLocation || 'Westlands');
+                const [lat, lng] = coords || [0, 0];
                 const newVehicle = {
                     ownerId: user.id,
                     name: i === 0 ? 'Pending Assignment' : `Pending Assignment ${i + 1}`,
@@ -1536,7 +1538,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ user, onNewReques
                                         {isLoaded ? (
                                             <GoogleMap
                                                 mapContainerStyle={{ width: '100%', height: '100%' }}
-                                                center={selectedVehicle ? { lat: selectedVehicle.lat, lng: selectedVehicle.lng } : { lat: -1.2921, lng: 36.8219 }}
+                                                center={selectedVehicle ? { lat: selectedVehicle.lat, lng: selectedVehicle.lng } : undefined}
                                                 zoom={12}
                                                 onLoad={setMap}
                                                 onUnmount={() => setMap(null)}

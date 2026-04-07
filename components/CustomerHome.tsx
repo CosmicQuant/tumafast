@@ -7,7 +7,7 @@ import { mapService } from '../services/mapService';
 import { APP_CONFIG } from '../config';
 import {
     Package, MapPin, Clock,
-    ChevronRight, Truck, Navigation2, Search, Container, Fuel, BadgePercent, Car, CarFront, Forklift, CarTaxiFront, ArrowRight, Bike
+    ChevronRight, Truck, Navigation2, Container, Fuel, BadgePercent, Car, CarFront, Forklift, CarTaxiFront, ArrowRight, Bike, RefreshCw
 } from 'lucide-react';
 import { ServiceType } from '../types';
 
@@ -45,11 +45,19 @@ const LocationThumb: React.FC<{ coords: { lat: number; lng: number } | null; siz
     );
 };
 
+const CYCLING_HINTS = [
+    '📍 Where are you sending to?',
+    '🏙️ Garissa',
+    '🌊 Mombasa',
+    '🏞️ Kisumu',
+    '🏜️ Daadab',
+];
+
 const CustomerHome: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { data: orders } = useUserOrders(user?.id || '');
-    const { userLocation } = useMapState();
+    const { userLocation, locationAccuracy, ensureFreshLocation } = useMapState();
 
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -58,6 +66,37 @@ const CustomerHome: React.FC = () => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [showLocationGate, setShowLocationGate] = useState(false);
+    const [locating, setLocating] = useState(false);
+    const [searchFocused, setSearchFocused] = useState(false);
+    const [cyclingIndex, setCyclingIndex] = useState(0);
+
+    // Cycle through placeholder hints
+    useEffect(() => {
+        if (searchQuery || searchFocused) return;
+        const interval = setInterval(() => {
+            setCyclingIndex(prev => (prev + 1) % CYCLING_HINTS.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [searchQuery, searchFocused]);
+
+    // Auto-trigger native location prompt on mount
+    useEffect(() => {
+        if (locationAccuracy === 'none') {
+            ensureFreshLocation().catch(() => { });
+        }
+    }, []);
+    const [permDenied, setPermDenied] = useState(false);
+    const pendingNavRef = useRef<(() => void) | null>(null);
+
+    // Check browser permission state for location
+    useEffect(() => {
+        if (typeof navigator === 'undefined' || !navigator.permissions) return;
+        navigator.permissions.query({ name: 'geolocation' as PermissionName }).then(perm => {
+            setPermDenied(perm.state === 'denied');
+            perm.onchange = () => setPermDenied(perm.state === 'denied');
+        }).catch(() => { });
+    }, []);
 
     // Close suggestions on outside click
     useEffect(() => {
@@ -105,52 +144,73 @@ const CustomerHome: React.FC = () => {
         return { address: 'Current Location', coords: null };
     }, [userLocation]);
 
+    // Location gate — ensures we have a real position before entering booking
+    const gateLocation = useCallback(async (proceed: () => void) => {
+        // Already have location — go ahead
+        if (locationAccuracy !== 'none') { proceed(); return; }
+        // Try to acquire location silently
+        const coords = await ensureFreshLocation();
+        if (coords) { proceed(); return; }
+        // Still no location — show gate modal with a retry button
+        pendingNavRef.current = proceed;
+        setShowLocationGate(true);
+    }, [locationAccuracy, ensureFreshLocation]);
+
     // Handle place selection from autocomplete
     const handlePlaceSelect = useCallback(async (placeLabel: string) => {
         setSearchQuery(placeLabel);
         setShowSuggestions(false);
-        const geocoded = await mapService.geocodeAddress(placeLabel);
-        const currentLoc = await getCurrentLocationData();
-        navigate('/book', {
-            state: {
-                prefill: {
-                    pickup: currentLoc.address,
-                    ...(currentLoc.coords && { pickupCoords: currentLoc.coords }),
-                    dropoff: geocoded?.formattedAddress || placeLabel,
-                    ...(geocoded && { dropoffCoords: { lat: geocoded.lat, lng: geocoded.lng } })
+        const doNavigate = async () => {
+            const geocoded = await mapService.geocodeAddress(placeLabel);
+            const currentLoc = await getCurrentLocationData();
+            navigate('/book', {
+                state: {
+                    prefill: {
+                        pickup: currentLoc.address,
+                        ...(currentLoc.coords && { pickupCoords: currentLoc.coords }),
+                        dropoff: geocoded?.formattedAddress || placeLabel,
+                        ...(geocoded && { dropoffCoords: { lat: geocoded.lat, lng: geocoded.lng } })
+                    }
                 }
-            }
-        });
-    }, [navigate, getCurrentLocationData]);
+            });
+        };
+        gateLocation(doNavigate);
+    }, [navigate, getCurrentLocationData, gateLocation]);
 
     // Handle "Send again" location click
     const handleSendAgain = useCallback(async (address: string, coords: { lat: number; lng: number } | null) => {
-        const currentLoc = await getCurrentLocationData();
-        navigate('/book', {
-            state: {
-                prefill: {
-                    pickup: currentLoc.address,
-                    ...(currentLoc.coords && { pickupCoords: currentLoc.coords }),
-                    dropoff: address,
-                    ...(coords && { dropoffCoords: coords })
+        const doNavigate = async () => {
+            const currentLoc = await getCurrentLocationData();
+            navigate('/book', {
+                state: {
+                    prefill: {
+                        pickup: currentLoc.address,
+                        ...(currentLoc.coords && { pickupCoords: currentLoc.coords }),
+                        dropoff: address,
+                        ...(coords && { dropoffCoords: coords })
+                    }
                 }
-            }
-        });
-    }, [navigate, getCurrentLocationData]);
+            });
+        };
+        gateLocation(doNavigate);
+    }, [navigate, getCurrentLocationData, gateLocation]);
 
     // Handle quick action (Standard/Express/Boda) — resolve current location as pickup
     const handleQuickAction = useCallback(async (extra: Record<string, any>) => {
-        const currentLoc = await getCurrentLocationData();
-        navigate('/book', {
-            state: {
-                prefill: {
-                    pickup: currentLoc.address,
-                    ...(currentLoc.coords && { pickupCoords: currentLoc.coords }),
-                    ...extra
+        const doNavigate = async () => {
+            const currentLoc = await getCurrentLocationData();
+            navigate('/book', {
+                state: {
+                    prefill: {
+                        pickup: currentLoc.address,
+                        ...(currentLoc.coords && { pickupCoords: currentLoc.coords }),
+                        ...extra
+                    }
                 }
-            }
-        });
-    }, [navigate, getCurrentLocationData]);
+            });
+        };
+        gateLocation(doNavigate);
+    }, [navigate, getCurrentLocationData, gateLocation]);
 
     // Active orders (in_transit, driver_assigned, pending) — sorted by urgency
     const activeOrders = useMemo(() => {
@@ -227,6 +287,8 @@ const CustomerHome: React.FC = () => {
                     </h1>
                     <p className="text-sm text-gray-400 font-medium mt-0.5">Send anything, Fast &amp; Reliable.</p>
                 </div>
+
+
 
                 {/* ── Side-by-side: Standard (left) | Vehicles (right) ── */}
                 <div className="flex gap-2.5 min-[360px]:flex-row flex-col">
@@ -320,21 +382,42 @@ const CustomerHome: React.FC = () => {
                     </div>
                 </div>
 
-                {/* ── SEARCH BAR — animated glowing border ── */}
+                {/* ── SEARCH BAR — animated glowing border with cycling hints ── */}
                 <div ref={searchRef} className="relative">
                     <div className="search-glow rounded-2xl p-[2.5px]">
-                        <div className="flex items-center gap-3 bg-white rounded-[14px] px-4 py-3.5">
-                            <Search className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => handleSearchChange(e.target.value)}
-                                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                                placeholder="Where are you sending to?"
-                                className="flex-1 text-sm font-semibold text-slate-900 placeholder:text-gray-400 outline-none bg-transparent"
-                            />
+                        <div className="relative flex items-center gap-2 bg-white rounded-[14px] shadow-xl p-1">
+                            <div className="pl-4 self-center">
+                                <MapPin className={`w-5 h-5 text-emerald-500 transition-transform duration-500 ${!searchQuery ? 'animate-bounce' : ''}`} style={!searchQuery ? { animationDuration: '2s' } : {}} />
+                            </div>
+                            <div className="relative flex-1 min-w-0">
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => handleSearchChange(e.target.value)}
+                                    onFocus={() => { setSearchFocused(true); if (searchQuery.length >= 2 && suggestions.length > 0) setShowSuggestions(true); }}
+                                    onBlur={() => setSearchFocused(false)}
+                                    placeholder="Where are you sending to?"
+                                    autoComplete="off"
+                                    className="w-full bg-transparent border-none focus:ring-0 text-gray-900 text-sm font-medium py-2.5 placeholder-transparent outline-none"
+                                />
+                                {!searchQuery && !searchFocused && (
+                                    <div className="absolute inset-0 flex items-center pointer-events-none overflow-hidden">
+                                        <span key={cyclingIndex} className="text-sm font-medium text-slate-400" style={{ animation: 'placeholder-fade-in 3s ease-in-out' }}>
+                                            {CYCLING_HINTS[cyclingIndex]}
+                                        </span>
+                                    </div>
+                                )}
+                                {!searchQuery && searchFocused && (
+                                    <div className="absolute inset-0 flex items-center pointer-events-none">
+                                        <span className="text-sm font-medium text-slate-300">Type a destination...</span>
+                                    </div>
+                                )}
+                            </div>
                             {isSearching && (
-                                <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                <div className="pr-4"><div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>
+                            )}
+                            {!isSearching && searchQuery && (
+                                <button onClick={() => { handlePlaceSelect(searchQuery); }} className="mr-2 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-md">Go</button>
                             )}
                         </div>
                     </div>
@@ -431,6 +514,58 @@ const CustomerHome: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* ── Location Gate Modal ── */}
+            {showLocationGate && (
+                <div className="fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-6">
+                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
+                        <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Navigation2 className="w-8 h-8 text-brand-600" />
+                        </div>
+                        <h3 className="text-lg font-black text-gray-900 mb-1">Location Required</h3>
+                        <p className="text-sm text-gray-500 mb-4">We need your location to find the best pickup point for your delivery.</p>
+
+                        {permDenied && (
+                            <div className="mb-4 bg-amber-50 text-amber-700 p-3 rounded-xl text-xs font-medium border border-amber-200 text-left">
+                                Location is <strong>blocked</strong> in your browser. Tap the <strong>lock icon</strong> in the URL bar &rarr; set Location to <strong>Allow</strong> &rarr; refresh the page.
+                            </div>
+                        )}
+
+                        <button
+                            onClick={async () => {
+                                setLocating(true);
+                                try {
+                                    const coords = await ensureFreshLocation();
+                                    if (coords) {
+                                        setShowLocationGate(false);
+                                        pendingNavRef.current?.();
+                                        pendingNavRef.current = null;
+                                    }
+                                } finally {
+                                    setLocating(false);
+                                }
+                            }}
+                            disabled={locating}
+                            className="w-full bg-brand-600 text-white font-bold py-3.5 rounded-2xl shadow-lg hover:bg-brand-700 active:scale-95 transition-all disabled:opacity-75 flex items-center justify-center gap-2"
+                        >
+                            {locating
+                                ? <><RefreshCw className="w-5 h-5 animate-spin" /> Locating...</>
+                                : 'Enable Location'}
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowLocationGate(false);
+                                // Allow navigation without location — user can enter pickup manually
+                                pendingNavRef.current?.();
+                                pendingNavRef.current = null;
+                            }}
+                            className="mt-3 text-sm text-gray-400 font-medium hover:text-gray-600 transition-colors"
+                        >
+                            Enter pickup manually instead
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
