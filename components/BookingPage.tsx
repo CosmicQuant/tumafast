@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import BookingWizard from './booking/BookingWizardModular';
 import { useAuth } from '../context/AuthContext';
@@ -37,7 +37,6 @@ const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData: propPrefi
     const prefillData = propPrefill || location.state?.prefill;
 
     // --- Saved booking restoration (for auth-interrupted flow) ---
-    const pendingOrderRef = useRef<DeliveryOrder | null>(null);
 
     const savedBooking = useMemo(() => {
         try {
@@ -85,15 +84,6 @@ const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData: propPrefi
 
     const savedStep = savedBooking?.step ?? undefined;
 
-    // Auto-submit when user signs in after auth interruption (email login stays on page)
-    useEffect(() => {
-        if (user && pendingOrderRef.current) {
-            const order = pendingOrderRef.current;
-            pendingOrderRef.current = null;
-            handleOrderComplete(order);
-        }
-    }, [user]);
-
     useEffect(() => {
         setOrderState('DRAFTING');
         ensureFreshLocation().catch(() => undefined);
@@ -124,9 +114,7 @@ const BookingPageContent: React.FC<BookingPageProps> = ({ prefillData: propPrefi
             } catch (e) {
                 console.warn('Failed to persist booking state', e);
             }
-            // Also keep a ref for email login (modal closes, stays on this page)
-            pendingOrderRef.current = order;
-            onRequireAuth?.('Authentication Required', 'Please log in or sign up to complete your booking.');
+            onRequireAuth?.('Sign In to Complete Order', 'Your booking details are saved. Sign in or create an account to finish your order.');
             return;
         }
 

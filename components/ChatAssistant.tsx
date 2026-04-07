@@ -134,7 +134,7 @@ const ChatAssistant: React.FC = () => {
 
       {/* Toggle Button */}
       {!isOpen && (
-        <div className="fixed bottom-24 right-4 z-[90] safe-area-pb">
+        <div className="fixed bottom-6 right-4 z-[90] safe-area-pb">
           <button
             onClick={toggleChat}
             className="group flex items-center justify-center w-14 h-14 rounded-full shadow-xl shadow-brand-500/30 transition-all duration-300 bg-brand-600 hover:bg-brand-700 hover:scale-105 active:scale-95"

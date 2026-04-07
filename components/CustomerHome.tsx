@@ -47,10 +47,17 @@ const LocationThumb: React.FC<{ coords: { lat: number; lng: number } | null; siz
 
 const CYCLING_HINTS = [
     '📍 Where are you sending to?',
-    '🏙️ Garissa',
+    '🏙️ Westlands, Nairobi',
     '🌊 Mombasa',
+    '📦 Mombasa Road Warehouse',
+    '🏜️ Garissa',
+    '✈️ JKIA Airport',
     '🏞️ Kisumu',
+    '🏠 Kilimani, Off Ngong Rd',
     '🏜️ Daadab',
+    '🏢 Upper Hill Towers',
+    '🛒 Garden City Mall',
+    '📍 Thika Road, Ruiru',
 ];
 
 const CustomerHome: React.FC = () => {

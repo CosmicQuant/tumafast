@@ -614,7 +614,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
 
                            <div className="relative z-10 text-left">
                               <h3 className="text-xs sm:text-lg font-black text-white leading-tight mb-1">Deliver<br />With Us</h3>
-                              <p className="text-[7px] sm:text-[10px] text-brand-100 font-medium leading-tight max-w-[90%] block">Turn idle time into income.</p>
+                              <p className="text-[7px] sm:text-[10px] text-brand-100 font-medium leading-tight max-w-[90%] block">Minimize idle time. Turn miles into money.</p>
                            </div>
 
                            <div className="relative z-10 pt-1 sm:pt-2 flex items-center text-white font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
