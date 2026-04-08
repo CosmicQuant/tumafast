@@ -18,8 +18,6 @@ const slideVariants = {
     exit: (direction: number) => ({ x: direction < 0 ? '30%' : '-30%', opacity: 0 })
 };
 
-const layoutTransition = { duration: 0.35, ease: [0.4, 0, 0.2, 1] };
-
 interface BookingWizardProps {
     prefillData?: any;
     onOrderComplete?: (order: any) => void;
@@ -339,9 +337,7 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
         <div className="fixed bottom-0 inset-x-0 md:inset-x-auto md:right-4 md:top-4 md:bottom-4 md:w-[400px] pointer-events-none z-[100] flex flex-col justify-end mx-auto max-w-lg md:max-w-none md:mx-0">
             <motion.div
                 ref={bottomSheetRef}
-                layout="size"
-                className={`w-full bg-white shadow-[0_-15px_40px_rgba(0,0,0,0.12)] md:shadow-2xl rounded-t-[2.5rem] md:rounded-2xl overflow-hidden pointer-events-auto border-t border-gray-100 md:border flex flex-col pb-[env(safe-area-inset-bottom,0)] pb-1 transition-all duration-300 ${data.isSearchingText ? 'h-[90vh]' : 'max-h-[90vh] md:max-h-[calc(100vh-2rem)]'}`}
-                transition={layoutTransition}
+                className={`w-full bg-white shadow-[0_-15px_40px_rgba(0,0,0,0.12)] md:shadow-2xl rounded-t-[2.5rem] md:rounded-2xl overflow-hidden pointer-events-auto border-t border-gray-100 md:border flex flex-col pb-[env(safe-area-inset-bottom,0)] pb-1 ${data.isSearchingText ? 'h-[90vh]' : 'max-h-[90vh] md:max-h-[calc(100vh-2rem)]'}`}
             >
                 <div className="px-5 pt-3 pb-1 flex flex-col items-center w-full z-10 bg-white flex-shrink-0">
                     <div className="w-12 h-1 bg-gray-200 rounded-full mb-2 md:hidden" />
@@ -364,7 +360,7 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
                             )}
                         </AnimatePresence>
                         <div className="flex space-x-1.5 ml-auto">
-                            {[0, 1, 2, 3, 4].map(i => <motion.div layout key={i} className={`h-1.5 rounded-full ${i === step ? 'w-5 bg-brand-600' : 'w-1.5 bg-gray-200'}`} />)}
+                            {[0, 1, 2, 3, 4].map(i => <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-5 bg-brand-600' : 'w-1.5 bg-gray-200'}`} />)}
                         </div>
                     </div>
                 </div>

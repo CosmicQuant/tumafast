@@ -305,19 +305,25 @@ export const SmartBookingInput: React.FC<SmartBookingInputProps> = ({ onStartBoo
                     </div>
                 </div>
 
-                {/* Quick Features */}
-                <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mt-8">
-                    <div className="flex items-center space-x-2 text-slate-700 font-bold text-xs sm:text-sm bg-white/[0.11] backdrop-blur-xl px-4 py-2 sm:px-5 sm:py-2.5 rounded-full border border-white/10 shadow-xl hover:scale-105 transition-transform cursor-default">
-                        <Clock className="w-4 h-4 text-brand-500" />
-                        <span>Under 60 min pickup</span>
+                {/* Trust Badges */}
+                <div className="flex flex-wrap justify-center gap-2 sm:gap-2.5 mt-8">
+                    <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full">
+                        <div className="w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Clock className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
+                        </div>
+                        <span className="text-emerald-300 font-bold text-[9px] sm:text-[10px]">Under 60 min pickup</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-slate-700 font-bold text-xs sm:text-sm bg-white/[0.11] backdrop-blur-xl px-4 py-2 sm:px-5 sm:py-2.5 rounded-full border border-white/10 shadow-xl hover:scale-105 transition-transform cursor-default">
-                        <ShieldCheck className="w-4 h-4 text-brand-500" />
-                        <span>Goods Insured</span>
+                    <div className="flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full">
+                        <div className="w-4 h-4 sm:w-5 sm:h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <ShieldCheck className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
+                        </div>
+                        <span className="text-blue-300 font-bold text-[9px] sm:text-[10px]">Goods Insured</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-slate-700 font-bold text-xs sm:text-sm bg-white/[0.11] backdrop-blur-xl px-4 py-2 sm:px-5 sm:py-2.5 rounded-full border border-white/10 shadow-xl hover:scale-105 transition-transform cursor-default">
-                        <Smartphone className="w-4 h-4 text-brand-500" />
-                        <span>Real-time Tracking</span>
+                    <div className="flex items-center gap-1.5 bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full">
+                        <div className="w-4 h-4 sm:w-5 sm:h-5 bg-violet-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Smartphone className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
+                        </div>
+                        <span className="text-violet-300 font-bold text-[9px] sm:text-[10px]">Real-time Tracking</span>
                     </div>
                 </div>
             </div>

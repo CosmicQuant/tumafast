@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
    ArrowRight, Box, ShieldCheck, Zap, MapPin, Truck, Clock, Smartphone,
    ChevronRight, CheckCircle2, Building2, Star, Navigation, Package,
-   Users, Map, Bike, Car, Home, Rocket, Shield, Briefcase,
+   Users, Map, Home, Rocket, Shield, Briefcase,
    Brain, Eye, LayoutGrid, Globe, ShieldAlert, CreditCard
 } from 'lucide-react';
 
@@ -290,108 +290,42 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
       <div className="flex flex-col min-h-screen pointer-events-auto">
 
          {/* --- SECTION 1: HERO (Centered, Text Only) --- */}
-         <div className="relative min-h-screen min-h-[100dvh] flex flex-col justify-center items-center bg-gradient-to-b from-green-50/50 via-white to-white">
+         <div className="relative flex flex-col justify-center items-center min-h-screen min-h-[100dvh] bg-gradient-to-b from-green-50/50 via-white to-white">
 
-            {/* CSS Animations Injection */}
+            {/* CSS Animations */}
             <style>{`
-          @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+          @keyframes orb-drift-1 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -20px) scale(1.05); }
+            66% { transform: translate(-20px, 15px) scale(0.95); }
           }
-           @keyframes travel-h {
-            0% { left: -10%; opacity: 0; }
-            10% { opacity: 0.8; }
-            90% { opacity: 0.8; }
-            100% { left: 110%; opacity: 0; }
+          @keyframes orb-drift-2 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(-25px, 25px) scale(1.08); }
+            66% { transform: translate(20px, -15px) scale(0.92); }
           }
-          @keyframes travel-v {
-            0% { top: -10%; opacity: 0; }
-            10% { opacity: 0.8; }
-            90% { opacity: 0.8; }
-            100% { top: 110%; opacity: 0; }
+          @keyframes orb-drift-3 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(15px, -25px) scale(1.1); }
           }
-          @keyframes travel-h-reverse {
-            0% { right: -10%; opacity: 0; }
-            10% { opacity: 0.8; }
-            90% { opacity: 0.8; }
-            100% { right: 110%; opacity: 0; }
-          }
-          @keyframes travel-v-reverse {
-            0% { bottom: -10%; opacity: 0; }
-            10% { opacity: 0.8; }
-            90% { opacity: 0.8; }
-            100% { bottom: 110%; opacity: 0; }
-          }
-          @keyframes pulse-glow {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.1); }
-          }
-          
-          .vehicle-travel-h {
-            position: absolute;
-            animation: travel-h linear infinite;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .vehicle-travel-h-rev {
-            position: absolute;
-            animation: travel-h-reverse linear infinite;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .vehicle-travel-v {
-            position: absolute;
-            animation: travel-v linear infinite;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .vehicle-travel-v-rev {
-            position: absolute;
-            animation: travel-v-reverse linear infinite;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+          @keyframes placeholder-fade-in {
+            0% { opacity: 0; transform: translateY(4px); }
+            15% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-4px); }
           }
         `}</style>
 
-            {/* Animated Background Grid */}
+            {/* Background layer — CSS animated gradient orbs + dot grid */}
             <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden" style={{ maskImage: 'linear-gradient(to bottom, black 30%, transparent 90%)', WebkitMaskImage: 'linear-gradient(to bottom, black 30%, transparent 90%)' }}>
-               {/* Grid Pattern - Boxed Style */}
-               <div className="absolute inset-0 opacity-[0.08]" style={{
-                  backgroundImage: `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)`,
-                  backgroundSize: '80px 80px'
+               <div className="absolute inset-0 opacity-[0.06]" style={{
+                  backgroundImage: `radial-gradient(circle, #94a3b8 1px, transparent 1px)`,
+                  backgroundSize: '40px 40px'
                }}></div>
-
-               {/* Animated Boxes / Traffic Simulation */}
                <div className="absolute inset-0">
-                  {/* Horizontal Traffic (Right) */}
-                  <div className="vehicle-travel-h text-brand-500/30" style={{ top: '15%', animationDuration: '25s', animationDelay: '0s' }}><Bike size={30} /></div>
-                  <div className="vehicle-travel-h text-green-500/30" style={{ top: '40%', animationDuration: '35s', animationDelay: '7s' }}><Car size={40} /></div>
-                  <div className="vehicle-travel-h text-brand-600/30" style={{ top: '65%', animationDuration: '30s', animationDelay: '3s' }}><Truck size={50} /></div>
-
-                  {/* Horizontal Traffic (Left) */}
-                  <div className="vehicle-travel-h-rev text-brand-400/30" style={{ top: '25%', animationDuration: '28s', animationDelay: '5s' }}><Car size={35} className="scale-x-[-1]" /></div>
-                  <div className="vehicle-travel-h-rev text-green-400/30" style={{ top: '55%', animationDuration: '22s', animationDelay: '12s' }}><Bike size={25} className="scale-x-[-1]" /></div>
-
-                  {/* Vertical Traffic (Down) */}
-                  <div className="vehicle-travel-v text-brand-400/30" style={{ left: '10%', animationDuration: '40s', animationDelay: '2s' }}><Navigation size={30} className="rotate-180" /></div>
-                  <div className="vehicle-travel-v text-green-400/30" style={{ left: '45%', animationDuration: '32s', animationDelay: '10s' }}><Navigation size={25} className="rotate-180" /></div>
-                  <div className="vehicle-travel-v text-brand-500/30" style={{ left: '80%', animationDuration: '45s', animationDelay: '6s' }}><Navigation size={35} className="rotate-180" /></div>
-
-                  {/* Vertical Traffic (Up) */}
-                  <div className="vehicle-travel-v-rev text-brand-300/30" style={{ left: '25%', animationDuration: '38s', animationDelay: '4s' }}><Navigation size={28} /></div>
-                  <div className="vehicle-travel-v-rev text-green-300/30" style={{ left: '65%', animationDuration: '42s', animationDelay: '15s' }}><Navigation size={22} /></div>
-
-                  {/* Floating Glows */}
-                  <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-400/10 rounded-full blur-[120px] animate-pulse-glow"></div>
-                  <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-green-400/10 rounded-full blur-[150px] animate-pulse-glow" style={{ animationDelay: '3s' }}></div>
+                  <div className="absolute top-[15%] left-[20%] w-[400px] h-[400px] bg-brand-400/[0.07] rounded-full blur-[120px]" style={{ animation: 'orb-drift-1 20s ease-in-out infinite' }}></div>
+                  <div className="absolute bottom-[20%] right-[15%] w-[500px] h-[500px] bg-green-400/[0.06] rounded-full blur-[150px]" style={{ animation: 'orb-drift-2 25s ease-in-out infinite' }}></div>
+                  <div className="absolute top-[50%] left-[60%] w-[300px] h-[300px] bg-cyan-400/[0.05] rounded-full blur-[100px]" style={{ animation: 'orb-drift-3 18s ease-in-out infinite' }}></div>
                </div>
             </div>
 
@@ -399,7 +333,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
             <div className="relative z-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-10 sm:pt-14 pb-6 pointer-events-auto">
 
                {/* Badge */}
-               <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-brand-200 shadow-sm text-brand-700 text-[10px] sm:text-xs font-black tracking-widest uppercase mb-3">
+               <div className="inline-flex items-center px-4 py-1.5 rounded-full backdrop-blur-md border shadow-sm text-[10px] sm:text-xs font-black tracking-widest uppercase mb-3 bg-white/90 border-brand-200 text-brand-700">
                   <span className="relative flex h-2 w-2 mr-2">
                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
                      <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
@@ -407,14 +341,15 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                   Live in Nairobi • Mombasa • Kisumu
                </div>
 
-               {/* Headline - Improved Scale */}
-               <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-slate-900 tracking-tight leading-[1.05] mb-2">
+               {/* Headline */}
+               <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.05] mb-2 text-slate-900">
                   Send anything, <br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-green-500">Fast & Reliable.</span>
                </h1>
 
-               <p className="max-w-xl mx-auto text-sm sm:text-base text-slate-600 font-medium leading-relaxed mb-3 sm:mb-4">
-                  From door-to-door Boda Boda errands to 40ft container trailers. Connect with verified drivers and enterprise-grade solutions in seconds using Kenya's smartest logistics platform.
+               {/* Subtitle */}
+               <p className="text-sm sm:text-lg text-slate-500 max-w-xl mx-auto mb-5 leading-relaxed">
+                  From door-to-door Boda Boda errands to full-scale enterprise freight — we move anything, anywhere in Kenya.
                </p>
 
                {/* Dual Engine Gateway (Refactored to 2 Rows) */}
@@ -714,7 +649,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
 
                   {/* Quick Tap Destinations */}
                   <div className="mt-2 w-full max-w-2xl mx-auto pb-4">
-                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 text-center">Quick Tap Destinations</p>
+                     <p className="text-[9px] font-black uppercase tracking-widest mb-1 text-center text-slate-400">Quick Tap Destinations</p>
                      <div className="flex flex-wrap justify-center gap-1.5 max-h-[60px] overflow-hidden">
                         {(historyDestinations.length > 0 ? historyDestinations : [
                            { label: 'Nairobi', icon: MapPin },
@@ -728,7 +663,7 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                            <button
                               key={dest.label}
                               onClick={() => handleQuickTap(dest.label)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-bold text-slate-700 hover:bg-white hover:border-brand-300 hover:text-brand-600 transition-all shadow-sm active:scale-95"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all shadow-sm active:scale-95 border bg-slate-50 border-slate-200 text-slate-700 hover:bg-white hover:border-brand-300 hover:text-brand-600"
                            >
                               <dest.icon className="w-2.5 h-2.5 text-brand-500" />
                               <span className="truncate max-w-[100px]">{dest.label.split(',')[0]}</span>
@@ -738,19 +673,25 @@ const Hero: React.FC<HeroProps> = ({ onStartBooking, onBusinessClick, onDriverCl
                   </div>
                </div>
 
-               {/* Quick Features - Compact */}
-               <div className="mt-5 flex flex-wrap justify-center gap-3 sm:gap-4">
-                  <div className="flex items-center space-x-2 text-slate-600 font-bold text-[10px] sm:text-xs bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
-                     <Clock className="w-3 h-3 text-brand-500" />
-                     <span>Under 60 min pickup</span>
+               {/* Trust Badges */}
+               <div className="mt-5 flex flex-wrap justify-center gap-2 sm:gap-2.5">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-emerald-50 border-emerald-200/60">
+                     <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-2 h-2 text-white" />
+                     </div>
+                     <span className="font-bold text-[9px] sm:text-[10px] text-emerald-800">Under 60 min pickup</span>
                   </div>
-                  <div className="flex items-center space-x-2 text-slate-600 font-bold text-[10px] sm:text-xs bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
-                     <ShieldCheck className="w-3 h-3 text-brand-500" />
-                     <span>Goods Insured</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-blue-50 border-blue-200/60">
+                     <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <ShieldCheck className="w-2 h-2 text-white" />
+                     </div>
+                     <span className="font-bold text-[9px] sm:text-[10px] text-blue-800">Goods Insured</span>
                   </div>
-                  <div className="flex items-center space-x-2 text-slate-600 font-bold text-[10px] sm:text-xs bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
-                     <Smartphone className="w-3 h-3 text-brand-500" />
-                     <span>Real-time Tracking</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-violet-50 border-violet-200/60">
+                     <div className="w-4 h-4 bg-violet-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Smartphone className="w-2 h-2 text-white" />
+                     </div>
+                     <span className="font-bold text-[9px] sm:text-[10px] text-violet-800">Real-time Tracking</span>
                   </div>
                </div>
 

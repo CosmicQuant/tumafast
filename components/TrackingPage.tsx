@@ -90,7 +90,8 @@ const TrackingPageContent: React.FC = () => {
                 }
 
                 // Update Route for customer
-                if (order.routeGeometry) {
+                if (order.routeGeometry && order.driverLocation) {
+                    // Only use stored routeGeometry when driver is active (avoids stale route after edits)
                     setRoutePolyline(order.routeGeometry);
                 } else {
                     if (order.driverLocation) {

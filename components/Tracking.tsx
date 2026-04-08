@@ -3,7 +3,6 @@ import type { DeliveryOrder, Driver, RouteStop } from '../types';
 import { ChevronUp, ArrowLeft, ArrowRight, Share2, ShieldAlert, Copy, Check, Phone, X, Loader2, MapPin, Pencil, Trash2, ChevronDown, Camera, ShieldCheck, AlertTriangle, Plus, Users } from 'lucide-react';
 import { useMapState } from '@/context/MapContext';
 import { DriverCard } from './tracking/DriverCard';
-import { JourneyTimeline } from './tracking/JourneyTimeline';
 import { PostDelivery } from './tracking/PostDelivery';
 import { motion, AnimatePresence } from 'framer-motion';
 import { mapService } from '@/services/mapService';
@@ -702,16 +701,23 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
             </div>
           </div>
 
-          {/* Journey progress dots */}
-          <div className="w-full flex items-center gap-1 mt-3">
-            {[1, 2, 3, 4, 5].map(s => (
-              <div key={s} className="flex-1 h-1 rounded-full overflow-hidden bg-white/20">
-                <div
-                  className={`h-full rounded-full transition-all duration-1000 ${s <= journeyStep.step ? 'bg-white' : ''} ${s === journeyStep.step ? 'animate-pulse' : ''}`}
-                  style={{ width: s <= journeyStep.step ? '100%' : '0%' }}
-                />
-              </div>
-            ))}
+          {/* Journey progress steps */}
+          <div className="w-full mt-3">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map(s => (
+                <div key={s} className="flex-1 h-1 rounded-full overflow-hidden bg-white/20">
+                  <div
+                    className={`h-full rounded-full transition-all duration-1000 ${s <= journeyStep.step ? 'bg-white' : ''} ${s === journeyStep.step ? 'animate-pulse' : ''}`}
+                    style={{ width: s <= journeyStep.step ? '100%' : '0%' }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between mt-1.5">
+              {['Placed', 'Assigned', 'Collected', 'In Transit', 'Delivered'].map((label, i) => (
+                <span key={label} className={`text-[7px] font-bold ${i < journeyStep.step ? 'text-white/70' : i === journeyStep.step ? 'text-white' : 'text-white/30'}`}>{label}</span>
+              ))}
+            </div>
           </div>
 
           {/* Driver info (inline when assigned) */}
@@ -1044,14 +1050,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
             </div>
           )}
 
-          {/* Journey Timeline */}
-          <JourneyTimeline
-            status={order.status}
-            stops={order.stops}
-            pickup={order.pickup}
-            dropoff={order.dropoff}
-            etaMinutes={etaMinutes}
-          />
+
 
           {/* Price change banner */}
           <AnimatePresence>

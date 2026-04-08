@@ -72,19 +72,25 @@ const HeroOverlay: React.FC<HeroOverlayProps> = ({ isVisible, onSelectDestinatio
                     Live in Nairobi • Mombasa • Kisumu
                 </div>
 
-                {/* Quick Features */}
-                <div className="flex flex-wrap justify-center gap-3">
-                    <div className="flex items-center space-x-2 text-slate-600 font-bold text-[10px] bg-white backdrop-blur-xl px-4 py-2 rounded-full border border-white/50 shadow-lg">
-                        <Clock className="w-3 h-3 text-brand-500" />
-                        <span>Under 60 min pickup</span>
+                {/* Trust Badges */}
+                <div className="flex flex-wrap justify-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                        <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Clock className="w-2 h-2 text-white" />
+                        </div>
+                        <span className="text-emerald-300 font-bold text-[9px]">Under 60 min pickup</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-slate-600 font-bold text-[10px] bg-white backdrop-blur-xl px-4 py-2 rounded-full border border-white/50 shadow-lg">
-                        <ShieldCheck className="w-3 h-3 text-brand-500" />
-                        <span>Goods Insured</span>
+                    <div className="flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full">
+                        <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <ShieldCheck className="w-2 h-2 text-white" />
+                        </div>
+                        <span className="text-blue-300 font-bold text-[9px]">Goods Insured</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-slate-600 font-bold text-[10px] bg-white backdrop-blur-xl px-4 py-2 rounded-full border border-white/50 shadow-lg">
-                        <Smartphone className="w-3 h-3 text-brand-500" />
-                        <span>Real-time Tracking</span>
+                    <div className="flex items-center gap-1.5 bg-violet-500/10 border border-violet-500/20 px-2.5 py-1 rounded-full">
+                        <div className="w-4 h-4 bg-violet-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Smartphone className="w-2 h-2 text-white" />
+                        </div>
+                        <span className="text-violet-300 font-bold text-[9px]">Real-time Tracking</span>
                     </div>
                 </div>
             </div>

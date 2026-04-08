@@ -3,6 +3,7 @@ import { MessageSquare, Send, X, Minimize2, Maximize2 } from 'lucide-react';
 import { chatWithLogisticsAssistant } from '../services/geminiService';
 import type { ChatMessage } from '../types';
 import { useChat } from '../context/ChatContext';
+import { Capacitor } from '@capacitor/core';
 
 const ChatAssistant: React.FC = () => {
   const { isOpen, setIsOpen, toggleChat } = useChat();
@@ -134,7 +135,7 @@ const ChatAssistant: React.FC = () => {
 
       {/* Toggle Button */}
       {!isOpen && (
-        <div className="fixed bottom-6 right-4 z-[90] safe-area-pb">
+        <div className={`fixed right-4 z-[90] ${Capacitor.isNativePlatform() ? 'bottom-24' : 'bottom-6 md:bottom-6'}`}>
           <button
             onClick={toggleChat}
             className="group flex items-center justify-center w-14 h-14 rounded-full shadow-xl shadow-brand-500/30 transition-all duration-300 bg-brand-600 hover:bg-brand-700 hover:scale-105 active:scale-95"
