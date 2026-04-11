@@ -7,19 +7,48 @@ const cors = require("cors")({ origin: true });
 
 // ── UNIFIED PRICING MODEL (Single Source of Truth) ──────────────
 // All prices in KES. Base fare covers first 2km.
+// Rates calibrated to 2026 Kenya market:
+//   Nairobi–Mombasa (~480km) small parcel Standard ≈ 300–600 KES
+//   Nairobi–Mombasa Boda N/A (65km max), Probox ≈ 30k, Lorry-10T ≈ 85k
 const VEHICLE_RATES = {
-    'boda': { base: 150, perKm: 25, perMin: 3, stopFee: 30, min: 150 },
-    'tuktuk': { base: 250, perKm: 35, perMin: 5, stopFee: 50, min: 250 },
-    'probox': { base: 600, perKm: 55, perMin: 10, stopFee: 80, min: 600 },
-    'pickup': { base: 800, perKm: 65, perMin: 12, stopFee: 100, min: 800 },
-    'van': { base: 1200, perKm: 85, perMin: 18, stopFee: 150, min: 1200 },
-    'canter': { base: 2500, perKm: 120, perMin: 22, stopFee: 300, min: 2500 },
-    'lorry': { base: 3500, perKm: 140, perMin: 25, stopFee: 400, min: 3500 },
-    'tipper': { base: 4000, perKm: 160, perMin: 28, stopFee: 500, min: 4000 },
-    'container': { base: 8000, perKm: 250, perMin: 40, stopFee: 700, min: 8000 },
-    'tanker': { base: 10000, perKm: 280, perMin: 45, stopFee: 800, min: 10000 },
-    'trailer': { base: 12000, perKm: 280, perMin: 45, stopFee: 800, min: 12000 },
-    'standard': { base: 150, perKm: 20, perMin: 2, stopFee: 20, min: 120 },
+    // Light / Parcels
+    'boda': { base: 100, perKm: 22, perMin: 2, stopFee: 30, min: 100 },
+    'tuktuk': { base: 180, perKm: 35, perMin: 3, stopFee: 50, min: 180 },
+    'probox': { base: 500, perKm: 50, perMin: 8, stopFee: 80, min: 500 },
+    'van': { base: 800, perKm: 65, perMin: 12, stopFee: 120, min: 800 },
+    'pickup': { base: 1000, perKm: 75, perMin: 14, stopFee: 150, min: 1000 },
+
+    // Medium trucks
+    'canter': { base: 2000, perKm: 95, perMin: 18, stopFee: 250, min: 2000 },
+
+    // Lorry tonnage variants
+    'lorry-5t': { base: 3000, perKm: 115, perMin: 20, stopFee: 350, min: 3000 },
+    'lorry-7t': { base: 3500, perKm: 130, perMin: 22, stopFee: 400, min: 3500 },
+    'lorry-10t': { base: 4500, perKm: 155, perMin: 25, stopFee: 500, min: 4500 },
+    'lorry-14t': { base: 6000, perKm: 185, perMin: 30, stopFee: 600, min: 6000 },
+
+    // Tipper tonnage variants
+    'tipper-7t': { base: 3500, perKm: 120, perMin: 20, stopFee: 400, min: 3500 },
+    'tipper-14t': { base: 5000, perKm: 160, perMin: 25, stopFee: 500, min: 5000 },
+    'tipper-25t': { base: 7000, perKm: 200, perMin: 30, stopFee: 600, min: 7000 },
+
+    // Container sizes
+    'container-20ft': { base: 8000, perKm: 180, perMin: 35, stopFee: 700, min: 8000 },
+    'container-40ft': { base: 12000, perKm: 250, perMin: 45, stopFee: 900, min: 12000 },
+
+    // Tanker types (LPG vs Petroleum — different pricing)
+    'lpg-tanker': { base: 10000, perKm: 220, perMin: 40, stopFee: 800, min: 10000 },
+    'fuel-tanker': { base: 12000, perKm: 270, perMin: 45, stopFee: 1000, min: 12000 },
+
+    // Legacy IDs (backward compatibility with existing orders)
+    'lorry': { base: 4500, perKm: 155, perMin: 25, stopFee: 500, min: 4500 },
+    'tipper': { base: 5000, perKm: 160, perMin: 25, stopFee: 500, min: 5000 },
+    'container': { base: 8000, perKm: 180, perMin: 35, stopFee: 700, min: 8000 },
+    'tanker': { base: 12000, perKm: 270, perMin: 45, stopFee: 1000, min: 12000 },
+    'trailer': { base: 12000, perKm: 250, perMin: 45, stopFee: 900, min: 12000 },
+
+    // Standard consolidated (no dedicated vehicle — affordable parcel rate)
+    'standard': { base: 100, perKm: 1.0, perMin: 0, stopFee: 20, min: 80 },
 };
 
 // Express = baseline, Standard = 25% discount (batch consolidation margin)

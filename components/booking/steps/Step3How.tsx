@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Loader2, Users } from 'lucide-react';
 import { useBooking } from '../BookingContext';
-import { VEHICLES } from '../constants';
+import { VEHICLES, CARGO_VEHICLE_MAP } from '../constants';
 import { useMapState } from '@/context/MapContext';
 import { httpsCallable } from 'firebase/functions';
 
@@ -19,6 +19,9 @@ export const Step3How = () => {
         if (data.distanceKm > v.maxDist) return false;
         if (!v.allowedCats.includes(data.category)) return false;
         if (data.category === 'A' && weightVal > v.maxWeight) return false;
+        // Sub-category restriction: if cargo type maps to specific vehicles, enforce it
+        const cargoAllowed = CARGO_VEHICLE_MAP[data.subCategory];
+        if (cargoAllowed && !cargoAllowed.includes(v.id)) return false;
         return true;
     });
     const activeVehicle = VEHICLES.find(v => v.id === data.vehicle) || eligibleVehicles[0];
@@ -56,7 +59,7 @@ export const Step3How = () => {
                     pickupCoords,
                     dropoffCoords: actualDropoff,
                     waypoints: waypointCoords,
-                    vehicle: data.vehicle || 'boda', // fallback for price preview
+                    vehicle: isStandard ? 'standard' : (data.vehicle || 'boda'),
                     serviceType: data.serviceType,
                     helpersCount: data.helpersCount || 0,
                     isReturnTrip: data.isReturnTrip || false

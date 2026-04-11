@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 const Logo: React.FC<{ className?: string }> = ({ className }) => (
     <svg
@@ -23,7 +23,7 @@ const Logo: React.FC<{ className?: string }> = ({ className }) => (
             fill="white"
             fontFamily="Inter, system-ui, -apple-system, sans-serif"
             fontWeight="900"
-            fontSize="420"
+            fontSize="360"
             letterSpacing="-10"
         >
             Axon
