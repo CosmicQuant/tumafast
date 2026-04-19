@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
    ArrowRight,
@@ -37,6 +37,7 @@ import { usePrompt } from "../context/PromptContext";
 import { orderService } from "../services/orderService";
 import { ServiceType } from "../types";
 import { Capacitor } from "@capacitor/core";
+import CarrierNetworkSection from "./CarrierNetworkSection";
 
 interface HeroProps {
    onStartBooking?: (prefill?: any) => void;
@@ -71,6 +72,7 @@ const Hero: React.FC<HeroProps> = ({
    >([]);
    const [showSuggestions, setShowSuggestions] = useState(false);
    const suggestionsRef = useRef<HTMLDivElement>(null);
+   const isSelectingRef = useRef(false);
    const [cyclingIndex, setCyclingIndex] = useState(0);
    const [searchFocused, setSearchFocused] = useState(false);
 
@@ -129,41 +131,31 @@ const Hero: React.FC<HeroProps> = ({
       fetchHistory();
    }, [user]);
 
+   // Use mapService.getCurrentLocation() which handles native Android (Capacitor Geolocation 
+   // + cordova locationAccuracy dialog) and web browser geolocation with proper prompts
    const requestUserLocation = (): Promise<{
       lat: number;
       lng: number;
    } | null> => {
-      return new Promise((resolve) => {
-         if (!navigator.geolocation) {
-            resolve(null);
-            return;
-         }
-
-         navigator.geolocation.getCurrentPosition(
-            (position) => {
-               resolve({
-                  lat: position.coords.latitude,
-                  lng: position.coords.longitude,
-               });
-            },
-            (error: any) => {
-               console.error("Geolocation error:", error);
-               resolve(null);
-            },
-            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-         );
-      });
+      return mapService.getCurrentLocation();
    };
 
    // Google Places suggestions for dropoff
    useEffect(() => {
       if (!quickInput || quickInput.length < 2) {
          setSuggestions([]);
+         setShowSuggestions(false);
+         return;
+      }
+      // Skip fetching suggestions if we're in the middle of selecting one
+      if (isSelectingRef.current) {
          return;
       }
       const timer = setTimeout(async () => {
+         if (isSelectingRef.current) return;
          try {
             const results = await mapService.getSuggestions(quickInput);
+            if (isSelectingRef.current) return;
             setSuggestions(results);
             setShowSuggestions(results.length > 0);
          } catch (e) {
@@ -189,23 +181,36 @@ const Hero: React.FC<HeroProps> = ({
 
    const handleDropoffSelect = async (destination: string) => {
       if (checkDriverRole()) return;
+      isSelectingRef.current = true;
       setQuickInput(destination);
       setShowSuggestions(false);
+      setSuggestions([]);
       setIsAnalyzing(true);
 
       try {
-         // Get current location as pickup
-         const coords = await requestUserLocation();
-         let pickupAddress = "";
+         // Start both location and dropoff geocoding in parallel
+         const locationPromise = requestUserLocation();
+         const dropoffPromise = mapService.geocodeAddress(destination);
+
+         // Wait for BOTH — location may take time if user is enabling GPS
+         const [coords, dropoffGeo] = await Promise.all([
+            locationPromise.catch(() => null),
+            dropoffPromise.catch(() => null),
+         ]);
+
+         let pickupAddress = "Current Location";
          let pickupCoordsData: { lat: number; lng: number } | null = null;
+
          if (coords) {
             pickupCoordsData = coords;
-            const address = await mapService.reverseGeocode(coords.lat, coords.lng);
-            if (address) pickupAddress = address;
+            try {
+               const address = await mapService.reverseGeocode(coords.lat, coords.lng);
+               if (address) pickupAddress = address;
+            } catch {
+               // keep "Current Location"
+            }
          }
 
-         // Geocode the dropoff
-         const dropoffGeo = await mapService.geocodeAddress(destination);
          let dropoffAddress = destination;
          let dropoffCoordsData: { lat: number; lng: number } | null = null;
          if (dropoffGeo) {
@@ -224,6 +229,7 @@ const Hero: React.FC<HeroProps> = ({
 
          setIsAnalyzing(false);
          setQuickInput("");
+         isSelectingRef.current = false;
          if (onStartBooking) {
             onStartBooking(prefill);
          } else {
@@ -232,8 +238,9 @@ const Hero: React.FC<HeroProps> = ({
       } catch (e) {
          console.error("Dropoff select error:", e);
          setIsAnalyzing(false);
-         // Fallback: navigate with just the dropoff
-         const prefill = { dropoff: destination, itemDescription: "Package" };
+         isSelectingRef.current = false;
+         // Fallback: navigate with just the dropoff + pickup text so wizard knows to auto-locate
+         const prefill = { pickup: 'Current Location', dropoff: destination, itemDescription: "Package" };
          if (onStartBooking) {
             onStartBooking(prefill);
          } else {
@@ -244,10 +251,7 @@ const Hero: React.FC<HeroProps> = ({
 
    const handleQuickSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (checkDriverRole()) return;
-      if (quickInput.trim()) {
-         handleDropoffSelect(quickInput.trim());
-      }
+      // Only Google Places dropdown selections trigger navigation
    };
 
    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -294,13 +298,19 @@ const Hero: React.FC<HeroProps> = ({
       setIsAnalyzing(true);
 
       try {
+         // Wait for location — don't navigate without pickup data
          const coords = await requestUserLocation();
-         let pickupAddress = "";
+         let pickupAddress = "Current Location";
          let pickupCoordsData: { lat: number; lng: number } | null = null;
+
          if (coords) {
             pickupCoordsData = coords;
-            const address = await mapService.reverseGeocode(coords.lat, coords.lng);
-            if (address) pickupAddress = address;
+            try {
+               const address = await mapService.reverseGeocode(coords.lat, coords.lng);
+               if (address) pickupAddress = address;
+            } catch {
+               // keep "Current Location"
+            }
          }
 
          const prefill: any = {
@@ -343,6 +353,176 @@ const Hero: React.FC<HeroProps> = ({
       }
    };
 
+   // --- Particle Network Canvas ---
+   const canvasRef = useRef<HTMLCanvasElement>(null);
+   const mouseRef = useRef<{ x: number; y: number; active: boolean }>({ x: 0, y: 0, active: false });
+
+   useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      let animId: number;
+      let particles: { x: number; y: number; vx: number; vy: number; r: number; }[] = [];
+
+      const resize = () => {
+         canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+         canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+         ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      };
+
+      const init = () => {
+         resize();
+         const w = canvas.offsetWidth;
+         const h = canvas.offsetHeight;
+         // More particles on mobile, ensure minimum density
+         const count = Math.max(Math.min(Math.floor((w * h) / 6000), 130), 55);
+         particles = [];
+         for (let i = 0; i < count; i++) {
+            // Bias ~60% of particles toward the top 45% of the canvas
+            const topBias = i < count * 0.6;
+            const yPos = topBias
+               ? Math.random() * h * 0.45
+               : Math.random() * h;
+            particles.push({
+               x: Math.random() * w,
+               y: yPos,
+               vx: (Math.random() - 0.5) * 0.4,
+               vy: (Math.random() - 0.5) * 0.4,
+               r: Math.random() * 2.2 + 1.6,
+            });
+         }
+      };
+
+      const onMouseMove = (e: MouseEvent) => {
+         const rect = canvas.getBoundingClientRect();
+         mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top, active: true };
+      };
+      const onMouseLeave = () => {
+         mouseRef.current.active = false;
+      };
+
+      canvas.addEventListener('mousemove', onMouseMove);
+      canvas.addEventListener('mouseleave', onMouseLeave);
+
+      const draw = () => {
+         const w = canvas.offsetWidth;
+         const h = canvas.offsetHeight;
+         ctx.clearRect(0, 0, w, h);
+
+         const maxDist = 170;
+         const mouse = mouseRef.current;
+         const mouseRadius = 200;
+
+         // Draw connections
+         for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+               const dx = particles[i].x - particles[j].x;
+               const dy = particles[i].y - particles[j].y;
+               const dist = Math.sqrt(dx * dx + dy * dy);
+               if (dist < maxDist) {
+                  let alpha = (1 - dist / maxDist) * 0.4;
+
+                  // Boost lines near mouse
+                  if (mouse.active) {
+                     const mx = (particles[i].x + particles[j].x) / 2;
+                     const my = (particles[i].y + particles[j].y) / 2;
+                     const mouseDist = Math.sqrt((mx - mouse.x) ** 2 + (my - mouse.y) ** 2);
+                     if (mouseDist < mouseRadius) {
+                        alpha += (1 - mouseDist / mouseRadius) * 0.35;
+                     }
+                  }
+
+                  ctx.beginPath();
+                  ctx.moveTo(particles[i].x, particles[i].y);
+                  ctx.lineTo(particles[j].x, particles[j].y);
+                  ctx.strokeStyle = `rgba(16, 185, 129, ${Math.min(alpha, 0.75)})`;
+                  ctx.lineWidth = 1;
+                  ctx.stroke();
+               }
+            }
+
+            // Mouse-to-particle connections
+            if (mouse.active) {
+               const mdx = particles[i].x - mouse.x;
+               const mdy = particles[i].y - mouse.y;
+               const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+               if (mDist < mouseRadius) {
+                  const alpha = (1 - mDist / mouseRadius) * 0.4;
+                  ctx.beginPath();
+                  ctx.moveTo(particles[i].x, particles[i].y);
+                  ctx.lineTo(mouse.x, mouse.y);
+                  ctx.strokeStyle = `rgba(16, 185, 129, ${alpha})`;
+                  ctx.lineWidth = 0.6;
+                  ctx.stroke();
+               }
+            }
+         }
+
+         // Draw dots
+         for (const p of particles) {
+            let radius = p.r;
+            let fillAlpha = 0.65;
+
+            // Boost dots near mouse
+            if (mouse.active) {
+               const mdx = p.x - mouse.x;
+               const mdy = p.y - mouse.y;
+               const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+               if (mDist < mouseRadius) {
+                  const proximity = 1 - mDist / mouseRadius;
+                  radius = p.r + proximity * 2;
+                  fillAlpha = 0.55 + proximity * 0.4;
+
+                  // Gentle attraction toward mouse
+                  p.vx += (mouse.x - p.x) * 0.0003;
+                  p.vy += (mouse.y - p.y) * 0.0003;
+               }
+            }
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(16, 185, 129, ${fillAlpha})`;
+            ctx.fill();
+
+            // Move
+            p.x += p.vx;
+            p.y += p.vy;
+
+            // Dampen velocity slightly to prevent runaway
+            p.vx *= 0.999;
+            p.vy *= 0.999;
+
+            // Bounce off edges
+            if (p.x < 0 || p.x > w) p.vx *= -1;
+            if (p.y < 0 || p.y > h) p.vy *= -1;
+         }
+
+         // Draw mouse glow
+         if (mouse.active) {
+            const gradient = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, mouseRadius * 0.6);
+            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.08)');
+            gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(mouse.x - mouseRadius, mouse.y - mouseRadius, mouseRadius * 2, mouseRadius * 2);
+         }
+
+         animId = requestAnimationFrame(draw);
+      };
+
+      init();
+      draw();
+
+      window.addEventListener('resize', init);
+      return () => {
+         window.removeEventListener('resize', init);
+         canvas.removeEventListener('mousemove', onMouseMove);
+         canvas.removeEventListener('mouseleave', onMouseLeave);
+         cancelAnimationFrame(animId);
+      };
+   }, []);
+
    return (
       <div className="flex flex-col min-h-screen pointer-events-auto">
          {/* --- SECTION 1: HERO (Centered, Text Only) --- */}
@@ -380,121 +560,8 @@ const Hero: React.FC<HeroProps> = ({
             50%  { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
           }
-          /* Grid journey: forward → pause → 60° right → pause → forward → pause → 60° left → pause. 20s cycle */
-          @keyframes grid-forward {
-            0%    { background-position: 0px 0px; }
-            5%    { background-position: 0px 0px; }
-            20%   { background-position: 0px 90px; }
-            25%   { background-position: 0px 90px; }
-            45%   { background-position: -60px 180px; }
-            50%   { background-position: -60px 180px; }
-            70%   { background-position: -60px 270px; }
-            75%   { background-position: -60px 270px; }
-            95%   { background-position: 0px 360px; }
-            100%  { background-position: 0px 360px; }
-          }
-          @keyframes grid-forward-lg {
-            0%    { background-position: 0px 0px; }
-            5%    { background-position: 0px 0px; }
-            20%   { background-position: 0px 360px; }
-            25%   { background-position: 0px 360px; }
-            45%   { background-position: -240px 720px; }
-            50%   { background-position: -240px 720px; }
-            70%   { background-position: -240px 1080px; }
-            75%   { background-position: -240px 1080px; }
-            95%   { background-position: 0px 1440px; }
-            100%  { background-position: 0px 1440px; }
-          }
-          /* Focal point pulse — the "you" dot */
-          @keyframes focal-pulse {
-            0%, 100% { box-shadow: 0 0 8px 3px rgba(16,185,129,0.6), 0 0 24px 8px rgba(16,185,129,0.25), 0 0 60px 20px rgba(16,185,129,0.08); transform: translate(-50%,-50%) scale(1); }
-            50% { box-shadow: 0 0 14px 6px rgba(16,185,129,0.8), 0 0 40px 14px rgba(16,185,129,0.35), 0 0 80px 30px rgba(16,185,129,0.12); transform: translate(-50%,-50%) scale(1.15); }
-          }
-          /* Sonar ring that pulses outward from focal point */
-          @keyframes sonar-ring {
-            0% { width: 16px; height: 16px; opacity: 0.7; border-width: 2px; }
-            100% { width: 80px; height: 80px; opacity: 0; border-width: 1px; }
-          }
-          /* Crosshair arms subtle pulse */
-          @keyframes crosshair-pulse {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 0.6; }
-          }
-          /* Grid horizontal journey — removed, combined into grid-forward */
-          /* Waypoints approach from ahead matching grid direction, grow + glow on arrival, pass beneath */
-          /* WP1: straight ahead (forward leg) */
-          @keyframes wp-approach-1 {
-            0%   { left: 50%; top: 8%;  opacity: 0.2; box-shadow: 0 0 4px 1px rgba(16,185,129,0.2); transform: translate(-50%,-50%) scale(0.3); }
-            5%   { left: 50%; top: 8%;  opacity: 0.4; box-shadow: 0 0 6px 2px rgba(16,185,129,0.3); transform: translate(-50%,-50%) scale(0.4); }
-            12%  { left: 50%; top: 20%; opacity: 0.7; box-shadow: 0 0 10px 4px rgba(16,185,129,0.5); transform: translate(-50%,-50%) scale(0.75); }
-            18%  { left: 50%; top: 33%; opacity: 0.9; box-shadow: 0 0 16px 6px rgba(16,185,129,0.7); transform: translate(-50%,-50%) scale(1.1); }
-            20%  { left: 50%; top: 38%; opacity: 1;   box-shadow: 0 0 24px 10px rgba(16,185,129,0.9), 0 0 60px 25px rgba(16,185,129,0.3); transform: translate(-50%,-50%) scale(1.6); }
-            25%  { left: 50%; top: 38%; opacity: 1;   box-shadow: 0 0 24px 10px rgba(16,185,129,0.9), 0 0 60px 25px rgba(16,185,129,0.3); transform: translate(-50%,-50%) scale(1.6); }
-            32%  { left: 50%; top: 58%; opacity: 0;   box-shadow: 0 0 4px 1px rgba(16,185,129,0.1); transform: translate(-50%,-50%) scale(3); }
-            100% { left: 50%; top: 58%; opacity: 0;   box-shadow: 0 0 0 0 transparent; transform: translate(-50%,-50%) scale(3); }
-          }
-          /* WP2: from upper-right (60° right leg) */
-          @keyframes wp-approach-2 {
-            0%   { left: 65%; top: 8%;  opacity: 0; box-shadow: 0 0 0 0 transparent; transform: translate(-50%,-50%) scale(0.3); }
-            25%  { left: 65%; top: 8%;  opacity: 0; box-shadow: 0 0 0 0 transparent; transform: translate(-50%,-50%) scale(0.3); }
-            27%  { left: 64%; top: 9%;  opacity: 0.4; box-shadow: 0 0 6px 2px rgba(6,182,212,0.3); transform: translate(-50%,-50%) scale(0.4); }
-            35%  { left: 58%; top: 20%; opacity: 0.7; box-shadow: 0 0 10px 4px rgba(6,182,212,0.5); transform: translate(-50%,-50%) scale(0.75); }
-            42%  { left: 52%; top: 33%; opacity: 0.9; box-shadow: 0 0 16px 6px rgba(6,182,212,0.7); transform: translate(-50%,-50%) scale(1.1); }
-            45%  { left: 50%; top: 38%; opacity: 1;   box-shadow: 0 0 24px 10px rgba(6,182,212,0.9), 0 0 60px 25px rgba(6,182,212,0.3); transform: translate(-50%,-50%) scale(1.6); }
-            50%  { left: 50%; top: 38%; opacity: 1;   box-shadow: 0 0 24px 10px rgba(6,182,212,0.9), 0 0 60px 25px rgba(6,182,212,0.3); transform: translate(-50%,-50%) scale(1.6); }
-            57%  { left: 42%; top: 58%; opacity: 0;   box-shadow: 0 0 4px 1px rgba(6,182,212,0.1); transform: translate(-50%,-50%) scale(3); }
-            100% { left: 42%; top: 58%; opacity: 0;   box-shadow: 0 0 0 0 transparent; transform: translate(-50%,-50%) scale(3); }
-          }
-          /* WP3: straight ahead (forward leg) */
-          @keyframes wp-approach-3 {
-            0%   { left: 50%; top: 8%;  opacity: 0; box-shadow: 0 0 0 0 transparent; transform: translate(-50%,-50%) scale(0.3); }
-            50%  { left: 50%; top: 8%;  opacity: 0; box-shadow: 0 0 0 0 transparent; transform: translate(-50%,-50%) scale(0.3); }
-            52%  { left: 50%; top: 9%;  opacity: 0.4; box-shadow: 0 0 6px 2px rgba(139,92,246,0.3); transform: translate(-50%,-50%) scale(0.4); }
-            60%  { left: 50%; top: 20%; opacity: 0.7; box-shadow: 0 0 10px 4px rgba(139,92,246,0.5); transform: translate(-50%,-50%) scale(0.75); }
-            67%  { left: 50%; top: 33%; opacity: 0.9; box-shadow: 0 0 16px 6px rgba(139,92,246,0.7); transform: translate(-50%,-50%) scale(1.1); }
-            70%  { left: 50%; top: 38%; opacity: 1;   box-shadow: 0 0 24px 10px rgba(139,92,246,0.9), 0 0 60px 25px rgba(139,92,246,0.3); transform: translate(-50%,-50%) scale(1.6); }
-            75%  { left: 50%; top: 38%; opacity: 1;   box-shadow: 0 0 24px 10px rgba(139,92,246,0.9), 0 0 60px 25px rgba(139,92,246,0.3); transform: translate(-50%,-50%) scale(1.6); }
-            82%  { left: 50%; top: 58%; opacity: 0;   box-shadow: 0 0 4px 1px rgba(139,92,246,0.1); transform: translate(-50%,-50%) scale(3); }
-            100% { left: 50%; top: 58%; opacity: 0;   box-shadow: 0 0 0 0 transparent; transform: translate(-50%,-50%) scale(3); }
-          }
-          /* WP4: from upper-left (60° left leg) */
-          @keyframes wp-approach-4 {
-            0%   { left: 35%; top: 8%;  opacity: 0; box-shadow: 0 0 0 0 transparent; transform: translate(-50%,-50%) scale(0.3); }
-            75%  { left: 35%; top: 8%;  opacity: 0; box-shadow: 0 0 0 0 transparent; transform: translate(-50%,-50%) scale(0.3); }
-            77%  { left: 36%; top: 9%;  opacity: 0.4; box-shadow: 0 0 6px 2px rgba(245,158,11,0.3); transform: translate(-50%,-50%) scale(0.4); }
-            85%  { left: 42%; top: 20%; opacity: 0.7; box-shadow: 0 0 10px 4px rgba(245,158,11,0.5); transform: translate(-50%,-50%) scale(0.75); }
-            92%  { left: 48%; top: 33%; opacity: 0.9; box-shadow: 0 0 16px 6px rgba(245,158,11,0.7); transform: translate(-50%,-50%) scale(1.1); }
-            95%  { left: 50%; top: 38%; opacity: 1;   box-shadow: 0 0 24px 10px rgba(245,158,11,0.9), 0 0 60px 25px rgba(245,158,11,0.3); transform: translate(-50%,-50%) scale(1.6); }
-            100% { left: 50%; top: 38%; opacity: 1;   box-shadow: 0 0 24px 10px rgba(245,158,11,0.9), 0 0 60px 25px rgba(245,158,11,0.3); transform: translate(-50%,-50%) scale(1.6); }
-          }
-          /* Arrival burst — ring expands at center when waypoint arrives */
-          @keyframes arrival-burst-1 {
-            0%   { transform: translate(-50%,-50%) scale(0); opacity: 0; }
-            18%  { transform: translate(-50%,-50%) scale(0); opacity: 0; }
-            20%  { transform: translate(-50%,-50%) scale(0.3); opacity: 0.9; }
-            28%  { transform: translate(-50%,-50%) scale(1); opacity: 0; }
-            100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
-          }
-          @keyframes arrival-burst-2 {
-            0%   { transform: translate(-50%,-50%) scale(0); opacity: 0; }
-            43%  { transform: translate(-50%,-50%) scale(0); opacity: 0; }
-            45%  { transform: translate(-50%,-50%) scale(0.3); opacity: 0.9; }
-            53%  { transform: translate(-50%,-50%) scale(1); opacity: 0; }
-            100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
-          }
-          @keyframes arrival-burst-3 {
-            0%   { transform: translate(-50%,-50%) scale(0); opacity: 0; }
-            68%  { transform: translate(-50%,-50%) scale(0); opacity: 0; }
-            70%  { transform: translate(-50%,-50%) scale(0.3); opacity: 0.9; }
-            78%  { transform: translate(-50%,-50%) scale(1); opacity: 0; }
-            100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
-          }
-          @keyframes arrival-burst-4 {
-            0%   { transform: translate(-50%,-50%) scale(0); opacity: 0; }
-            93%  { transform: translate(-50%,-50%) scale(0); opacity: 0; }
-            95%  { transform: translate(-50%,-50%) scale(0.3); opacity: 0.9; }
-            100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
-          }
+
+
           /* Scroll-reveal animations */
           @keyframes reveal-up {
             from { opacity: 0; transform: translateY(60px); }
@@ -538,84 +605,22 @@ const Hero: React.FC<HeroProps> = ({
           .section-wave svg { display: block; width: 100%; height: auto; }
         `}</style>
 
-            {/* Background layer — TRON-style 3D grid with vehicles */}
+            {/* Background layer — Particle Network */}
             <div
-               className="absolute inset-0 z-0 pointer-events-none overflow-hidden"
+               className="absolute inset-0 z-0 overflow-hidden"
                style={{ background: "linear-gradient(to bottom, #f0fdf4 0%, #ffffff 50%, #f0fdf4 100%)" }}
             >
-               {/* 3D Perspective Grid — full page coverage */}
-               <div className="absolute inset-0" style={{ perspective: "800px", perspectiveOrigin: "50% 20%" }}>
-                  <div
-                     className="absolute w-full"
-                     style={{
-                        top: "5%",
-                        height: "150%",
-                        transformStyle: "preserve-3d",
-                        transform: "rotateX(65deg)",
-                        transformOrigin: "top center"
-                     }}
-                  >
-                     {/* Fine grid lines — forward bursts with directional steering */}
-                     <div
-                        className="absolute inset-0"
-                        style={{
-                           backgroundImage:
-                              "linear-gradient(rgba(22, 163, 74, 0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(22, 163, 74, 0.25) 1px, transparent 1px)",
-                           backgroundSize: "30px 30px",
-                           animation: "grid-forward 20s ease-in-out infinite"
-                        }}
-                     ></div>
-                     {/* Accent grid every 4th line */}
-                     <div
-                        className="absolute inset-0"
-                        style={{
-                           backgroundImage:
-                              "linear-gradient(rgba(22, 163, 74, 0.5) 1.5px, transparent 1.5px), linear-gradient(90deg, rgba(22, 163, 74, 0.5) 1.5px, transparent 1.5px)",
-                           backgroundSize: "120px 120px",
-                           animation: "grid-forward-lg 20s ease-in-out infinite"
-                        }}
-                     ></div>
-                  </div>
-               </div>
+               {/* Particle network canvas */}
+               <canvas
+                  ref={canvasRef}
+                  className="absolute inset-0 w-full h-full"
+                  style={{ opacity: 0.9, pointerEvents: 'auto' }}
+               />
 
-               {/* Fade overlay — organic curved fade, grid visible at top, fading to white before quick-tap */}
+               {/* Fade overlay for content readability */}
                <div className="absolute inset-0 z-10 pointer-events-none" style={{
-                  background: "radial-gradient(ellipse 160% 45% at 50% 12%, rgba(255,255,255,0.92) 0%, transparent 100%), linear-gradient(to bottom, transparent 0%, transparent 15%, rgba(255,255,255,0.3) 40%, rgba(255,255,255,0.8) 60%, white 75%)"
+                  background: "linear-gradient(to bottom, transparent 0%, transparent 20%, rgba(255,255,255,0.1) 40%, rgba(255,255,255,0.15) 55%, rgba(255,255,255,0.3) 70%, rgba(255,255,255,0.7) 85%, white 95%)"
                }}></div>
-
-               {/* === FIRST-PERSON FOCAL POINT + APPROACHING WAYPOINTS === */}
-               <div className="absolute inset-0 z-5 pointer-events-none">
-                  {/* Fixed focal point — "you" in the center */}
-                  <div className="absolute" style={{ left: '50%', top: '38%' }}>
-                     {/* Main glowing dot */}
-                     <div className="absolute rounded-full" style={{ width: 14, height: 14, background: '#10b981', transform: 'translate(-50%,-50%)', animation: 'focal-pulse 2.5s ease-in-out infinite', zIndex: 2 }} />
-                     {/* Inner bright core */}
-                     <div className="absolute rounded-full" style={{ width: 6, height: 6, background: '#fff', transform: 'translate(-50%,-50%)', opacity: 0.9, zIndex: 3 }} />
-                     {/* Sonar ring 1 */}
-                     <div className="absolute rounded-full" style={{ border: '2px solid rgba(16,185,129,0.5)', transform: 'translate(-50%,-50%)', animation: 'sonar-ring 3s ease-out infinite' }} />
-                     {/* Sonar ring 2 (offset) */}
-                     <div className="absolute rounded-full" style={{ border: '2px solid rgba(16,185,129,0.3)', transform: 'translate(-50%,-50%)', animation: 'sonar-ring 3s ease-out infinite 1.5s' }} />
-                     {/* Crosshair arms */}
-                     <div className="absolute" style={{ width: 30, height: 1, background: 'rgba(16,185,129,0.4)', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', animation: 'crosshair-pulse 3s ease-in-out infinite' }} />
-                     <div className="absolute" style={{ width: 1, height: 30, background: 'rgba(16,185,129,0.4)', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', animation: 'crosshair-pulse 3s ease-in-out infinite 0.5s' }} />
-                  </div>
-
-                  {/* Approaching waypoints — grow as they approach, bright glow at arrival, pass beneath */}
-                  {/* WP1: straight ahead (green) */}
-                  <div className="absolute rounded-full" style={{ width: 12, height: 12, background: '#10b981', animation: 'wp-approach-1 20s ease-in-out infinite' }} />
-                  {/* WP2: from upper-right (cyan) */}
-                  <div className="absolute rounded-full" style={{ width: 12, height: 12, background: '#06b6d4', animation: 'wp-approach-2 20s ease-in-out infinite' }} />
-                  {/* WP3: straight ahead (violet) */}
-                  <div className="absolute rounded-full" style={{ width: 12, height: 12, background: '#8b5cf6', animation: 'wp-approach-3 20s ease-in-out infinite' }} />
-                  {/* WP4: from upper-left (amber) */}
-                  <div className="absolute rounded-full" style={{ width: 12, height: 12, background: '#f59e0b', animation: 'wp-approach-4 20s ease-in-out infinite' }} />
-
-                  {/* Arrival burst rings at focal point — synced to each waypoint arrival */}
-                  <div className="absolute rounded-full" style={{ left: '50%', top: '38%', width: 80, height: 80, border: '2px solid rgba(16,185,129,0.6)', animation: 'arrival-burst-1 20s ease-out infinite' }} />
-                  <div className="absolute rounded-full" style={{ left: '50%', top: '38%', width: 80, height: 80, border: '2px solid rgba(6,182,212,0.6)', animation: 'arrival-burst-2 20s ease-out infinite' }} />
-                  <div className="absolute rounded-full" style={{ left: '50%', top: '38%', width: 80, height: 80, border: '2px solid rgba(139,92,246,0.6)', animation: 'arrival-burst-3 20s ease-out infinite' }} />
-                  <div className="absolute rounded-full" style={{ left: '50%', top: '38%', width: 80, height: 80, border: '2px solid rgba(245,158,11,0.6)', animation: 'arrival-burst-4 20s ease-out infinite' }} />
-               </div>
 
                {/* Soft orbs for glow/depth */}
                <div className="absolute inset-0 z-10">
@@ -889,106 +894,68 @@ const Hero: React.FC<HeroProps> = ({
                         </div>
                      </>
                   ) : (
-                     /* LOGGED OUT VIEW: Detailed Cards, Single Row */
-                     <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                        {/* 1. Send Anything */}
+                     /* LOGGED OUT VIEW: Clean solid cards — readable, professional */
+                     <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                        {/* 1. Send Anything — clean white */}
                         <div
                            onClick={handleSendAnything}
-                           className="relative bg-white p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-slate-100 flex flex-col justify-between h-32 sm:h-44 cursor-pointer hover:border-brand-300 hover:-translate-y-1 transition-all group overflow-hidden"
+                           className="relative bg-white p-2.5 sm:p-4 rounded-2xl sm:rounded-[1.3rem] shadow-lg border border-slate-100 flex items-center gap-2 cursor-pointer hover:shadow-xl hover:border-brand-200 hover:-translate-y-0.5 transition-all group overflow-hidden"
                         >
-                           <div className="absolute top-0 left-0 p-2 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                              <Package className="w-10 h-10 sm:w-14 sm:h-14 text-brand-600" />
-                           </div>
-
-                           {/* Tag Top Right */}
-                           <div className="flex justify-end mb-1 sm:mb-2">
-                              <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-brand-500">
-                                 Personal
-                              </span>
-                           </div>
-
-                           <div className="relative z-10 text-left">
-                              <h3 className="text-xs sm:text-lg font-black text-slate-900 leading-tight mb-1">
-                                 Send
-                                 <br />
-                                 Anything
+                           <div className="relative z-10 text-left flex-1 min-w-0">
+                              <h3 className="text-[11px] sm:text-base font-black text-slate-900 leading-tight">
+                                 Send Anything
                               </h3>
-                              <p className="text-[7px] sm:text-[10px] text-slate-500 font-medium leading-tight max-w-[90%] block">
-                                 Instant on-demand deliveries.
+                              <p className="text-[7px] sm:text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                                 On-demand delivery
                               </p>
+                              <div className="flex items-center text-brand-600 font-bold text-[8px] sm:text-[11px] mt-1 group-hover:translate-x-0.5 transition-transform">
+                                 Book <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5" />
+                              </div>
                            </div>
-
-                           <div className="relative z-10 pt-1 sm:pt-2 flex items-center text-brand-600 font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
-                              Book Delivery{" "}
-                              <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
+                           <div className="flex-shrink-0 w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-brand-50 flex items-center justify-center group-hover:scale-110 group-hover:bg-brand-100 transition-all">
+                              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-brand-500" />
                            </div>
                         </div>
 
-                        {/* 2. Enterprise Solutions */}
+                        {/* 2. Enterprise — solid dark, high contrast */}
                         <div
                            onClick={handleBusinessClick}
-                           className="relative bg-slate-900 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-slate-700 flex flex-col justify-between h-32 sm:h-44 cursor-pointer hover:ring-2 hover:ring-slate-700 hover:-translate-y-1 transition-all group overflow-hidden"
+                           className="relative bg-slate-900 p-2.5 sm:p-4 rounded-2xl sm:rounded-[1.3rem] shadow-lg border border-slate-700/50 flex items-center gap-2 cursor-pointer hover:shadow-xl hover:border-slate-600 hover:-translate-y-0.5 transition-all group overflow-hidden"
                         >
-                           <div className="absolute top-0 left-0 p-2 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                              <Briefcase className="w-10 h-10 sm:w-14 sm:h-14 text-white" />
-                           </div>
-
-                           {/* Tag Top Right */}
-                           <div className="flex justify-end mb-1 sm:mb-2">
-                              <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">
+                           <div className="relative z-10 text-left flex-1 min-w-0">
+                              <h3 className="text-[11px] sm:text-base font-black text-white leading-tight">
                                  Enterprise
-                              </span>
-                           </div>
-
-                           <div className="relative z-10 text-left">
-                              <h3 className="text-xs sm:text-lg font-black text-white leading-tight mb-1">
-                                 Enterprise
-                                 <br />
-                                 Solutions
                               </h3>
-                              <p className="text-[7px] sm:text-[10px] text-slate-400 font-medium leading-tight max-w-[90%] block">
-                                 Scalable smart logistics for business.
+                              <p className="text-[7px] sm:text-[10px] text-slate-400 font-medium leading-tight mt-0.5">
+                                 Smart logistics at scale
                               </p>
+                              <div className="flex items-center text-slate-300 font-bold text-[8px] sm:text-[11px] mt-1 group-hover:text-white group-hover:translate-x-0.5 transition-all">
+                                 Scale <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5" />
+                              </div>
                            </div>
-
-                           <div className="relative z-10 pt-1 sm:pt-2 flex items-center text-white font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
-                              Fulfill at Scale{" "}
-                              <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
+                           <div className="flex-shrink-0 w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-white/10 flex items-center justify-center group-hover:scale-110 group-hover:bg-white/15 transition-all">
+                              <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-white/80" />
                            </div>
                         </div>
 
-                        {/* 3. Partner with Us */}
+                        {/* 3. Partner — solid brand green, high contrast */}
                         <div
-                           onClick={() =>
-                              onDriverClick ? onDriverClick() : navigate("/driver")
-                           }
-                           className="relative bg-brand-600 p-2 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-2xl border border-brand-500 flex flex-col justify-between h-32 sm:h-44 cursor-pointer hover:bg-brand-700 hover:-translate-y-1 transition-all group overflow-hidden"
+                           onClick={() => navigate("/fulfillment-network")}
+                           className="relative bg-brand-600 p-2.5 sm:p-4 rounded-2xl sm:rounded-[1.3rem] shadow-lg border border-brand-500 flex items-center gap-2 cursor-pointer hover:shadow-xl hover:bg-brand-700 hover:-translate-y-0.5 transition-all group overflow-hidden"
                         >
-                           <div className="absolute top-0 left-0 p-2 sm:p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                              <Users className="w-10 h-10 sm:w-14 sm:h-14 text-white" />
-                           </div>
-
-                           {/* Tag Top Right */}
-                           <div className="flex justify-end mb-1 sm:mb-2">
-                              <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-brand-200">
-                                 Partner
-                              </span>
-                           </div>
-
-                           <div className="relative z-10 text-left">
-                              <h3 className="text-xs sm:text-lg font-black text-white leading-tight mb-1">
-                                 Partner
-                                 <br />
-                                 with Us
+                           <div className="relative z-10 text-left flex-1 min-w-0">
+                              <h3 className="text-[11px] sm:text-base font-black text-white leading-tight">
+                                 Fulfillment Network
                               </h3>
-                              <p className="text-[7px] sm:text-[10px] text-brand-100 font-medium leading-tight max-w-[90%] block">
-                                 Minimize idle time. Turn miles into money.
+                              <p className="text-[7px] sm:text-[10px] text-brand-100 font-medium leading-tight mt-0.5">
+                                 Increase fleet utilization
                               </p>
+                              <div className="flex items-center text-white font-bold text-[8px] sm:text-[11px] mt-1 group-hover:translate-x-0.5 transition-transform">
+                                 Join <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5" />
+                              </div>
                            </div>
-
-                           <div className="relative z-10 pt-1 sm:pt-2 flex items-center text-white font-bold text-[9px] sm:text-xs group-hover:translate-x-1 transition-transform">
-                              Start Earning{" "}
-                              <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1" />
+                           <div className="flex-shrink-0 w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-white/15 flex items-center justify-center group-hover:scale-110 group-hover:bg-white/25 transition-all">
+                              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white/90" />
                            </div>
                         </div>
                      </div>
@@ -1065,14 +1032,6 @@ const Hero: React.FC<HeroProps> = ({
                               <div className="pr-4">
                                  <div className="w-5 h-5 border-2 border-brand-300 border-t-brand-600 rounded-full animate-spin" />
                               </div>
-                           )}
-                           {!isAnalyzing && quickInput && (
-                              <button
-                                 type="submit"
-                                 className="mr-2 px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-xl hover:bg-brand-700 transition-colors shadow-md"
-                              >
-                                 Go
-                              </button>
                            )}
                         </div>
                      </div>
@@ -1493,11 +1452,25 @@ const Hero: React.FC<HeroProps> = ({
                   </div>
                </div>
 
-               {/* ... (Rest of the file remains unchanged) ... */}
-               {/* Wave: dark → gray */}
-               <div className="section-wave relative z-10" style={{ marginTop: '-1px' }}>
+               {/* Wave: slate-900 → slate-950 (faces downward) */}
+               <div className="section-wave relative z-10 bg-slate-900" style={{ marginTop: '-1px' }}>
                   <svg viewBox="0 0 1440 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-                     <path d="M0,0 C240,90 480,100 720,60 C960,20 1200,80 1440,0 L1440,100 L0,100 Z" fill="#f9fafb" />
+                     <path d="M0,100 C360,0 1080,0 1440,100 L1440,100 L0,100 Z" fill="#020617" />
+                  </svg>
+               </div>
+
+               {/* --- SECTION 2C: FULFILLMENT NETWORK --- */}
+               <CarrierNetworkSection />
+
+               {/* Winding road divider: dark → gray */}
+               <div className="section-wave relative z-10 bg-slate-950" style={{ marginTop: '-1px' }}>
+                  <svg viewBox="0 0 1440 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                     {/* Road surface */}
+                     <path d="M0,20 C180,80 360,100 540,60 C720,20 900,80 1080,100 C1260,120 1380,60 1440,40 L1440,120 L0,120 Z" fill="#f9fafb" />
+                     {/* Road edge - dark */}
+                     <path d="M0,18 C180,78 360,98 540,58 C720,18 900,78 1080,98 C1260,118 1380,58 1440,38" fill="none" stroke="#334155" strokeWidth="3" />
+                     {/* Center dashed line */}
+                     <path d="M0,22 C180,82 360,102 540,62 C720,22 900,82 1080,102 C1260,122 1380,62 1440,42" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="12 8" />
                   </svg>
                </div>
 

@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 import { MapProvider } from './context/MapContext';
+import { ProviderType } from './types';
 import Navbar from './components/Navbar';
 import SideMenu from './components/SideMenu';
 import BottomNav from './components/BottomNav';
@@ -43,6 +44,8 @@ const UnifiedLogisticsIntelligence = lazy(() => import('./components/UnifiedLogi
 const ApiDocumentation = lazy(() => import('./components/ApiDocumentation'));
 const PaymentCollection = lazy(() => import('./components/PaymentCollection'));
 const FleetManagement = lazy(() => import('./components/FleetManagement'));
+const EarningsCalculator = lazy(() => import('./components/EarningsCalculator'));
+const FulfillmentNetworkPage = lazy(() => import('./components/FulfillmentNetworkPage'));
 // Temporary test component for the new wizard framework
 const TestBookingWizard = lazy(() => import('./components/booking/BookingWizardModular'));
 const LOCATION_CACHE_KEY = 'axon_last_known_location';
@@ -223,6 +226,7 @@ const App = () => {
   const [authModalView, setAuthModalView] = useState<'LOGIN' | 'SIGNUP' | 'ROLE_SELECT'>('LOGIN');
   const [authModalTitle, setAuthModalTitle] = useState<string | undefined>(undefined);
   const [authModalDesc, setAuthModalDesc] = useState<string | undefined>(undefined);
+  const [authModalProviderType, setAuthModalProviderType] = useState<ProviderType | undefined>(undefined);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -247,7 +251,8 @@ const App = () => {
       '/privacy': 'Privacy Policy | Axon',
       '/terms': 'Service Terms | Axon',
       '/blog': 'Industry Blog | Axon',
-      '/faq': 'Help & FAQ | Axon'
+      '/faq': 'Help & FAQ | Axon',
+      '/earnings': 'Earnings Calculator | Axon'
     };
 
     const matchingKey = Object.keys(routeTitles)
@@ -407,11 +412,7 @@ const App = () => {
                         }
                       }}
                       onDriverClick={() => {
-                        setAuthModalRole('driver');
-                        setAuthModalView('LOGIN'); // User requested "Sign In"
-                        setAuthModalTitle('Driver Access');
-                        setAuthModalDesc('Login or Sign Up to start driving and earning.');
-                        setShowAuthModal(true);
+                        navigate('/fulfillment-network');
                       }}
                     />
                   )
@@ -509,6 +510,27 @@ const App = () => {
                 <Route path="/docs" element={<ApiDocumentation />} />
                 <Route path="/payments" element={<PaymentCollection />} />
                 <Route path="/fleet" element={<FleetManagement />} />
+                <Route path="/earnings" element={<EarningsCalculator />} />
+                <Route path="/fulfillment-network" element={
+                  <FulfillmentNetworkPage
+                    onJoin={(role, providerType, title, desc) => {
+                      setAuthModalRole(role);
+                      setAuthModalView('SIGNUP');
+                      setAuthModalTitle(title);
+                      setAuthModalDesc(desc);
+                      setAuthModalProviderType(providerType);
+                      setShowAuthModal(true);
+                    }}
+                    onLogin={(role, providerType, title, desc) => {
+                      setAuthModalRole(role);
+                      setAuthModalView('LOGIN');
+                      setAuthModalTitle(title);
+                      setAuthModalDesc(desc);
+                      setAuthModalProviderType(providerType);
+                      setShowAuthModal(true);
+                    }}
+                  />
+                } />
 
                 {/* Catch all */}
                 <Route path="*" element={<Navigate to="/" replace />} />
@@ -578,7 +600,7 @@ const App = () => {
                           }}
                           className="hover:text-brand-400 transition-colors text-left"
                         >
-                          Partner With Us
+                          Fulfillment Network
                         </button>
                       </li>
                     </ul>
@@ -623,11 +645,13 @@ const App = () => {
               setAuthModalView('LOGIN');
               setAuthModalTitle(undefined);
               setAuthModalDesc(undefined);
+              setAuthModalProviderType(undefined);
             }}
             preselectedRole={authModalRole}
             defaultView={authModalView}
             customTitle={authModalTitle}
             customDescription={authModalDesc}
+            preselectedProviderType={authModalProviderType}
           />
 
           <OnboardingModal

@@ -217,6 +217,12 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const firstFixAppliedRef = useRef(!!cachedLoc); // True if cache already provided a center
     const lastUserLocationRef = useRef<Coordinates | null>(cachedLoc);
     const freshLocationRequestRef = useRef<Promise<Coordinates | null> | null>(null);
+    const locationAccuracyRef = useRef(locationAccuracy);
+    locationAccuracyRef.current = locationAccuracy;
+    // Refs to track booking coords — used by watchPosition and ensureFreshLocation
+    // to avoid overriding fitBounds when a route is already displayed
+    const pickupCoordsRef = useRef<Coordinates | null>(null);
+    const dropoffCoordsRef = useRef<Coordinates | null>(null);
 
     // Persistent location tracking with watchPosition (Uber/Bolt pattern)
     useEffect(() => {
@@ -253,7 +259,8 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     setLocationAccuracy(newAccuracy);
 
                     // Center the map ONLY on the very first GPS fix (not on every update)
-                    if (!firstFixAppliedRef.current) {
+                    // Skip if booking coords are already set (route is being displayed)
+                    if (!firstFixAppliedRef.current && !pickupCoordsRef.current) {
                         firstFixAppliedRef.current = true;
                         setMapCenterInternal(coords);
                         setBoundsToFit([coords]);
@@ -269,7 +276,7 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                                 setUserLocation(coords);
                                 setLocationAccuracy('high');
                                 cacheLocation(coords);
-                                if (!firstFixAppliedRef.current) {
+                                if (!firstFixAppliedRef.current && !pickupCoordsRef.current) {
                                     firstFixAppliedRef.current = true;
                                     setMapCenterInternal(coords);
                                     setBoundsToFit([coords]);
@@ -319,6 +326,7 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const setPickupCoords = useCallback((coords: Coordinates | null) => {
+        pickupCoordsRef.current = coords;
         setPickupCoordsInternal(prev => {
             if (!prev && !coords) return null;
             if (prev && coords && prev.lat === coords.lat && prev.lng === coords.lng) return prev;
@@ -327,6 +335,7 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, []);
 
     const setDropoffCoords = useCallback((coords: Coordinates | null) => {
+        dropoffCoordsRef.current = coords;
         setDropoffCoordsInternal(prev => {
             if (!prev && !coords) return null;
             if (prev && coords && prev.lat === coords.lat && prev.lng === coords.lng) return prev;
@@ -388,7 +397,7 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             try {
                 // Phase 1: Return cached location immediately for visual speed.
                 const cached = getCachedLocation();
-                if (cached && locationAccuracy !== 'none') {
+                if (cached && locationAccuracyRef.current !== 'none') {
                     // Start the fresh GPS request in the background — don't await yet.
                     mapService.getCurrentLocation().then(freshCoords => {
                         if (freshCoords) {
@@ -417,11 +426,14 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     setUserLocation(coords);
                     setLocationAccuracy('high');
                     cacheLocation(coords);
-                    setMapCenterInternal(coords);
                     lastUserLocationRef.current = coords;
-                    if (!firstFixAppliedRef.current) {
-                        firstFixAppliedRef.current = true;
-                        setBoundsToFit([coords]);
+                    // Only move map and fit bounds if no booking route is being displayed
+                    if (!pickupCoordsRef.current) {
+                        setMapCenterInternal(coords);
+                        if (!firstFixAppliedRef.current) {
+                            firstFixAppliedRef.current = true;
+                            setBoundsToFit([coords]);
+                        }
                     }
                 } else {
                     setLocationAccuracy('none');
@@ -438,7 +450,7 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         freshLocationRequestRef.current = requestPromise;
         return requestPromise;
-    }, [locationAccuracy]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Automatic Routing Effect - Removed to allow pages to control routing logic (e.g. driver-to-destination)
     /*

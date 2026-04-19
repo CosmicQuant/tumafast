@@ -1,7 +1,6 @@
 import { APP_CONFIG } from '../config';
 import { Geolocation } from '@capacitor/geolocation'; // Import Capacitor Geolocation
 import { Capacitor } from '@capacitor/core';
-import toast from 'react-hot-toast';
 
 interface Coordinates {
     lat: number;
@@ -251,12 +250,8 @@ export const mapService = {
             }
         } catch (error) {
             console.error("Error getting location", error);
-            if (!Capacitor.isNativePlatform()) {
-                toast.error("Please turn on your device's precise location (GPS) and grant location permissions to use the map accurately.", { duration: 6000 });
-            } else {
-                toast.error("Please enable precise location and GPS.", { duration: 5000 });
-            }
-            // Default to null if failed
+            // LocationBlocker component handles the UI for denied/missing location.
+            // No toast here to avoid stacking duplicate notifications.
             return null;
         }
     },

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { X, Mail, Lock, User, ArrowRight, Loader, Truck, ArrowLeft, CheckCircle, Briefcase, FileText, Phone, CreditCard, MapPin, Globe, Upload, Camera, Shield } from 'lucide-react';
 import { PENDING_BOOKING_KEY } from './BookingPage';
-import { VehicleType } from '../types';
+import { VehicleType, ProviderType } from '../types';
 import { authService } from '../services/authService';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -15,9 +15,10 @@ interface AuthModalProps {
   preselectedRole?: 'customer' | 'driver' | 'business';
   customTitle?: string;
   customDescription?: string;
+  preselectedProviderType?: ProviderType;
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'LOGIN', preselectedRole, customTitle, customDescription }) => {
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'LOGIN', preselectedRole, customTitle, customDescription, preselectedProviderType }) => {
   const { login, signup, loginWithGoogle, finalizeGoogleProfile, logout } = useAuth();
   const navigate = useNavigate();
   const [view, setView] = useState<'LOGIN' | 'SIGNUP' | 'FORGOT_PASSWORD' | 'ROLE_SELECT'>(defaultView);
@@ -190,6 +191,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
           phone,
           address,
           kraPin: pinNumber,
+          providerType: preselectedProviderType,
           businessDescription: role === 'business' ? businessDescription : undefined,
           ...(role === 'driver' ? {
             vehicleType,
@@ -387,14 +389,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultView = 'L
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity"
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
             onClick={onClose}
           ></motion.div>
 
           <motion.div
-            initial={{ y: "100%", opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "100%", opacity: 0 }}
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             className="relative bg-white rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] sm:max-h-[90vh] overflow-y-auto no-scrollbar border border-gray-100 flex flex-col mb-[env(safe-area-inset-bottom,0px)] pb-[calc(env(safe-area-inset-bottom,0px)+32px)]"
           >

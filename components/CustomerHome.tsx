@@ -168,13 +168,24 @@ const CustomerHome: React.FC = () => {
         setSearchQuery(placeLabel);
         setShowSuggestions(false);
         const doNavigate = async () => {
-            const geocoded = await mapService.geocodeAddress(placeLabel);
-            const currentLoc = await getCurrentLocationData();
+            // Get fresh coords directly from ensureFreshLocation to avoid stale closure
+            const [geocoded, freshCoords] = await Promise.all([
+                mapService.geocodeAddress(placeLabel).catch(() => null),
+                ensureFreshLocation().catch(() => null),
+            ]);
+            let pickupAddress = 'Current Location';
+            let pickupCoords: { lat: number; lng: number } | null = freshCoords;
+            if (freshCoords) {
+                try {
+                    const addr = await mapService.reverseGeocode(freshCoords.lat, freshCoords.lng);
+                    if (addr) pickupAddress = addr;
+                } catch { /* keep default */ }
+            }
             navigate('/book', {
                 state: {
                     prefill: {
-                        pickup: currentLoc.address,
-                        ...(currentLoc.coords && { pickupCoords: currentLoc.coords }),
+                        pickup: pickupAddress,
+                        ...(pickupCoords && { pickupCoords }),
                         dropoff: geocoded?.formattedAddress || placeLabel,
                         ...(geocoded && { dropoffCoords: { lat: geocoded.lat, lng: geocoded.lng } })
                     }
@@ -182,7 +193,7 @@ const CustomerHome: React.FC = () => {
             });
         };
         gateLocation(doNavigate);
-    }, [navigate, getCurrentLocationData, gateLocation]);
+    }, [navigate, ensureFreshLocation, gateLocation]);
 
     // Handle "Send again" location click
     const handleSendAgain = useCallback(async (address: string, coords: { lat: number; lng: number } | null) => {
@@ -422,9 +433,6 @@ const CustomerHome: React.FC = () => {
                             </div>
                             {isSearching && (
                                 <div className="pr-4"><div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>
-                            )}
-                            {!isSearching && searchQuery && (
-                                <button onClick={() => { handlePlaceSelect(searchQuery); }} className="mr-2 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-md">Go</button>
                             )}
                         </div>
                     </div>

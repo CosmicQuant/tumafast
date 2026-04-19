@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { VehicleType, ServiceType } from './types';
+import { VehicleType, ServiceType, ProviderType } from './types';
 
 export const UserSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
     phone: z.string().regex(/^(?:254|\+254|0)?(7(?:(?:[129][0-9])|(?:0[0-8])|(4[0-1]))[0-9]{6})$/, "Invalid Kenyan phone number").optional(),
-    role: z.enum(['customer', 'driver', 'business'])
+    role: z.enum(['customer', 'driver', 'business']),
+    providerType: z.nativeEnum(ProviderType).optional(),
 });
 
 export const BookingSchema = z.object({

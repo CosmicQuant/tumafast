@@ -30,7 +30,7 @@ interface BookingWizardProps {
 
 const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderComplete, onCollapseChange, startAtDashboard }) => {
     const { data, updateData, step, direction, nextStep } = useBooking();
-    const { pickupCoords, dropoffCoords, waypointCoords, setRoutePolyline, setIsMapSelecting, setActiveInput, setPickupCoords, setWaypointCoords, setDropoffCoords, userLocation, requestUserLocation, isMapSelecting, activeInput, mapCenter, setMapCenter, fitBounds, setBottomSheetHeight, setOrderState } = useMapState();
+    const { pickupCoords, dropoffCoords, waypointCoords, setRoutePolyline, setIsMapSelecting, setActiveInput, setPickupCoords, setWaypointCoords, setDropoffCoords, userLocation, requestUserLocation, ensureFreshLocation, isMapSelecting, activeInput, mapCenter, setMapCenter, fitBounds, setBottomSheetHeight, setOrderState } = useMapState();
 
     // Guard: skip mapCenter watcher until initial location is settled
     const initialSettled = useRef(false);
@@ -64,15 +64,35 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
             if (prefillData.pickupCoords && prefillData.dropoffCoords) {
                 fitBounds([prefillData.pickupCoords, prefillData.dropoffCoords]);
             } else if (prefillData.pickupCoords) {
-                // Center on pickup only (e.g. quick action with resolved location)
                 fitBounds([prefillData.pickupCoords]);
             }
 
-            // If we already have a pickup address, mark as settled so mapCenter watcher won't overwrite
-            if (prefillData.pickup || prefillData.pickupCoords) {
+            // When BOTH pickup and dropoff are fully prefilled, settle immediately
+            // and do NOT enable map pin selecting — route should auto-calculate
+            if (prefillData.pickupCoords && prefillData.dropoffCoords && prefillData.pickup) {
+                initialSettled.current = true;
+                // Explicitly disable map pin to avoid showing the draggable pin
+                setIsMapSelecting(false);
+            } else if (prefillData.pickup && !prefillData.pickupCoords && (prefillData.dropoff || prefillData.dropoffCoords)) {
+                // Pickup text set but coords missing, dropoff IS set (e.g. search bar with GPS failure)
+                // Auto-locate pickup coords in background WITHOUT showing map pin
+                initialSettled.current = true;
+                setIsMapSelecting(false);
+                ensureFreshLocation().then(loc => {
+                    if (loc) {
+                        setPickupCoords(loc);
+                        mapService.reverseGeocode(loc.lat, loc.lng).then(address => {
+                            if (address) updateData({ pickup: address });
+                        }).catch(() => { });
+                        if (prefillData.dropoffCoords) {
+                            fitBounds([loc, prefillData.dropoffCoords]);
+                        }
+                    }
+                }).catch(() => { });
+            } else if (prefillData.pickup || prefillData.pickupCoords) {
                 setTimeout(() => {
                     initialSettled.current = true;
-                    // Enable map pin dragging so user sees the pickup pin and can adjust
+                    // Only enable map pin dragging when dropoff is NOT set
                     if (!prefillData.dropoff && !prefillData.dropoffCoords) {
                         setActiveInput('pickup');
                         setIsMapSelecting(true);
@@ -82,32 +102,57 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
         }
     }, []);
 
-    // Effect 2: Auto-locate only when no pickup was prefilled
+    // Effect 2: Auto-locate when no pickup was prefilled — uses warm-start cache with retry
     useEffect(() => {
         if (prefillData?.pickup || prefillData?.pickupCoords) return;
-        requestUserLocation().then(loc => {
-            if (loc && !data.pickup && !pickupCoords && !isMapSelecting) {
-                setPickupCoords(loc);
-                setActiveInput('pickup');
-                setMapCenter(loc.lat, loc.lng);
-                fitBounds([loc]);
-                updateData({ pickup: 'Locating...' });
-                mapService.reverseGeocode(loc.lat, loc.lng).then(address => {
-                    if (address) updateData({ pickup: address });
-                    else updateData({ pickup: 'Current Location' });
-                }).catch(console.error);
-                // Allow mapCenter watcher after initial locate settles
-                setTimeout(() => {
+
+        let cancelled = false;
+
+        const applyLocation = (loc: { lat: number; lng: number }) => {
+            if (cancelled) return;
+            setPickupCoords(loc);
+            setActiveInput('pickup');
+            setMapCenter(loc.lat, loc.lng);
+            fitBounds([loc]);
+            updateData({ pickup: 'Locating...' });
+            mapService.reverseGeocode(loc.lat, loc.lng).then(address => {
+                if (cancelled) return;
+                if (address) updateData({ pickup: address });
+                else updateData({ pickup: 'Current Location' });
+            }).catch(console.error);
+            setTimeout(() => {
+                if (!cancelled) {
                     initialSettled.current = true;
                     setIsMapSelecting(true);
-                }, 1500);
-            } else {
-                // No location or already set — allow map interactions
-                initialSettled.current = true;
+                }
+            }, 1500);
+        };
+
+        const tryLocate = async (attempt: number) => {
+            if (cancelled) return;
+            try {
+                // Use ensureFreshLocation for instant cache + background GPS refresh
+                const loc = await ensureFreshLocation();
+                if (loc && !cancelled && !pickupCoords && !isMapSelecting) {
+                    applyLocation(loc);
+                } else if (!loc && attempt < 2 && !cancelled) {
+                    // Location may still be enabling — retry after delay
+                    setTimeout(() => tryLocate(attempt + 1), 3000);
+                } else if (!cancelled) {
+                    initialSettled.current = true;
+                }
+            } catch {
+                if (attempt < 2 && !cancelled) {
+                    setTimeout(() => tryLocate(attempt + 1), 3000);
+                } else if (!cancelled) {
+                    initialSettled.current = true;
+                }
             }
-        }).catch(() => {
-            initialSettled.current = true;
-        });
+        };
+
+        tryLocate(0);
+
+        return () => { cancelled = true; };
     }, []);
 
     // Effect 3: Reverse-geocode when user drags the map pin (NOT during initial settle)

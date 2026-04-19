@@ -55,7 +55,7 @@ export interface OrderItem {
   category?: CargoCategory;
   subCategory?: string;
   weightKg: number;
-  actualWeight?: number; 
+  actualWeight?: number;
   dimensions?: {
     l: number;
     w: number;
@@ -84,6 +84,11 @@ export interface ContactInfo {
 }
 
 export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD' | 'CORPORATE_INVOICE';
+export enum ProviderType {
+  RIDER = 'rider',
+  FLEET_OWNER = 'fleet_owner',
+  THREE_PL = '3pl',
+}
 
 export interface User {
   id: string;
@@ -92,6 +97,7 @@ export interface User {
   phone?: string;
   avatar?: string;
   role: 'customer' | 'driver' | 'business';
+  providerType?: ProviderType;
   vehicleType?: VehicleType;
   plateNumber?: string;
   // Profile Fields
@@ -131,6 +137,7 @@ export interface SignupProfileDetails {
   businessDescription?: string;
   vehicleType?: VehicleType;
   plateNumber?: string;
+  providerType?: ProviderType;
 }
 
 export interface DriverProfile {

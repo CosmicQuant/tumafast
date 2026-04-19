@@ -88,25 +88,11 @@ const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleDriveClick = () => {
-    if (!user) {
-      onLogin?.(
-        "driver",
-        "Earn with AXON",
-        "Sign in to start receiving delivery requests."
-      );
+    if (user?.role === 'driver') {
+      navigate('/driver');
       return;
     }
-    if (user.role === "customer" || user.role === "business") {
-      // Enforce strict separation
-      showConfirm(
-        "Driver Access",
-        "To access the Driver Dashboard, you must be logged in as a Driver. Do you want to log out and sign in with a Driver account?",
-        () => handleLogout(),
-        "confirm"
-      );
-      return;
-    }
-    navigate("/driver");
+    navigate('/fulfillment-network');
   };
 
   const handleBusinessClick = () => {
@@ -138,8 +124,8 @@ const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={toggleMobileDropdown}
                   className={`p-2 rounded-full transition-all active:scale-95 ${isDarkBackground
-                      ? "bg-white/10 text-white hover:bg-white/20"
-                      : "bg-white/80 backdrop-blur-md text-slate-700 hover:bg-white shadow-sm border border-white/50"
+                    ? "bg-white/10 text-white hover:bg-white/20"
+                    : "bg-white/80 backdrop-blur-md text-slate-700 hover:bg-white shadow-sm border border-white/50"
                     }`}
                 >
                   <Menu className="w-6 h-6" />
@@ -186,17 +172,17 @@ const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={handleDriveClick}
                   className={`text-sm font-bold transition-colors ${isDarkBackground
-                      ? "text-white/90 hover:text-white"
-                      : "text-slate-600 hover:text-brand-600"
+                    ? "text-white/90 hover:text-white"
+                    : "text-slate-600 hover:text-brand-600"
                     }`}
                 >
-                  Deliver
+                  Fulfillment Network
                 </button>
                 <button
                   onClick={handleBusinessClick}
                   className={`text-sm font-bold transition-colors ${isDarkBackground
-                      ? "text-white/90 hover:text-white"
-                      : "text-slate-600 hover:text-brand-600"
+                    ? "text-white/90 hover:text-white"
+                    : "text-slate-600 hover:text-brand-600"
                     }`}
                 >
                   Enterprise
@@ -210,8 +196,8 @@ const Navbar: React.FC<NavbarProps> = ({
                   else navigate("/customer-dashboard");
                 }}
                 className={`text-sm font-bold flex items-center px-4 py-2 rounded-xl transition-all ${isDarkBackground
-                    ? "bg-white/10 text-white hover:bg-white/20"
-                    : "bg-brand-50 text-brand-600 hover:bg-brand-100"
+                  ? "bg-white/10 text-white hover:bg-white/20"
+                  : "bg-brand-50 text-brand-600 hover:bg-brand-100"
                   }`}
               >
                 <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
@@ -229,8 +215,8 @@ const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={toggleProfileDropdown}
                   className={`flex items-center space-x-2 border rounded-full pl-1 pr-3 py-1 transition-all ${isDarkBackground
-                      ? "bg-white/10 hover:bg-white/20 border-white/20"
-                      : "bg-gray-50 hover:bg-gray-100 border-gray-100"
+                    ? "bg-white/10 hover:bg-white/20 border-white/20"
+                    : "bg-gray-50 hover:bg-gray-100 border-gray-100"
                     }`}
                 >
                   <img

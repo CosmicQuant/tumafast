@@ -207,13 +207,13 @@ export const authService = {
       throw error;
     }
   },
-  
+
   // Finalize Google Signup for an already authenticated user
   finalizeGoogleProfile: async (firebaseUser: any, role: 'customer' | 'driver' | 'business'): Promise<User> => {
     console.log("Service: Finalizing Google profile with role:", role);
     try {
       const userDocRef = doc(db, 'users', firebaseUser.uid);
-      
+
       const newUserProfile = {
         name: firebaseUser.displayName || 'Google User',
         email: firebaseUser.email,
@@ -222,7 +222,7 @@ export const authService = {
         phone: '',
         createdAt: new Date().toISOString()
       };
-      
+
       await setDoc(userDocRef, newUserProfile);
 
       if (role === 'driver') {
@@ -271,6 +271,7 @@ export const authService = {
       name,
       email,
       role,
+      providerType: profileDetails?.providerType,
       avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`,
       phone: profileDetails?.phone || '',
       address: profileDetails?.address || '',
@@ -300,6 +301,7 @@ export const authService = {
         idNumber: profileDetails?.idNumber,
         licenseNumber: profileDetails?.licenseNumber,
         kraPin: profileDetails?.kraPin,
+        providerType: profileDetails?.providerType,
         status: 'offline',
         rating: 5.0,
         totalTrips: 0
@@ -311,6 +313,7 @@ export const authService = {
         kraPin: profileDetails?.kraPin,
         address: profileDetails?.address,
         businessDescription: profileDetails?.businessDescription,
+        providerType: profileDetails?.providerType,
         verified: false
       });
     }
