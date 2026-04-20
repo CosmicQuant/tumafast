@@ -124,7 +124,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onProfile, onLogin
 };
 
 interface MenuItemProps {
-    icon: React.ElementType;
+    icon: any;
     label: string;
     subLabel?: string;
     color?: string;

@@ -396,24 +396,32 @@ const Hero: React.FC<HeroProps> = ({
       };
 
       const onMouseMove = (e: MouseEvent) => {
+         if (!canvas) return;
          const rect = canvas.getBoundingClientRect();
-         mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top, active: true };
+         // If mouse is far outside the canvas, deactivate
+         if (e.clientY > rect.bottom + 100 || e.clientY < rect.top - 100) {
+            mouseRef.current.active = false;
+         } else {
+            mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top, active: true };
+         }
       };
       const onMouseLeave = () => {
          mouseRef.current.active = false;
       };
 
-      canvas.addEventListener('mousemove', onMouseMove);
-      canvas.addEventListener('mouseleave', onMouseLeave);
+      window.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseleave', onMouseLeave);
 
       const draw = () => {
          const w = canvas.offsetWidth;
          const h = canvas.offsetHeight;
          ctx.clearRect(0, 0, w, h);
 
-         const maxDist = 170;
+         const maxDist = 150;
          const mouse = mouseRef.current;
          const mouseRadius = 200;
+         const maxLines = 4; // limit density
+         const connectionCounts = new Array(particles.length).fill(0);
 
          // Draw connections
          for (let i = 0; i < particles.length; i++) {
@@ -421,40 +429,26 @@ const Hero: React.FC<HeroProps> = ({
                const dx = particles[i].x - particles[j].x;
                const dy = particles[i].y - particles[j].y;
                const dist = Math.sqrt(dx * dx + dy * dy);
-               if (dist < maxDist) {
-                  let alpha = (1 - dist / maxDist) * 0.4;
+               if (dist < maxDist && connectionCounts[i] < maxLines && connectionCounts[j] < maxLines) {
+                  connectionCounts[i]++;
+                  connectionCounts[j]++;
+                  let alpha = (1 - dist / maxDist) * 0.35;
 
-                  // Boost lines near mouse
+                  // Boost lines near mouse — just brighter, no attraction
                   if (mouse.active) {
                      const mx = (particles[i].x + particles[j].x) / 2;
                      const my = (particles[i].y + particles[j].y) / 2;
                      const mouseDist = Math.sqrt((mx - mouse.x) ** 2 + (my - mouse.y) ** 2);
                      if (mouseDist < mouseRadius) {
-                        alpha += (1 - mouseDist / mouseRadius) * 0.35;
+                        alpha += (1 - mouseDist / mouseRadius) * 0.3;
                      }
                   }
 
                   ctx.beginPath();
                   ctx.moveTo(particles[i].x, particles[i].y);
                   ctx.lineTo(particles[j].x, particles[j].y);
-                  ctx.strokeStyle = `rgba(16, 185, 129, ${Math.min(alpha, 0.75)})`;
-                  ctx.lineWidth = 1;
-                  ctx.stroke();
-               }
-            }
-
-            // Mouse-to-particle connections
-            if (mouse.active) {
-               const mdx = particles[i].x - mouse.x;
-               const mdy = particles[i].y - mouse.y;
-               const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
-               if (mDist < mouseRadius) {
-                  const alpha = (1 - mDist / mouseRadius) * 0.4;
-                  ctx.beginPath();
-                  ctx.moveTo(particles[i].x, particles[i].y);
-                  ctx.lineTo(mouse.x, mouse.y);
-                  ctx.strokeStyle = `rgba(16, 185, 129, ${alpha})`;
-                  ctx.lineWidth = 0.6;
+                  ctx.strokeStyle = `rgba(16, 185, 129, ${Math.min(alpha, 0.7)})`;
+                  ctx.lineWidth = 0.8;
                   ctx.stroke();
                }
             }
@@ -465,19 +459,23 @@ const Hero: React.FC<HeroProps> = ({
             let radius = p.r;
             let fillAlpha = 0.65;
 
-            // Boost dots near mouse
+            // Near mouse: grow slightly, glow brighter, speed up a little
             if (mouse.active) {
                const mdx = p.x - mouse.x;
                const mdy = p.y - mouse.y;
                const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
                if (mDist < mouseRadius) {
                   const proximity = 1 - mDist / mouseRadius;
-                  radius = p.r + proximity * 2;
-                  fillAlpha = 0.55 + proximity * 0.4;
+                  radius = p.r + proximity * 1.5;
+                  fillAlpha = 0.6 + proximity * 0.35;
 
-                  // Gentle attraction toward mouse
-                  p.vx += (mouse.x - p.x) * 0.0003;
-                  p.vy += (mouse.y - p.y) * 0.0003;
+                  // Slightly boost existing velocity direction (energize, not attract)
+                  const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+                  if (speed > 0.05) {
+                     const boost = 1 + proximity * 0.02;
+                     p.vx *= boost;
+                     p.vy *= boost;
+                  }
                }
             }
 
@@ -490,9 +488,11 @@ const Hero: React.FC<HeroProps> = ({
             p.x += p.vx;
             p.y += p.vy;
 
-            // Dampen velocity slightly to prevent runaway
-            p.vx *= 0.999;
-            p.vy *= 0.999;
+            // Dampen velocity to prevent runaway & clamp speed
+            p.vx *= 0.998;
+            p.vy *= 0.998;
+            const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+            if (speed > 0.8) { p.vx *= 0.8 / speed; p.vy *= 0.8 / speed; }
 
             // Bounce off edges
             if (p.x < 0 || p.x > w) p.vx *= -1;
@@ -517,8 +517,8 @@ const Hero: React.FC<HeroProps> = ({
       window.addEventListener('resize', init);
       return () => {
          window.removeEventListener('resize', init);
-         canvas.removeEventListener('mousemove', onMouseMove);
-         canvas.removeEventListener('mouseleave', onMouseLeave);
+         window.removeEventListener('mousemove', onMouseMove);
+         document.removeEventListener('mouseleave', onMouseLeave);
          cancelAnimationFrame(animId);
       };
    }, []);
@@ -610,10 +610,10 @@ const Hero: React.FC<HeroProps> = ({
                className="absolute inset-0 z-0 overflow-hidden"
                style={{ background: "linear-gradient(to bottom, #f0fdf4 0%, #ffffff 50%, #f0fdf4 100%)" }}
             >
-               {/* Particle network canvas */}
+               {/* Particle network canvas — hidden on mobile for performance */}
                <canvas
                   ref={canvasRef}
-                  className="absolute inset-0 w-full h-full"
+                  className="absolute inset-0 w-full h-full hidden sm:block"
                   style={{ opacity: 0.9, pointerEvents: 'auto' }}
                />
 
@@ -894,68 +894,57 @@ const Hero: React.FC<HeroProps> = ({
                         </div>
                      </>
                   ) : (
-                     /* LOGGED OUT VIEW: Clean solid cards — readable, professional */
-                     <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                        {/* 1. Send Anything — clean white */}
+                     /* LOGGED OUT VIEW: Two service cards */
+                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                        {/* Standard Consolidated — Emerald */}
                         <div
-                           onClick={handleSendAnything}
-                           className="relative bg-white p-2.5 sm:p-4 rounded-2xl sm:rounded-[1.3rem] shadow-lg border border-slate-100 flex items-center gap-2 cursor-pointer hover:shadow-xl hover:border-brand-200 hover:-translate-y-0.5 transition-all group overflow-hidden"
+                           onClick={() => handleUseCaseSelect('A', undefined, 'Standard')}
+                           className="relative bg-gradient-to-br from-emerald-500 to-emerald-700 p-3 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-xl border border-emerald-400/50 overflow-hidden cursor-pointer hover:shadow-emerald-500/40 hover:-translate-y-1 transition-all group min-h-[7.5rem] sm:min-h-[9rem] flex flex-col justify-between"
                         >
-                           <div className="relative z-10 text-left flex-1 min-w-0">
-                              <h3 className="text-[11px] sm:text-base font-black text-slate-900 leading-tight">
-                                 Send Anything
+                           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent opacity-50"></div>
+                           <div className="relative z-10">
+                              <span className="inline-flex items-center px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-[8px] sm:text-[9px] text-white font-bold tracking-widest uppercase mb-1.5 sm:mb-2 border border-white/10">
+                                 <Package className="w-2.5 h-2.5 mr-1" /> Consolidated
+                              </span>
+                              <h3 className="text-lg sm:text-xl font-black text-white leading-tight drop-shadow-md">
+                                 Standard
+                                 <br />
+                                 Parcel
                               </h3>
-                              <p className="text-[7px] sm:text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
-                                 On-demand delivery
-                              </p>
-                              <div className="flex items-center text-brand-600 font-bold text-[8px] sm:text-[11px] mt-1 group-hover:translate-x-0.5 transition-transform">
-                                 Book <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5" />
+                           </div>
+                           <div className="relative z-10 flex justify-between items-end mt-2">
+                              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white transition-colors duration-300">
+                                 <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white group-hover:text-emerald-600 transition-colors duration-300" />
                               </div>
                            </div>
-                           <div className="flex-shrink-0 w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-brand-50 flex items-center justify-center group-hover:scale-110 group-hover:bg-brand-100 transition-all">
-                              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-brand-500" />
+                           <div className="absolute bottom-[-5%] right-[-5%] transform group-hover:scale-110 group-hover:translate-x-2 transition-transform duration-500 origin-bottom-right">
+                              <img src="/icons3d/package.png" alt="Standard" className="w-20 h-20 sm:w-28 sm:h-28 object-contain drop-shadow-2xl opacity-90 group-hover:opacity-100" />
                            </div>
                         </div>
 
-                        {/* 2. Enterprise — solid dark, high contrast */}
+                        {/* Express Dedicated — Amber */}
                         <div
-                           onClick={handleBusinessClick}
-                           className="relative bg-slate-900 p-2.5 sm:p-4 rounded-2xl sm:rounded-[1.3rem] shadow-lg border border-slate-700/50 flex items-center gap-2 cursor-pointer hover:shadow-xl hover:border-slate-600 hover:-translate-y-0.5 transition-all group overflow-hidden"
+                           onClick={() => handleUseCaseSelect('B', undefined, 'Express')}
+                           className="relative bg-gradient-to-br from-amber-500 to-amber-700 p-3 sm:p-5 rounded-[1.2rem] sm:rounded-[1.5rem] shadow-xl border border-amber-400/50 overflow-hidden cursor-pointer hover:shadow-amber-500/40 hover:-translate-y-1 transition-all group min-h-[7.5rem] sm:min-h-[9rem] flex flex-col justify-between"
                         >
-                           <div className="relative z-10 text-left flex-1 min-w-0">
-                              <h3 className="text-[11px] sm:text-base font-black text-white leading-tight">
-                                 Enterprise
+                           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent opacity-50"></div>
+                           <div className="relative z-10">
+                              <span className="inline-flex items-center px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-[8px] sm:text-[9px] text-white font-bold tracking-widest uppercase mb-1.5 sm:mb-2 border border-white/10">
+                                 <Zap className="w-2.5 h-2.5 mr-1" /> Dedicated Vehicle
+                              </span>
+                              <h3 className="text-lg sm:text-xl font-black text-white leading-tight drop-shadow-md">
+                                 Express
+                                 <br />
+                                 Dedicated
                               </h3>
-                              <p className="text-[7px] sm:text-[10px] text-slate-400 font-medium leading-tight mt-0.5">
-                                 Smart logistics at scale
-                              </p>
-                              <div className="flex items-center text-slate-300 font-bold text-[8px] sm:text-[11px] mt-1 group-hover:text-white group-hover:translate-x-0.5 transition-all">
-                                 Scale <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5" />
+                           </div>
+                           <div className="relative z-10 flex justify-between items-end mt-2">
+                              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-white transition-colors duration-300">
+                                 <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white group-hover:text-amber-600 transition-colors duration-300" />
                               </div>
                            </div>
-                           <div className="flex-shrink-0 w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-white/10 flex items-center justify-center group-hover:scale-110 group-hover:bg-white/15 transition-all">
-                              <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-white/80" />
-                           </div>
-                        </div>
-
-                        {/* 3. Partner — solid brand green, high contrast */}
-                        <div
-                           onClick={() => navigate("/fulfillment-network")}
-                           className="relative bg-brand-600 p-2.5 sm:p-4 rounded-2xl sm:rounded-[1.3rem] shadow-lg border border-brand-500 flex items-center gap-2 cursor-pointer hover:shadow-xl hover:bg-brand-700 hover:-translate-y-0.5 transition-all group overflow-hidden"
-                        >
-                           <div className="relative z-10 text-left flex-1 min-w-0">
-                              <h3 className="text-[11px] sm:text-base font-black text-white leading-tight">
-                                 Fulfillment Network
-                              </h3>
-                              <p className="text-[7px] sm:text-[10px] text-brand-100 font-medium leading-tight mt-0.5">
-                                 Increase fleet utilization
-                              </p>
-                              <div className="flex items-center text-white font-bold text-[8px] sm:text-[11px] mt-1 group-hover:translate-x-0.5 transition-transform">
-                                 Join <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5" />
-                              </div>
-                           </div>
-                           <div className="flex-shrink-0 w-9 h-9 sm:w-12 sm:h-12 rounded-xl bg-white/15 flex items-center justify-center group-hover:scale-110 group-hover:bg-white/25 transition-all">
-                              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white/90" />
+                           <div className="absolute bottom-[-5%] right-[-5%] transform group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500 origin-bottom-right">
+                              <img src="/icons3d/rocket.png" alt="Express" className="w-20 h-20 sm:w-28 sm:h-28 object-contain drop-shadow-2xl opacity-90 group-hover:opacity-100" />
                            </div>
                         </div>
                      </div>
@@ -1124,25 +1113,25 @@ const Hero: React.FC<HeroProps> = ({
                {/* --- SECTION 2A: INSTANT EXPRESS --- */}
                <div className="relative py-24 bg-white border-t border-gray-100 pointer-events-auto overflow-hidden">
                   {/* Subtle grid texture echoing hero */}
-                  <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(22,163,74,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(22,163,74,0.5) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+                  <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(245,158,11,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.5) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
                   <div className="max-w-7xl mx-auto px-4 relative z-10">
                      <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
                         {/* Left — Content */}
                         <div className="w-full lg:w-1/2 scroll-reveal anim-left">
-                           <div className="inline-flex items-center gap-2 bg-brand-50 border border-brand-200/60 rounded-full px-4 py-1.5 mb-6">
-                              <Zap className="w-4 h-4 text-brand-600" />
-                              <span className="text-xs font-bold text-brand-700 uppercase tracking-wider">Express Vehicle Dispatch</span>
+                           <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200/60 rounded-full px-4 py-1.5 mb-6">
+                              <Zap className="w-4 h-4 text-amber-600" />
+                              <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Express Vehicle Dispatch</span>
                            </div>
                            <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6 leading-tight">
                               Instant Express{" "}
-                              <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(90deg, #10b981, #06b6d4, #8b5cf6)", WebkitBackgroundClip: "text" }}>Delivery</span>
+                              <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(90deg, #f59e0b, #d97706, #b45309)", WebkitBackgroundClip: "text" }}>Delivery</span>
                            </h2>
                            <p className="text-lg text-slate-600 mb-8 leading-relaxed max-w-xl">
                               Every delivery gets a dedicated express vehicle — from motorbikes for documents and small parcels, to vans for bulk packages, to trucks for heavy cargo. Our AI matches the right vehicle to your shipment and dispatches the nearest verified driver in minutes.
                            </p>
                            <div className="flex flex-wrap gap-3 mb-8">
                               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
-                                 <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center"><Zap className="w-4 h-4 text-brand-600" /></div>
+                                 <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center"><Zap className="w-4 h-4 text-amber-600" /></div>
                                  <div><div className="text-sm font-bold text-slate-900">Dedicated</div><div className="text-[10px] text-slate-500">Express Vehicle</div></div>
                               </div>
                               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
@@ -1161,7 +1150,7 @@ const Hero: React.FC<HeroProps> = ({
                            {/* Vehicle type chips */}
                            <div className="flex flex-wrap gap-2 mb-10">
                               {["Motorbike", "Sedan", "Van", "Pickup", "Truck", "Trailer"].map((v) => (
-                                 <span key={v} className="px-3 py-1 rounded-full text-[11px] font-bold border border-brand-200/60 text-brand-700 bg-brand-50/50">{v}</span>
+                                 <span key={v} className="px-3 py-1 rounded-full text-[11px] font-bold border border-amber-200/60 text-amber-700 bg-amber-50/50">{v}</span>
                               ))}
                            </div>
                            <button
@@ -1170,7 +1159,7 @@ const Hero: React.FC<HeroProps> = ({
                                  if (onStartBooking) onStartBooking();
                                  else navigate("/book");
                               }}
-                              className="group inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-brand-600/20 transition-all hover:shadow-xl hover:shadow-brand-600/30"
+                              className="group inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-amber-500/20 transition-all hover:shadow-xl hover:shadow-amber-500/30"
                            >
                               Book Express Delivery <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                            </button>
@@ -1180,14 +1169,14 @@ const Hero: React.FC<HeroProps> = ({
                         <div className="w-full lg:w-1/2 flex justify-center scroll-reveal anim-right delay-2">
                            <div className="relative w-full max-w-md aspect-square">
                               {/* Background circle */}
-                              <div className="absolute inset-4 rounded-full bg-gradient-to-br from-brand-50 via-emerald-50 to-cyan-50 border border-brand-100/50" />
+                              <div className="absolute inset-4 rounded-full bg-gradient-to-br from-amber-50 via-amber-50 to-cyan-50 border border-amber-100/50" />
                               {/* Dashed route path */}
                               <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 400" fill="none">
                                  <path d="M100 320 C100 320, 120 200, 200 200 C280 200, 280 100, 300 80" stroke="url(#route-grad)" strokeWidth="3" strokeDasharray="8 6" strokeLinecap="round" className="animate-pulse" />
-                                 <defs><linearGradient id="route-grad" x1="100" y1="320" x2="300" y2="80"><stop offset="0%" stopColor="#10b981" /><stop offset="50%" stopColor="#06b6d4" /><stop offset="100%" stopColor="#8b5cf6" /></linearGradient></defs>
+                                 <defs><linearGradient id="route-grad" x1="100" y1="320" x2="300" y2="80"><stop offset="0%" stopColor="#fbbf24" /><stop offset="50%" stopColor="#f59e0b" /><stop offset="100%" stopColor="#d97706" /></linearGradient></defs>
                                  {/* Pickup marker */}
-                                 <circle cx="100" cy="320" r="12" fill="#10b981" opacity="0.15" />
-                                 <circle cx="100" cy="320" r="6" fill="#10b981" />
+                                 <circle cx="100" cy="320" r="12" fill="#f59e0b" opacity="0.15" />
+                                 <circle cx="100" cy="320" r="6" fill="#f59e0b" />
                                  {/* Dropoff marker */}
                                  <circle cx="300" cy="80" r="12" fill="#8b5cf6" opacity="0.15" />
                                  <circle cx="300" cy="80" r="6" fill="#8b5cf6" />
@@ -1195,7 +1184,7 @@ const Hero: React.FC<HeroProps> = ({
                               {/* Floating cards */}
                               <div className="absolute top-[12%] right-[8%] bg-white rounded-2xl shadow-xl border border-gray-100 p-4 max-w-[160px] animate-float">
                                  <div className="flex items-center gap-2 mb-2">
-                                    <div className="w-6 h-6 bg-brand-100 rounded-full flex items-center justify-center"><Package className="w-3 h-3 text-brand-600" /></div>
+                                    <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center"><Package className="w-3 h-3 text-amber-600" /></div>
                                     <span className="text-[11px] font-bold text-slate-900">Vehicle Dispatched</span>
                                  </div>
                                  <div className="text-[10px] text-slate-500">Express van en route to pickup</div>
@@ -1208,8 +1197,8 @@ const Hero: React.FC<HeroProps> = ({
                                  <div className="text-[10px] text-slate-500">42 mins • KES 150</div>
                               </div>
                               {/* Vehicle on path */}
-                              <div className="absolute top-[45%] left-[42%] w-12 h-12 bg-white rounded-full shadow-lg border-2 border-brand-200 flex items-center justify-center" style={{ animation: "float 4s ease-in-out infinite 0.5s" }}>
-                                 <Truck className="w-5 h-5 text-brand-600" />
+                              <div className="absolute top-[45%] left-[42%] w-12 h-12 bg-white rounded-full shadow-lg border-2 border-amber-200 flex items-center justify-center" style={{ animation: "float 4s ease-in-out infinite 0.5s" }}>
+                                 <Truck className="w-5 h-5 text-amber-600" />
                               </div>
                            </div>
                         </div>
@@ -1223,26 +1212,26 @@ const Hero: React.FC<HeroProps> = ({
                {/* --- SECTION 2A-B: STANDARD CONSOLIDATED SERVICE --- */}
                <div className="relative py-24 bg-gray-50 pointer-events-auto overflow-hidden" style={{ marginTop: '-1px' }}>
                   {/* Grid texture */}
-                  <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(22,163,74,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(22,163,74,0.5) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+                  <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(16,185,129,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.5) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
                   <div className="max-w-7xl mx-auto px-4 relative z-10">
                      <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
                         {/* Left — Illustration */}
                         <div className="w-full lg:w-1/2 flex justify-center order-2 lg:order-1 scroll-reveal anim-left">
                            <div className="relative w-full max-w-md aspect-square">
                               {/* Background circle */}
-                              <div className="absolute inset-4 rounded-full bg-gradient-to-br from-amber-50 via-orange-50 to-cyan-50 border border-amber-100/50" />
+                              <div className="absolute inset-4 rounded-full bg-gradient-to-br from-emerald-50 via-green-50 to-cyan-50 border border-emerald-100/50" />
                               {/* Kenya county map illustration */}
                               <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 400" fill="none">
                                  {/* Hub-and-spoke network lines */}
-                                 <line x1="200" y1="160" x2="100" y2="100" stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
-                                 <line x1="200" y1="160" x2="310" y2="120" stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
-                                 <line x1="200" y1="160" x2="140" y2="280" stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
-                                 <line x1="200" y1="160" x2="300" y2="260" stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
-                                 <line x1="200" y1="160" x2="80" y2="200" stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
-                                 <line x1="200" y1="160" x2="320" y2="200" stroke="#f59e0b" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
+                                 <line x1="200" y1="160" x2="100" y2="100" stroke="#10b981" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
+                                 <line x1="200" y1="160" x2="310" y2="120" stroke="#10b981" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
+                                 <line x1="200" y1="160" x2="140" y2="280" stroke="#10b981" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
+                                 <line x1="200" y1="160" x2="300" y2="260" stroke="#10b981" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
+                                 <line x1="200" y1="160" x2="80" y2="200" stroke="#10b981" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
+                                 <line x1="200" y1="160" x2="320" y2="200" stroke="#10b981" strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />
                                  {/* Central hub */}
-                                 <circle cx="200" cy="160" r="16" fill="#f59e0b" opacity="0.15" />
-                                 <circle cx="200" cy="160" r="8" fill="#f59e0b" />
+                                 <circle cx="200" cy="160" r="16" fill="#10b981" opacity="0.15" />
+                                 <circle cx="200" cy="160" r="8" fill="#10b981" />
                                  {/* County nodes */}
                                  <circle cx="100" cy="100" r="6" fill="#06b6d4" />
                                  <circle cx="310" cy="120" r="6" fill="#06b6d4" />
@@ -1251,7 +1240,7 @@ const Hero: React.FC<HeroProps> = ({
                                  <circle cx="80" cy="200" r="6" fill="#06b6d4" />
                                  <circle cx="320" cy="200" r="6" fill="#06b6d4" />
                                  {/* County labels */}
-                                 <text x="200" y="145" textAnchor="middle" fill="#92400e" fontSize="11" fontWeight="bold">Nairobi Hub</text>
+                                 <text x="200" y="145" textAnchor="middle" fill="#065f46" fontSize="11" fontWeight="bold">Nairobi Hub</text>
                                  <text x="100" y="90" textAnchor="middle" fill="#475569" fontSize="9">Nakuru</text>
                                  <text x="310" y="110" textAnchor="middle" fill="#475569" fontSize="9">Meru</text>
                                  <text x="140" y="300" textAnchor="middle" fill="#475569" fontSize="9">Mombasa</text>
@@ -1262,7 +1251,7 @@ const Hero: React.FC<HeroProps> = ({
                               {/* Floating cards */}
                               <div className="absolute top-[10%] right-[5%] bg-white rounded-2xl shadow-xl border border-gray-100 p-4 max-w-[160px] animate-float">
                                  <div className="flex items-center gap-2 mb-1">
-                                    <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center"><Package className="w-3 h-3 text-amber-600" /></div>
+                                    <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center"><Package className="w-3 h-3 text-emerald-600" /></div>
                                     <span className="text-[11px] font-bold text-slate-900">Consolidated</span>
                                  </div>
                                  <div className="text-[10px] text-slate-500">12 parcels → Mombasa</div>
@@ -1278,20 +1267,20 @@ const Hero: React.FC<HeroProps> = ({
                         </div>
                         {/* Right — Content */}
                         <div className="w-full lg:w-1/2 order-1 lg:order-2 scroll-reveal anim-right delay-2">
-                           <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200/60 rounded-full px-4 py-1.5 mb-6">
-                              <Globe className="w-4 h-4 text-amber-600" />
-                              <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Nationwide Coverage</span>
+                           <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200/60 rounded-full px-4 py-1.5 mb-6">
+                              <Globe className="w-4 h-4 text-emerald-600" />
+                              <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Nationwide Coverage</span>
                            </div>
                            <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6 leading-tight">
                               Standard{" "}
-                              <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(90deg, #f59e0b, #06b6d4)", WebkitBackgroundClip: "text" }}>Next-Day Delivery</span>
+                              <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(90deg, #10b981, #06b6d4)", WebkitBackgroundClip: "text" }}>Next-Day Delivery</span>
                            </h2>
                            <p className="text-lg text-slate-600 mb-8 leading-relaxed max-w-xl">
                               We consolidate shipments heading to the same county and deliver them together — passing the savings directly to you. Get Kenya's lowest prices with reliable next-day delivery to most counties across the country.
                            </p>
                            <div className="flex flex-wrap gap-3 mb-8">
                               <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5">
-                                 <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center"><Package className="w-4 h-4 text-amber-600" /></div>
+                                 <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center"><Package className="w-4 h-4 text-emerald-600" /></div>
                                  <div><div className="text-sm font-bold text-slate-900">Consolidated</div><div className="text-[10px] text-slate-500">Shared Routes</div></div>
                               </div>
                               <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5">
@@ -1310,7 +1299,7 @@ const Hero: React.FC<HeroProps> = ({
                            {/* County tags */}
                            <div className="flex flex-wrap gap-2 mb-10">
                               {["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret", "Nyeri", "Meru", "Thika", "Malindi", "Nanyuki"].map((c) => (
-                                 <span key={c} className="px-3 py-1 rounded-full text-[11px] font-bold border border-amber-200/60 text-amber-700 bg-amber-50/50">{c}</span>
+                                 <span key={c} className="px-3 py-1 rounded-full text-[11px] font-bold border border-emerald-200/60 text-emerald-700 bg-emerald-50/50">{c}</span>
                               ))}
                            </div>
                            <button
@@ -1319,7 +1308,7 @@ const Hero: React.FC<HeroProps> = ({
                                  if (onStartBooking) onStartBooking();
                                  else navigate("/book");
                               }}
-                              className="group inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-amber-500/20 transition-all hover:shadow-xl hover:shadow-amber-500/30"
+                              className="group inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-emerald-500/20 transition-all hover:shadow-xl hover:shadow-emerald-500/30"
                            >
                               Send Standard <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                            </button>
@@ -1462,15 +1451,21 @@ const Hero: React.FC<HeroProps> = ({
                {/* --- SECTION 2C: FULFILLMENT NETWORK --- */}
                <CarrierNetworkSection />
 
-               {/* Winding road divider: dark → gray */}
-               <div className="section-wave relative z-10 bg-slate-950" style={{ marginTop: '-1px' }}>
-                  <svg viewBox="0 0 1440 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-                     {/* Road surface */}
-                     <path d="M0,20 C180,80 360,100 540,60 C720,20 900,80 1080,100 C1260,120 1380,60 1440,40 L1440,120 L0,120 Z" fill="#f9fafb" />
-                     {/* Road edge - dark */}
-                     <path d="M0,18 C180,78 360,98 540,58 C720,18 900,78 1080,98 C1260,118 1380,58 1440,38" fill="none" stroke="#334155" strokeWidth="3" />
-                     {/* Center dashed line */}
-                     <path d="M0,22 C180,82 360,102 540,62 C720,22 900,82 1080,102 C1260,122 1380,62 1440,42" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="12 8" />
+               {/* Road divider: dark → gray */}
+               <div className="relative z-10 bg-gray-50" style={{ marginTop: '-2px' }}>
+                  <svg viewBox="0 0 1440 140" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" className="block w-full" style={{ height: 'clamp(60px, 10vw, 140px)' }}>
+                     {/* Dark sky/background fill at the top */}
+                     <rect x="0" y="0" width="1440" height="140" fill="#020617" />
+                     {/* Road asphalt surface */}
+                     <path d="M0,30 C180,90 360,110 540,70 C720,30 900,90 1080,110 C1260,130 1380,70 1440,50 L1440,140 L0,140 Z" fill="#374151" />
+                     {/* Road shoulder/edge - lighter */}
+                     <path d="M0,28 C180,88 360,108 540,68 C720,28 900,88 1080,108 C1260,128 1380,68 1440,48" fill="none" stroke="#4b5563" strokeWidth="4" />
+                     {/* White road edge line - left side */}
+                     <path d="M0,32 C180,92 360,112 540,72 C720,32 900,92 1080,112 C1260,132 1380,72 1440,52" fill="none" stroke="#d1d5db" strokeWidth="1.5" />
+                     {/* Yellow center dashed line */}
+                     <path d="M0,38 C180,98 360,118 540,78 C720,38 900,98 1080,118 C1260,138 1380,78 1440,58" fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="16 10" />
+                     {/* Grass/ground below road */}
+                     <path d="M0,44 C180,104 360,124 540,84 C720,44 900,104 1080,124 C1260,140 1380,84 1440,64 L1440,140 L0,140 Z" fill="#f9fafb" />
                   </svg>
                </div>
 

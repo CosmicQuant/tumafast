@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "build:apk": "npm run build && npx cap sync && cd android && gradlew.bat assembleDebug",
+    "build:apk": "npm run build && npx cap sync && node tools/fix_cordova.js && cd android && gradlew.bat assembleDebug",
     "deploy:preview": "npm run build && npx firebase hosting:channel:deploy preview --non-interactive",
     "deploy:live": "npm run build && npx firebase deploy --only hosting --non-interactive",
     "list:channels": "npx firebase hosting:channel:list --non-interactive > channels.txt"

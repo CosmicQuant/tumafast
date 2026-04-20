@@ -18,7 +18,8 @@ interface TrackingProps {
 }
 
 const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrder, onBack }) => {
-  const { pickupCoords, dropoffCoords, fitBounds, setPickupCoords, setDropoffCoords, setWaypointCoords, setRoutePolyline, setMapCenter, waypointCoords } = useMapState();
+  const { pickupCoords, dropoffCoords, fitBounds, setPickupCoords, setDropoffCoords, setWaypointCoords, setRoutePolyline, setMapCenter, waypointCoords, setBottomSheetHeight } = useMapState();
+  const bottomSheetRef = useRef<HTMLDivElement>(null);
   const { setIsOpen: openKifaru } = useChat();
 
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -64,6 +65,17 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
   // ── Price change state ─────────────────────────────────
   const [priceChange, setPriceChange] = useState<{ oldPrice: number; newPrice: number; newEta: string } | null>(null);
   const [requoting, setRequoting] = useState(false);
+
+  // ── Bottom sheet height reporting (map refit) ─────
+  useEffect(() => {
+    if (!bottomSheetRef.current || !setBottomSheetHeight) return;
+    const observer = new ResizeObserver((entries) => {
+      const height = entries[0]?.borderBoxSize?.[0]?.blockSize ?? entries[0]?.contentRect.height;
+      if (height) setBottomSheetHeight(height + 10);
+    });
+    observer.observe(bottomSheetRef.current);
+    return () => observer.disconnect();
+  }, [isCollapsed, setBottomSheetHeight]);
 
   const SUBCATEGORIES = {
     A: [
@@ -664,7 +676,8 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
   return (
     <div className="fixed bottom-0 inset-x-0 md:inset-x-auto md:right-4 md:top-4 md:bottom-4 md:w-[400px] pointer-events-none z-[100] flex flex-col justify-end mx-auto max-w-lg md:max-w-none md:mx-0">
       <div
-        className={`w-full bg-white shadow-[0_-15px_40px_rgba(0,0,0,0.12)] md:shadow-2xl rounded-t-[2.5rem] md:rounded-2xl overflow-hidden pointer-events-auto border-t border-gray-100 md:border flex flex-col pb-[env(safe-area-inset-bottom,0)] transition-all duration-300 ${isLocationEditing ? 'max-h-[70vh]' : isCollapsed ? 'max-h-[220px]' : 'max-h-[90vh] md:max-h-[calc(100vh-2rem)]'}`}
+        ref={bottomSheetRef}
+        className={`w-full bg-white shadow-[0_-15px_40px_rgba(0,0,0,0.12)] md:shadow-2xl rounded-t-[2.5rem] md:rounded-2xl overflow-hidden pointer-events-auto border-t border-gray-100 md:border flex flex-col pb-[env(safe-area-inset-bottom,0)] transition-all duration-300 ${isLocationEditing ? 'max-h-[70vh]' : isCollapsed ? 'max-h-[180px]' : 'max-h-[90vh] md:max-h-[calc(100vh-2rem)]'}`}
       >
         {/* ── Colored Header with Journey Animation ────────── */}
         <div
@@ -673,13 +686,18 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
         >
           <div className="w-12 h-1 bg-white/30 rounded-full mb-3 md:hidden" />
 
-          {/* Status + ETA row */}
+          {/* Status + ETA + Price row */}
           <div className="w-full flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
               <span className="text-[10px] font-black uppercase tracking-widest text-white/80">{journeyStep.label}</span>
             </div>
             <div className="flex items-center gap-2">
+              {order.price && (
+                <div className="bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                  <span className="text-xs font-black text-white">{order.paymentMethod} · KES {order.price.toLocaleString()}</span>
+                </div>
+              )}
               {etaMinutes && (
                 <div className="bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full">
                   <span className="text-xs font-black text-white">{etaMinutes} min</span>
@@ -1084,17 +1102,6 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
             )}
           </AnimatePresence>
 
-          {/* Payment + Order ID */}
-          <div className="flex gap-1.5">
-            <div className="flex-1 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200/60">
-              <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Payment</div>
-              <div className="text-xs font-bold text-gray-900">{order.paymentMethod} · KES {order.price?.toLocaleString()}</div>
-            </div>
-            <div className="flex-1 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200/60">
-              <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Order</div>
-              <div className="text-xs font-mono font-bold text-gray-500">#{order.id.substring(0, 8)}</div>
-            </div>
-          </div>
 
           {/* ── Edit Order (collapsed section) ────────────── */}
           {(canEditField('items') || canEditField('vehicle') || canEditField('receiver') || hasEditableRoute) && (
@@ -1196,7 +1203,15 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
                                   <div className="w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-red-300" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-[8px] font-black text-red-500 uppercase tracking-wider">Dropoff</div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[8px] font-black text-red-500 uppercase tracking-wider">Dropoff</span>
+                                    {order.verificationCode && (isAssigned || isInTransit) && (
+                                      <button onClick={(e) => { e.stopPropagation(); copyCode(); }} className="flex items-center gap-1 text-[7px] font-mono font-bold text-gray-400 hover:text-gray-600 transition-colors">
+                                        PIN: {order.verificationCode}
+                                        {copiedCode ? <Check size={8} className="text-emerald-400" /> : <Copy size={8} className="text-gray-300" />}
+                                      </button>
+                                    )}
+                                  </div>
                                   <div className="text-[11px] font-bold text-gray-900 truncate">{order.dropoff}</div>
                                 </div>
                                 {canEditDropoff() && (
@@ -1283,6 +1298,14 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
                 <Phone size={14} /> Call Driver
               </a>
             )}
+            {isPending && (
+              <button
+                onClick={handleCancel}
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-600 hover:bg-red-100 active:scale-95 transition-all"
+              >
+                <X size={14} /> Cancel
+              </button>
+            )}
             <button
               onClick={() => openKifaru(true)}
               className="flex items-center justify-center gap-2 py-3 px-4 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-600 hover:bg-red-100 active:scale-95 transition-all"
@@ -1291,23 +1314,7 @@ const Tracking: React.FC<TrackingProps> = ({ order, onUpdateStatus, onUpdateOrde
             </button>
           </div>
 
-          {/* Cancel (pending only) */}
-          {isPending && (
-            <button
-              onClick={handleCancel}
-              className="w-full py-3 text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-            >
-              Cancel Order
-            </button>
-          )}
 
-          {/* Back */}
-          <button
-            onClick={onBack}
-            className="w-full py-2 text-[10px] font-bold text-gray-400 hover:text-gray-600 uppercase tracking-widest"
-          >
-            Back to Dashboard
-          </button>
         </div>
       </div>
 

@@ -22,7 +22,7 @@ interface VehicleMarker {
     bearing?: number;
 }
 
-type LocationAccuracy = 'none' | 'cached' | 'low' | 'high';
+type LocationAccuracy = 'none' | 'cached' | 'low' | 'high' | 'pending';
 type SheetDetent = 'default' | 'search' | 'pin';
 type SheetPlacement = 'bottom' | 'side';
 
@@ -195,6 +195,9 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setWaypointCoords([]);
             setRoutePolyline(null);
             setBoundsToFit(null);
+            setDriverCoords(null);
+            setDriverBearing(0);
+            setDriverVehicleType('Truck');
         }
     }, [orderState]);
 
@@ -395,39 +398,56 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         const requestPromise = (async () => {
             try {
-                // Phase 1: Return cached location immediately for visual speed.
+                // Phase 1: Try to get fresh location, fallback to cache if slow
+                // A booking pickup needs real accuracy. We'll wait up to 800ms for a real fix.
                 const cached = getCachedLocation();
-                if (cached && locationAccuracyRef.current !== 'none') {
-                    // Start the fresh GPS request in the background — don't await yet.
-                    mapService.getCurrentLocation().then(freshCoords => {
-                        if (freshCoords) {
-                            setUserLocation(freshCoords);
-                            setLocationAccuracy('high');
-                            cacheLocation(freshCoords);
-                            // Only move the map if no booking coords are set yet
-                            // (don't interrupt in-progress route building)
-                            setMapCenterInternal(prev => {
-                                if (!prev) return freshCoords;
-                                const hasBookingPoints =
-                                    lastUserLocationRef.current &&
-                                    Math.abs(prev.lat - lastUserLocationRef.current.lat) > 0.001;
-                                if (!hasBookingPoints) return freshCoords;
-                                return prev;
-                            });
-                            lastUserLocationRef.current = freshCoords;
-                        }
-                    }).catch(() => { /* Background refresh failed — cached pos still valid */ });
-                    return cached;
+                let freshPromise = mapService.getCurrentLocation();
+
+                // Race between fresh GPS and a short timeout.
+                // If GPS takes longer than 800ms, returning the cache keeps the UI snappy.
+                let timeoutPromise = new Promise<{ timeout: boolean }>(resolve => setTimeout(() => resolve({ timeout: true }), 800));
+
+                let raceResult = await Promise.race([freshPromise, timeoutPromise]);
+
+                if ('timeout' in raceResult && raceResult.timeout === true) {
+                    // Fresh GPS didn't return fast enough. Use cache if available.
+                    if (cached && locationAccuracyRef.current !== 'none') {
+                        // Keep waiting for fresh in background
+                        freshPromise.then(freshCoords => {
+                            if (freshCoords) {
+                                setUserLocation(freshCoords);
+                                setLocationAccuracy('high');
+                                cacheLocation(freshCoords);
+                                // Only snap Map if we haven't already locked the pickup coords!
+                                // It prevents the exact "jump to wrong place" bug.
+                                setMapCenterInternal(prev => {
+                                    if (!prev) return freshCoords;
+                                    // If pickup is already actively bound and set we should NOT snap the map out of user's hands.
+                                    if (pickupCoordsRef.current) return prev;
+
+                                    const hasBookingPoints =
+                                        lastUserLocationRef.current &&
+                                        Math.abs(prev.lat - lastUserLocationRef.current.lat) > 0.001;
+                                    if (!hasBookingPoints) return freshCoords;
+                                    return prev;
+                                });
+                                lastUserLocationRef.current = freshCoords;
+                            }
+                        }).catch(() => { });
+                        return cached; // Return cache for instant UI
+                    }
+                    // If no cache, we just wait for the GPS promise to finish
+                    raceResult = await freshPromise;
                 }
 
-                // Phase 2: No usable cache — get precise location (may show OS prompt).
-                const coords = await mapService.getCurrentLocation();
+                // If we get here, either GPS finished fast OR timeout fired but we had no cache.
+                const coords: Coordinates | null = ('timeout' in raceResult) ? await freshPromise : raceResult;
+
                 if (coords) {
                     setUserLocation(coords);
                     setLocationAccuracy('high');
                     cacheLocation(coords);
                     lastUserLocationRef.current = coords;
-                    // Only move map and fit bounds if no booking route is being displayed
                     if (!pickupCoordsRef.current) {
                         setMapCenterInternal(coords);
                         if (!firstFixAppliedRef.current) {
@@ -438,7 +458,8 @@ export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 } else {
                     setLocationAccuracy('none');
                 }
-                return coords;
+
+                return coords || cached;
             } catch (error) {
                 console.warn("ensureFreshLocation failed:", error);
                 setLocationAccuracy('none');

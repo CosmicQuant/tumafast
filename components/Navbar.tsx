@@ -168,24 +168,24 @@ const Navbar: React.FC<NavbarProps> = ({
           <div className="hidden sm:flex items-center space-x-3 sm:space-x-8">
             {/* Action Button based on Role */}
             {!user ? (
-              <div className="flex items-center space-x-8">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={handleDriveClick}
-                  className={`text-sm font-bold transition-colors ${isDarkBackground
-                    ? "text-white/90 hover:text-white"
-                    : "text-slate-600 hover:text-brand-600"
-                    }`}
+                  className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl flex items-center gap-2.5 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95 group"
                 >
-                  Fulfillment Network
+                  <div className="text-left">
+                    <div className="text-sm font-black leading-tight">Fulfillment Network</div>
+                    <div className="text-[9px] font-medium text-brand-100 leading-tight">Increase fleet utilization</div>
+                  </div>
                 </button>
                 <button
                   onClick={handleBusinessClick}
-                  className={`text-sm font-bold transition-colors ${isDarkBackground
-                    ? "text-white/90 hover:text-white"
-                    : "text-slate-600 hover:text-brand-600"
-                    }`}
+                  className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl flex items-center gap-2.5 transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95 group"
                 >
-                  Enterprise
+                  <div className="text-left">
+                    <div className="text-sm font-black leading-tight">Enterprise</div>
+                    <div className="text-[9px] font-medium text-slate-400 leading-tight">Smart logistics at scale</div>
+                  </div>
                 </button>
               </div>
             ) : (
@@ -281,18 +281,50 @@ const Navbar: React.FC<NavbarProps> = ({
                 />
               </>
             ) : (
-              <button
-                onClick={() =>
-                  onLogin?.(
-                    "customer",
-                    "Welcome back",
-                    "Access your AXON dashboard."
-                  )
-                }
-                className="text-sm font-black px-6 py-2.5 rounded-full transition-all active:scale-95 bg-brand-600 text-white"
-              >
-                Sign In
-              </button>
+              <div className="flex items-center gap-1.5 list-none relative">
+                <button
+                  onClick={() =>
+                    onLogin?.(
+                      "customer",
+                      "Welcome back",
+                      "Access your AXON dashboard."
+                    )
+                  }
+                  className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-black px-4 py-2 rounded-full transition-all shadow-sm active:scale-95"
+                >
+                  Sign In
+                </button>
+                <button
+                  className={`flex p-2 transition-colors ${isDarkBackground ? "text-white" : "text-gray-600"
+                    }`}
+                  onClick={toggleMobileDropdown}
+                >
+                  <Menu className="w-6 h-6" />
+                </button>
+                {isMobileDropdownOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-[200] pointer-events-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="p-2 flex flex-col gap-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setIsMobileDropdownOpen(false); handleDriveClick(); }}
+                        className="w-full flex-col flex items-start px-3 py-2 rounded-xl hover:bg-brand-50 transition-colors text-left"
+                      >
+                        <span className="block text-sm font-black text-brand-700">Fulfillment Network</span>
+                        <span className="block text-[10px] font-medium text-gray-500">Increase fleet utilization</span>
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setIsMobileDropdownOpen(false); handleBusinessClick(); }}
+                        className="w-full flex-col flex items-start px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
+                      >
+                        <span className="block text-sm font-black text-slate-800">Enterprise</span>
+                        <span className="block text-[10px] font-medium text-gray-500">Smart logistics at scale</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}

@@ -5,6 +5,17 @@ import { Capacitor } from '@capacitor/core';
 
 const LocationBlocker: React.FC = () => {
     const { ensureFreshLocation, locationAccuracy } = useMapState();
+    const [showBlocker, setShowBlocker] = React.useState(false);
+
+    // Prevent immediate flash before the map context even attempts a fetch
+    useEffect(() => {
+        if (locationAccuracy === 'none') {
+            const t = setTimeout(() => setShowBlocker(true), 800);
+            return () => clearTimeout(t);
+        } else {
+            setShowBlocker(false);
+        }
+    }, [locationAccuracy]);
 
     // Retry location whenever this component is visible
     // Covers: user enabling location via system settings, then switching back
@@ -47,21 +58,9 @@ const LocationBlocker: React.FC = () => {
 
     if (Capacitor.isNativePlatform()) return null;
     if (locationAccuracy !== 'none') return null;
+    if (!showBlocker) return null;
 
-    return (
-        <div className="absolute inset-0 z-[300] bg-white flex flex-col items-center justify-center p-6 text-center pointer-events-auto">
-            <div className="mb-8 relative">
-                <div className="absolute inset-0 bg-brand-100 rounded-full blur-xl scale-150 animate-pulse"></div>
-                <div className="w-24 h-24 bg-brand-50 rounded-full flex items-center justify-center relative z-10 border-4 border-white shadow-xl">
-                    <MapPin className="w-10 h-10 text-brand-600" />
-                </div>
-            </div>
-
-            <p className="text-gray-700 max-w-xs text-base font-semibold leading-relaxed">
-                Location is blocked in your browser. Please switch on location, then refresh the page.
-            </p>
-        </div>
-    );
+    return null;
 };
 
 export default LocationBlocker;

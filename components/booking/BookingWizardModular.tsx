@@ -273,15 +273,6 @@ const WizardContent: React.FC<BookingWizardProps> = ({ prefillData, onOrderCompl
         prevCoordsRef.current = coordsKey;
     }, [pickupCoords, waypointCoords, dropoffCoords]);
 
-    // Re-fit map when step changes so route stays visible above the bottom sheet
-    useEffect(() => {
-        if (step >= 1 && pickupCoords && (dropoffCoords || waypointCoords.length > 0)) {
-            const pts = [pickupCoords, ...waypointCoords];
-            if (dropoffCoords) pts.push(dropoffCoords);
-            setTimeout(() => fitBounds(pts), 350);
-        }
-    }, [step, data.paymentMethod]);
-
     const weightVal = parseFloat(data.dimensions.weight) || 0;
     const eligibleVehicles = VEHICLES.filter(v => {
         if (data.distanceKm > v.maxDist) return false;

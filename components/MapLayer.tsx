@@ -3,35 +3,160 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GoogleMap, MarkerF, Polyline, InfoWindow, OverlayView } from '@react-google-maps/api';
 import { useMapState } from '@/context/MapContext';
 import { APP_CONFIG } from '@/config';
-import { Truck, Navigation, MapPin, GripVertical, X, Bike, Car } from 'lucide-react';
+import { Truck, Navigation, MapPin, GripVertical, X } from 'lucide-react';
+
+/* ── Bird's-eye (top-down) vehicle SVGs ─────────────────────
+   All paths face NORTH (12 o'clock) at 0°. The parent div rotates by GPS bearing.
+   viewBox is 48x48 for all. */
+
+const BirdEyeMotorcycle = ({ size, accent }: { size: number; accent: string }) => (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* body */}
+        <rect x="20" y="10" width="8" height="28" rx="4" fill={accent} />
+        {/* seat */}
+        <rect x="19" y="22" width="10" height="8" rx="3" fill={accent} opacity="0.7" />
+        {/* front wheel */}
+        <ellipse cx="24" cy="9" rx="4" ry="3" fill="#1e293b" />
+        {/* rear wheel */}
+        <ellipse cx="24" cy="39" rx="4" ry="3" fill="#1e293b" />
+        {/* handlebars */}
+        <rect x="14" y="11" width="20" height="2.5" rx="1.25" fill="#334155" />
+    </svg>
+);
+
+const BirdEyeTuktuk = ({ size, accent }: { size: number; accent: string }) => (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* body */}
+        <rect x="14" y="12" width="20" height="26" rx="5" fill={accent} />
+        {/* cabin roof */}
+        <rect x="16" y="14" width="16" height="14" rx="3" fill="white" opacity="0.35" />
+        {/* front wheel */}
+        <ellipse cx="24" cy="10" rx="3" ry="2.5" fill="#1e293b" />
+        {/* rear left */}
+        <ellipse cx="16" cy="38" rx="3" ry="2.5" fill="#1e293b" />
+        {/* rear right */}
+        <ellipse cx="32" cy="38" rx="3" ry="2.5" fill="#1e293b" />
+    </svg>
+);
+
+const BirdEyeCar = ({ size, accent }: { size: number; accent: string }) => (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* body shell */}
+        <rect x="12" y="6" width="24" height="36" rx="7" fill={accent} />
+        {/* windshield */}
+        <rect x="15" y="10" width="18" height="8" rx="3" fill="#0f172a" opacity="0.45" />
+        {/* rear window */}
+        <rect x="15" y="32" width="18" height="6" rx="2.5" fill="#0f172a" opacity="0.3" />
+        {/* front-left wheel */}
+        <rect x="9" y="11" width="4" height="7" rx="2" fill="#1e293b" />
+        {/* front-right wheel */}
+        <rect x="35" y="11" width="4" height="7" rx="2" fill="#1e293b" />
+        {/* rear-left wheel */}
+        <rect x="9" y="31" width="4" height="7" rx="2" fill="#1e293b" />
+        {/* rear-right wheel */}
+        <rect x="35" y="31" width="4" height="7" rx="2" fill="#1e293b" />
+    </svg>
+);
+
+const BirdEyeVan = ({ size, accent }: { size: number; accent: string }) => (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* body */}
+        <rect x="11" y="4" width="26" height="40" rx="6" fill={accent} />
+        {/* windshield */}
+        <rect x="14" y="7" width="20" height="8" rx="3" fill="#0f172a" opacity="0.4" />
+        {/* cargo area lines */}
+        <rect x="14" y="20" width="20" height="1" fill="white" opacity="0.2" />
+        <rect x="14" y="28" width="20" height="1" fill="white" opacity="0.2" />
+        {/* wheels */}
+        <rect x="8" y="10" width="4" height="7" rx="2" fill="#1e293b" />
+        <rect x="36" y="10" width="4" height="7" rx="2" fill="#1e293b" />
+        <rect x="8" y="33" width="4" height="7" rx="2" fill="#1e293b" />
+        <rect x="36" y="33" width="4" height="7" rx="2" fill="#1e293b" />
+    </svg>
+);
+
+const BirdEyePickup = ({ size, accent }: { size: number; accent: string }) => (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* cab */}
+        <rect x="12" y="4" width="24" height="18" rx="6" fill={accent} />
+        {/* windshield */}
+        <rect x="15" y="7" width="18" height="7" rx="2.5" fill="#0f172a" opacity="0.4" />
+        {/* bed */}
+        <rect x="13" y="22" width="22" height="20" rx="3" fill={accent} opacity="0.75" />
+        {/* bed rails */}
+        <rect x="13" y="22" width="1.5" height="20" rx="0.75" fill="#0f172a" opacity="0.2" />
+        <rect x="33.5" y="22" width="1.5" height="20" rx="0.75" fill="#0f172a" opacity="0.2" />
+        {/* wheels */}
+        <rect x="9" y="9" width="4" height="7" rx="2" fill="#1e293b" />
+        <rect x="35" y="9" width="4" height="7" rx="2" fill="#1e293b" />
+        <rect x="9" y="33" width="4" height="7" rx="2" fill="#1e293b" />
+        <rect x="35" y="33" width="4" height="7" rx="2" fill="#1e293b" />
+    </svg>
+);
+
+const BirdEyeTruck = ({ size, accent }: { size: number; accent: string }) => (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* cab */}
+        <rect x="13" y="2" width="22" height="14" rx="5" fill={accent} />
+        {/* windshield */}
+        <rect x="16" y="4" width="16" height="6" rx="2" fill="#0f172a" opacity="0.4" />
+        {/* cargo box */}
+        <rect x="11" y="17" width="26" height="27" rx="3" fill={accent} opacity="0.8" />
+        {/* cargo top highlight */}
+        <rect x="13" y="19" width="22" height="2" rx="1" fill="white" opacity="0.15" />
+        {/* wheels */}
+        <rect x="8" y="7" width="5" height="7" rx="2.5" fill="#1e293b" />
+        <rect x="35" y="7" width="5" height="7" rx="2.5" fill="#1e293b" />
+        <rect x="8" y="34" width="5" height="7" rx="2.5" fill="#1e293b" />
+        <rect x="35" y="34" width="5" height="7" rx="2.5" fill="#1e293b" />
+        {/* dual rear axle indicator */}
+        <rect x="8" y="30" width="5" height="4" rx="2" fill="#1e293b" opacity="0.5" />
+        <rect x="35" y="30" width="5" height="4" rx="2" fill="#1e293b" opacity="0.5" />
+    </svg>
+);
+
+/** Returns the accent color for map markers based on vehicle type */
+const getVehicleAccent = (type: string, isDriver: boolean): string => {
+    if (isDriver) return '#16a34a'; // brand green for the active driver
+    const t = type.toLowerCase();
+    if (t.includes('boda') || t.includes('motor') || t.includes('bike')) return '#f97316';
+    if (t.includes('tuk')) return '#eab308';
+    if (t.includes('probox') || t.includes('car')) return '#3b82f6';
+    if (t.includes('van')) return '#6366f1';
+    if (t.includes('pickup') || t.includes('pick')) return '#10b981';
+    return '#475569'; // slate for trucks
+};
+
+/** Returns the correct bird's-eye SVG component for a vehicle type */
+const getBirdEyeSvg = (type: string): React.FC<{ size: number; accent: string }> => {
+    const t = type.toLowerCase();
+    if (t.includes('boda') || t.includes('motor') || t.includes('bike')) return BirdEyeMotorcycle;
+    if (t.includes('tuk')) return BirdEyeTuktuk;
+    if (t.includes('probox') || t.includes('car') || t === 'automobile') return BirdEyeCar;
+    if (t.includes('van') || t.includes('minibus')) return BirdEyeVan;
+    if (t.includes('pickup') || t.includes('pick-up') || t.includes('pick up')) return BirdEyePickup;
+    // All trucks: canter, lorry, tipper, container, tanker, etc.
+    return BirdEyeTruck;
+};
 
 const VehicleIcon = ({ type, bearing = 0, color = "blue", isDriver = false }: { type: string, bearing?: number, color?: string, isDriver?: boolean }) => {
-    const getIcon = () => {
-        const t = type.toLowerCase();
-        if (t.includes('boda')) return Bike;
-        if (t.includes('tuk') || t.includes('car')) return Car;
-        return Truck;
-    };
-    const Icon = getIcon();
+    const size = isDriver ? 44 : 28;
+    const accent = getVehicleAccent(type, isDriver);
+    const SvgComponent = getBirdEyeSvg(type);
 
     return (
         <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
-            {/* Direction Arrow (Rotated) */}
+            {/* Entire marker rotates with bearing — like Bolt/Uber */}
             <div
-                className="absolute transition-transform duration-700 ease-in-out"
+                className="transition-transform duration-700 ease-in-out"
                 style={{ transform: `rotate(${bearing}deg)` }}
-            >
-                <div className={`w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[12px] opacity-80 ${color === 'blue' ? 'border-b-blue-500' : 'border-b-brand-500'} -translate-y-8 shadow-lg`} />
-            </div>
-
-            {/* Main Icon (Not Rotated) - Removed white background circle */}
-            <div
-                className={`transition-all duration-300 drop-shadow-[0_4px_4px_rgba(0,0,0,0.25)] ${color === 'blue' ? 'text-blue-600' : 'text-brand-600'} ${isDriver ? 'scale-125' : 'scale-100'}`}
             >
                 {isDriver && (
                     <div className="absolute inset-0 rounded-full animate-ping bg-brand-500/20 -z-10" />
                 )}
-                <Icon size={isDriver ? 32 : 24} className="relative z-10" />
+                <div className="relative z-10 drop-shadow-[0_4px_6px_rgba(0,0,0,0.3)]">
+                    <SvgComponent size={size} accent={accent} />
+                </div>
             </div>
         </div>
     );
@@ -42,7 +167,40 @@ const containerStyle = {
     height: '100%'
 };
 
-// No hard-coded center — map initialises from user's real location via onLoad
+// ── Camera timing constants ────────────────────────────────────────
+const CAMERA = {
+    SINGLE_POINT_ZOOM: 19,
+    RETURN_HOME_ZOOM: 16.5,
+    DEFAULT_ZOOM: 14,
+    FLY_SINGLE_MS: 2800,
+    FLY_ZOOM_OUT_MS: 2400,
+    FLY_ZOOM_IN_MS: 2200,
+    FLY_RETURN_HOME_MS: 2400,
+    FLY_SHEET_REFIT_MS: 600,
+    SHEET_REFIT_DEBOUNCE_MS: 400,
+    PREWARM_TIMEOUT_MS: 1200,
+    TILES_FAILSAFE_MS: 3000,
+    SHEET_DELTA_THRESHOLD: 15,
+    SHEET_MAX_RATIO: 0.85,
+    PAD_MAX_RATIO: 0.55,
+    DRIVER_FOLLOW_ZOOM: 17,
+    DRIVER_FOLLOW_MS: 1200,
+} as const;
+
+// ── Easing functions (GPU-friendly parametric curves) ──────────────
+const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
+const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+// ── Padding calculator (shared by all camera operations) ───────────
+const computePadding = (bottomSheetHeight: number) => {
+    const screenH = window.innerHeight;
+    const isDesktop = window.innerWidth >= 768;
+    const maxBottomPad = Math.floor(screenH * CAMERA.PAD_MAX_RATIO);
+    const sheetPad = Math.min(maxBottomPad, Math.max(100, (bottomSheetHeight || 280) + 16));
+    return isDesktop
+        ? { top: 50, bottom: 50, left: 40, right: 440 }
+        : { top: 50, bottom: sheetPad, left: 48, right: 48 };
+};
 
 // Helper to decode Google's encoded polyline
 const decodePolyline = (encoded: string) => {
@@ -113,8 +271,63 @@ const MapLayer: React.FC = () => {
     const animationFrameRef = useRef<number | null>(null);
     const prewarmDivRef = useRef<HTMLDivElement | null>(null);
     const prewarmMapRef = useRef<google.maps.Map | null>(null);
+    const prevOrderStateRef = useRef(orderState);
     const [map, setMap] = useState<google.maps.Map | null>(null);
     const [decodedPath, setDecodedPath] = useState<google.maps.LatLngLiteral[]>([]);
+    const [mapVisible, setMapVisible] = useState(false);
+    const cameraTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+    const lastBoundsRef = useRef('');
+    const lastSheetHeightRef = useRef(0);
+    const sheetRefitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const prevDriverCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+    // ── Single reusable flyTo engine ───────────────────────────────
+    // "Last wins": any new call cancels the in-flight animation cleanly.
+    const cancelCamera = useCallback(() => {
+        cameraTimeoutsRef.current.forEach(t => clearTimeout(t));
+        cameraTimeoutsRef.current = [];
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
+        }
+        isMapAnimatingRef.current = false;
+    }, []);
+
+    const flyTo = useCallback((
+        target: { lat: number; lng: number },
+        targetZoom: number,
+        durationMs: number,
+        ease: (t: number) => number,
+        onDone?: () => void
+    ) => {
+        if (!map) { onDone?.(); return; }
+        cancelCamera();
+
+        const startCenter = map.getCenter();
+        const startZoom = map.getZoom() ?? CAMERA.DEFAULT_ZOOM;
+        if (!startCenter) { onDone?.(); return; }
+        const sLat = startCenter.lat();
+        const sLng = startCenter.lng();
+        const t0 = performance.now();
+
+        isMapAnimatingRef.current = true;
+        const tick = (now: number) => {
+            const p = Math.min((now - t0) / durationMs, 1);
+            const e = ease(p);
+            map.moveCamera({
+                center: { lat: sLat + (target.lat - sLat) * e, lng: sLng + (target.lng - sLng) * e },
+                zoom: startZoom + (targetZoom - startZoom) * e
+            });
+            if (p < 1) {
+                animationFrameRef.current = requestAnimationFrame(tick);
+            } else {
+                isMapAnimatingRef.current = false;
+                animationFrameRef.current = null;
+                onDone?.();
+            }
+        };
+        animationFrameRef.current = requestAnimationFrame(tick);
+    }, [map, cancelCamera]);
 
     useEffect(() => {
         if (routePolyline) {
@@ -142,11 +355,14 @@ const MapLayer: React.FC = () => {
     const onLoad = useCallback(function callback(mapInstance: google.maps.Map) {
         if (!initialCenterSet.current && mapCenter) {
             mapInstance.setCenter(userLocation || mapCenter);
-            mapInstance.setZoom(14);
+            mapInstance.setZoom(16.5);
             initialCenterSet.current = true;
         }
         // Mark ready immediately once tiles load (or after 3s failsafe for desktop)
-        const markReady = () => { mapReadyRef.current = true; };
+        const markReady = () => {
+            mapReadyRef.current = true;
+            setMapVisible(true);
+        };
         google.maps.event.addListenerOnce(mapInstance, 'tilesloaded', markReady);
         setTimeout(markReady, 3000); // Desktop failsafe — tilesloaded can stall on slow connections
 
@@ -184,182 +400,199 @@ const MapLayer: React.FC = () => {
         }
     }, []);
 
-    // Handle Fit Bounds — Uber/Bolt-style smooth camera transitions
-    const lastBoundsRef = useRef('');
-    const cameraTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-    const lastSheetHeightRef = useRef(0);
+    // ── Unified camera system ───────────────────────────────────────
+    // Helper: extend bounds with sampled polyline points to prevent clipping
+    const extendBoundsWithPolyline = useCallback((bounds: google.maps.LatLngBounds) => {
+        if (decodedPath.length > 0) {
+            const step = Math.max(1, Math.floor(decodedPath.length / 20));
+            for (let i = 0; i < decodedPath.length; i += step) bounds.extend(decodedPath[i]);
+            bounds.extend(decodedPath[decodedPath.length - 1]);
+        }
+    }, [decodedPath]);
 
+    // Helper: compute target center+zoom via Google's fitBounds, then snap back
+    const computeBoundsTarget = useCallback((
+        points: google.maps.LatLngLiteral[],
+        padding: google.maps.Padding
+    ): { target: google.maps.LatLngLiteral; zoom: number } | null => {
+        if (!map) return null;
+        const bounds = new google.maps.LatLngBounds();
+        points.forEach(p => bounds.extend(p));
+        extendBoundsWithPolyline(bounds);
+
+        const startCenter = map.getCenter();
+        const startZoom = map.getZoom() ?? CAMERA.DEFAULT_ZOOM;
+
+        map.fitBounds(bounds, padding);
+        const targetZoom = map.getZoom() ?? CAMERA.DEFAULT_ZOOM;
+        const targetCenter = map.getCenter();
+        const target = {
+            lat: targetCenter?.lat() ?? bounds.getCenter().lat(),
+            lng: targetCenter?.lng() ?? bounds.getCenter().lng()
+        };
+
+        if (startCenter) {
+            map.moveCamera({ center: startCenter, zoom: startZoom });
+        }
+
+        return { target, zoom: targetZoom };
+    }, [map, extendBoundsWithPolyline]);
+
+    // ── Effect: Handle boundsToFit requests ────────────────────────
     useEffect(() => {
-        if (map && boundsToFit && boundsToFit.length > 0) {
-            // Cap bottom padding so at least 40% of the screen is usable map area
-            const screenH = window.innerHeight;
-            const isDesktop = window.innerWidth >= 768;
-            const maxBottomPad = Math.floor(screenH * 0.55); // never eat more than 55% of screen
-            const sheetPad = Math.min(maxBottomPad, Math.max(100, (bottomSheetHeight || 280) + 16));
-            const dynamicPadding = isDesktop
-                ? { top: 50, bottom: 50, left: 40, right: 440 }
-                : { top: 50, bottom: sheetPad, left: 48, right: 48 };
-            const boundsKey = JSON.stringify(boundsToFit) + '|' + (bottomSheetHeight || 0);
+        if (!map) return;
 
-            if (boundsKey === lastBoundsRef.current) {
-                resetBoundsTrigger();
-                return;
-            }
+        if (!boundsToFit || boundsToFit.length === 0) {
+            lastBoundsRef.current = '';
+            return;
+        }
 
-            lastBoundsRef.current = boundsKey;
+        const padding = computePadding(bottomSheetHeight);
+        const boundsKey = JSON.stringify(boundsToFit) + '|' + (bottomSheetHeight || 0);
 
-            cameraTimeoutsRef.current.forEach(t => clearTimeout(t));
-            cameraTimeoutsRef.current = [];
+        if (boundsKey === lastBoundsRef.current) {
+            resetBoundsTrigger();
+            return;
+        }
 
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-                animationFrameRef.current = null;
-                isMapAnimatingRef.current = false;
-            }
+        lastBoundsRef.current = boundsKey;
 
-            // ── Professional flyTo engine ──────────────────────────────────
-            // Direct animation with moveCamera — no screenshots, no hiding.
-            // Vector Maps (WebGL) handles progressive tile rendering with fade-in.
-            //
-            // Zoom-out uses easeInOutCubic (slow start gives nearby tiles time to
-            // render before the camera pulls away, slow end lets destination tiles
-            // settle). Zoom-in uses easeOutQuint (fast departure, gentle arrival).
+        const applyCamera = () => {
+            if (boundsToFit.length === 1) {
+                // Single-point: compute padding-aware center WITHOUT extendBoundsWithPolyline
+                // (the old route polyline may still be in decodedPath and would corrupt the center)
+                const point = boundsToFit[0];
+                const bounds = new google.maps.LatLngBounds();
+                bounds.extend(point);
 
-            const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
-            const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-            const flyTo = (
-                target: { lat: number; lng: number },
-                targetZoom: number,
-                durationMs: number,
-                ease: (t: number) => number,
-                onDone: () => void
-            ) => {
                 const startCenter = map.getCenter();
-                const startZoom = map.getZoom() ?? 14;
-                if (!startCenter) { onDone(); return; }
-                const sLat = startCenter.lat();
-                const sLng = startCenter.lng();
-                const t0 = performance.now();
+                const startZoom = map.getZoom() ?? CAMERA.DEFAULT_ZOOM;
 
-                isMapAnimatingRef.current = true;
-                const tick = (now: number) => {
-                    const p = Math.min((now - t0) / durationMs, 1);
-                    const e = ease(p);
-                    map.moveCamera({
-                        center: { lat: sLat + (target.lat - sLat) * e, lng: sLng + (target.lng - sLng) * e },
-                        zoom: startZoom + (targetZoom - startZoom) * e
-                    });
-                    if (p < 1) {
-                        animationFrameRef.current = requestAnimationFrame(tick);
-                    } else {
-                        isMapAnimatingRef.current = false;
-                        onDone();
-                    }
-                };
-                animationFrameRef.current = requestAnimationFrame(tick);
-            };
+                map.fitBounds(bounds, padding);
+                const paddedCenter = map.getCenter();
+                const target = paddedCenter
+                    ? { lat: paddedCenter.lat(), lng: paddedCenter.lng() }
+                    : point;
 
-            const applyCamera = () => {
-                if (boundsToFit.length === 1) {
-                    // Single point: zoom-in fly (2.8s, fast start/gentle landing)
-                    flyTo(boundsToFit[0], 18, 2800, easeOutQuint, () => resetBoundsTrigger());
-                } else {
-                    // Multi-point: compute exact target via fitBounds, then animate
-                    const bounds = new google.maps.LatLngBounds();
-                    boundsToFit.forEach(coord => bounds.extend(coord));
-                    // Include polyline path so curved routes aren't clipped by screen edges
-                    if (decodedPath.length > 0) {
-                        const step = Math.max(1, Math.floor(decodedPath.length / 20));
-                        for (let i = 0; i < decodedPath.length; i += step) bounds.extend(decodedPath[i]);
-                        bounds.extend(decodedPath[decodedPath.length - 1]);
-                    }
+                // Snap map back to current position before animating
+                if (startCenter) map.moveCamera({ center: startCenter, zoom: startZoom });
 
-                    // Save current position
-                    const startCenter = map.getCenter();
-                    const startZoom = map.getZoom() ?? 14;
+                flyTo(target, CAMERA.SINGLE_POINT_ZOOM, CAMERA.FLY_SINGLE_MS, easeOutQuint, () => resetBoundsTrigger());
+            } else {
+                // Compute bounds from points only — NOT extendBoundsWithPolyline.
+                // The polyline in decodedPath may be stale (old route still present
+                // while calculateRoute hasn't re-fetched yet). Including it would
+                // prevent the map from zooming in when a waypoint is removed.
+                const bounds = new google.maps.LatLngBounds();
+                boundsToFit.forEach(p => bounds.extend(p));
 
-                    // Let Google compute exact target (synchronous on Vector Maps)
-                    map.fitBounds(bounds, dynamicPadding);
-                    const targetZoom = map.getZoom() ?? 14;
-                    const targetCenter = map.getCenter();
-                    const target = {
+                const startCenter = map.getCenter();
+                const startZoom = map.getZoom() ?? CAMERA.DEFAULT_ZOOM;
+
+                map.fitBounds(bounds, padding);
+                const targetZoom = map.getZoom() ?? CAMERA.DEFAULT_ZOOM;
+                const targetCenter = map.getCenter();
+                const result = {
+                    target: {
                         lat: targetCenter?.lat() ?? bounds.getCenter().lat(),
                         lng: targetCenter?.lng() ?? bounds.getCenter().lng()
+                    },
+                    zoom: targetZoom
+                };
+
+                if (startCenter) map.moveCamera({ center: startCenter, zoom: startZoom });
+
+                const isZoomingOut = result.zoom < startZoom;
+                const duration = isZoomingOut ? CAMERA.FLY_ZOOM_OUT_MS : CAMERA.FLY_ZOOM_IN_MS;
+                const ease = isZoomingOut ? easeInOutCubic : easeOutQuint;
+
+                const prewarm = prewarmMapRef.current;
+                if (prewarm && isZoomingOut) {
+                    isMapAnimatingRef.current = true;
+                    const prewarmBounds = new google.maps.LatLngBounds();
+                    boundsToFit.forEach(c => prewarmBounds.extend(c));
+                    prewarm.fitBounds(prewarmBounds, padding);
+                    const prewarmZoom = prewarm.getZoom() ?? result.zoom;
+                    prewarm.setZoom(Math.max(1, prewarmZoom - 1));
+
+                    let prewarmFired = false;
+                    const startAnim = () => {
+                        if (prewarmFired) return;
+                        prewarmFired = true;
+                        flyTo(result.target, result.zoom, duration, ease, () => resetBoundsTrigger());
                     };
-
-                    // Snap back to origin instantly
-                    if (startCenter) {
-                        map.moveCamera({ center: startCenter, zoom: startZoom });
-                    }
-
-                    const isZoomingOut = targetZoom < startZoom;
-                    const duration = isZoomingOut ? 2400 : 2200;
-                    const ease = isZoomingOut ? easeInOutCubic : easeOutQuint;
-
-                    // Pre-warm tile cache: jump hidden map to target, wait for tiles, then animate
-                    const prewarm = prewarmMapRef.current;
-                    if (prewarm && isZoomingOut) {
-                        isMapAnimatingRef.current = true; // lock while pre-warming
-                        prewarm.fitBounds(bounds, dynamicPadding);
-                        let prewarmFired = false;
-                        const startAnim = () => {
-                            if (prewarmFired) return;
-                            prewarmFired = true;
-                            flyTo(target, targetZoom, duration, ease, () => resetBoundsTrigger());
-                        };
-                        google.maps.event.addListenerOnce(prewarm, 'tilesloaded', startAnim);
-                        // 1.2s max wait — don't hold animation forever on slow networks
-                        cameraTimeoutsRef.current.push(setTimeout(startAnim, 1200) as any);
-                    } else {
-                        flyTo(target, targetZoom, duration, ease, () => resetBoundsTrigger());
-                    }
+                    google.maps.event.addListenerOnce(prewarm, 'tilesloaded', startAnim);
+                    cameraTimeoutsRef.current.push(setTimeout(startAnim, CAMERA.PREWARM_TIMEOUT_MS) as any);
+                } else {
+                    flyTo(result.target, result.zoom, duration, ease, () => resetBoundsTrigger());
                 }
-            };
-
-            // Fire immediately if tiles are ready, otherwise wait for tiles + failsafe
-            if (mapReadyRef.current) {
-                const t = setTimeout(applyCamera, 50);
-                cameraTimeoutsRef.current.push(t);
-            } else {
-                let started = false;
-                const go = () => { if (!started) { started = true; mapReadyRef.current = true; applyCamera(); } };
-                google.maps.event.addListenerOnce(map, 'tilesloaded', go);
-                cameraTimeoutsRef.current.push(setTimeout(go, 3000) as any);
             }
-        }
-    }, [map, boundsToFit, resetBoundsTrigger]);
-
-    useEffect(() => {
-        return () => {
-            cameraTimeoutsRef.current.forEach(t => clearTimeout(t));
         };
-    }, []);
 
-    // Re-fit route when bottom sheet height changes significantly
-    // (e.g. step 1→2 collapses the sheet, revealing more map space)
-    // Debounced: wait 400ms after the last height change so framer-motion settles
-    const sheetRefitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+        if (mapReadyRef.current) {
+            const t = setTimeout(applyCamera, 50);
+            cameraTimeoutsRef.current.push(t);
+        } else {
+            let started = false;
+            const go = () => { if (!started) { started = true; mapReadyRef.current = true; applyCamera(); } };
+            google.maps.event.addListenerOnce(map, 'tilesloaded', go);
+            cameraTimeoutsRef.current.push(setTimeout(go, CAMERA.TILES_FAILSAFE_MS) as any);
+        }
+    }, [map, boundsToFit, resetBoundsTrigger, flyTo, computeBoundsTarget, extendBoundsWithPolyline, bottomSheetHeight]);
 
+    // ── Effect: Return-to-home when leaving a route ────────────────
+    useEffect(() => {
+        if (!map) return;
+        if (orderState === 'IDLE' && prevOrderStateRef.current !== 'IDLE' && userLocation) {
+            flyTo(userLocation, CAMERA.RETURN_HOME_ZOOM, CAMERA.FLY_RETURN_HOME_MS, easeInOutCubic);
+        }
+        prevOrderStateRef.current = orderState;
+    }, [map, orderState, userLocation, flyTo]);
+
+    // ── Effect: Follow driver at navigation-level zoom ─────────────
+    useEffect(() => {
+        if (!map || !driverCoords) {
+            prevDriverCoordsRef.current = driverCoords;
+            return;
+        }
+        // Only follow when actively tracking (TRACKING state or when driver coords are set with order in transit)
+        if (orderState === 'IDLE' || orderState === 'DRAFTING') {
+            prevDriverCoordsRef.current = driverCoords;
+            return;
+        }
+
+        const prev = prevDriverCoordsRef.current;
+        prevDriverCoordsRef.current = driverCoords;
+
+        // Skip if driver hasn't moved
+        if (prev && Math.abs(driverCoords.lat - prev.lat) < 0.00005 && Math.abs(driverCoords.lng - prev.lng) < 0.00005) return;
+        // Skip if user is currently panning or another animation is mid-flight from a fitBounds call
+        if (isMapAnimatingRef.current) return;
+
+        const padding = computePadding(bottomSheetHeight);
+        // Offset center upward so driver is visible above the bottom sheet
+        const padded = computeBoundsTarget([driverCoords], padding);
+        const target = padded ? padded.target : driverCoords;
+
+        flyTo(target, CAMERA.DRIVER_FOLLOW_ZOOM, CAMERA.DRIVER_FOLLOW_MS, easeInOutCubic);
+    }, [map, driverCoords, orderState, flyTo, computeBoundsTarget, bottomSheetHeight]);
+
+    // ── Effect: Re-fit route when bottom sheet resizes ──────────────
     useEffect(() => {
         if (!map || !bottomSheetHeight) return;
 
-        // Clear any pending refit — only the last height matters
         if (sheetRefitTimerRef.current) clearTimeout(sheetRefitTimerRef.current);
 
         sheetRefitTimerRef.current = setTimeout(() => {
             if (isMapAnimatingRef.current) return;
 
-            // Skip if sheet is taller than 85% of viewport
             const screenH = window.innerHeight;
-            if (bottomSheetHeight > screenH * 0.85) return;
+            if (bottomSheetHeight > screenH * CAMERA.SHEET_MAX_RATIO) return;
 
-            // Only refit if height actually changed meaningfully
             const delta = Math.abs(bottomSheetHeight - lastSheetHeightRef.current);
-            if (delta < 15) return;
+            if (delta < CAMERA.SHEET_DELTA_THRESHOLD) return;
             lastSheetHeightRef.current = bottomSheetHeight;
 
-            // Need at least 2 points to show a route
             const hasRoute = pickupCoords && (waypointCoords?.length > 0 || dropoffCoords);
             if (!hasRoute) return;
 
@@ -367,65 +600,31 @@ const MapLayer: React.FC = () => {
             if (pickupCoords) allPoints.push(pickupCoords);
             if (waypointCoords) waypointCoords.forEach((wp: any) => { if (wp) allPoints.push(wp); });
             if (dropoffCoords) allPoints.push(dropoffCoords);
-            // Include polyline path points so curved routes aren't clipped
-            if (decodedPath.length > 0) {
-                const step = Math.max(1, Math.floor(decodedPath.length / 20));
-                for (let i = 0; i < decodedPath.length; i += step) allPoints.push(decodedPath[i]);
-                allPoints.push(decodedPath[decodedPath.length - 1]);
-            }
             if (allPoints.length < 2) return;
 
-            const bounds = new google.maps.LatLngBounds();
-            allPoints.forEach(p => bounds.extend(p));
+            const padding = computePadding(bottomSheetHeight);
+            const result = computeBoundsTarget(allPoints, padding);
+            if (!result) return;
 
-            const maxBottomPad = Math.floor(screenH * 0.55);
-            const isDesktop = window.innerWidth >= 768;
-            const sheetPad = Math.min(maxBottomPad, Math.max(100, bottomSheetHeight + 16));
-            const padding = isDesktop
-                ? { top: 50, bottom: 50, left: 40, right: 440 }
-                : { top: 50, bottom: sheetPad, left: 48, right: 48 };
-
-            // Compute target via fitBounds, snap back, animate
+            const startZoom = map.getZoom() ?? CAMERA.DEFAULT_ZOOM;
             const startCenter = map.getCenter();
-            const startZoom = map.getZoom() ?? 14;
-            map.fitBounds(bounds, padding);
-            const targetZoom = map.getZoom() ?? 14;
-            const targetCenter = map.getCenter();
-            if (startCenter) map.moveCamera({ center: startCenter, zoom: startZoom });
-
-            // Skip if both zoom and center barely changed
-            const zoomDelta = Math.abs(targetZoom - startZoom);
-            const centerDelta = targetCenter && startCenter
-                ? Math.abs(targetCenter.lat() - startCenter.lat()) + Math.abs(targetCenter.lng() - startCenter.lng())
+            const zoomDelta = Math.abs(result.zoom - startZoom);
+            const centerDelta = startCenter
+                ? Math.abs(result.target.lat - startCenter.lat()) + Math.abs(result.target.lng - startCenter.lng())
                 : 1;
             if (zoomDelta < 0.15 && centerDelta < 0.0005) return;
 
-            const t0 = performance.now();
-            const ease = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-            isMapAnimatingRef.current = true;
-            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-            const sLat = startCenter?.lat() ?? 0, sLng = startCenter?.lng() ?? 0;
-            const tLat = targetCenter?.lat() ?? 0, tLng = targetCenter?.lng() ?? 0;
-            const tick = (now: number) => {
-                const p = Math.min((now - t0) / 600, 1);
-                const e = ease(p);
-                map.moveCamera({
-                    center: { lat: sLat + (tLat - sLat) * e, lng: sLng + (tLng - sLng) * e },
-                    zoom: startZoom + (targetZoom - startZoom) * e
-                });
-                if (p < 1) {
-                    animationFrameRef.current = requestAnimationFrame(tick);
-                } else {
-                    isMapAnimatingRef.current = false;
-                }
-            };
-            animationFrameRef.current = requestAnimationFrame(tick);
-        }, 400); // 400ms debounce — let framer-motion sheet animation finish
+            flyTo(result.target, result.zoom, CAMERA.FLY_SHEET_REFIT_MS, easeInOutCubic);
+        }, CAMERA.SHEET_REFIT_DEBOUNCE_MS);
 
         return () => {
             if (sheetRefitTimerRef.current) clearTimeout(sheetRefitTimerRef.current);
         };
-    }, [map, bottomSheetHeight, pickupCoords, dropoffCoords, waypointCoords]);
+    }, [map, bottomSheetHeight, pickupCoords, dropoffCoords, waypointCoords, flyTo, computeBoundsTarget]);
+
+    useEffect(() => {
+        return () => { cancelCamera(); };
+    }, [cancelCamera]);
 
     // Sync map center back to context when user pans
     const onIdle = useCallback(() => {
@@ -441,285 +640,291 @@ const MapLayer: React.FC = () => {
         }
     }, [map, zoom, setZoom, setMapCenter]);
 
-    if (!isLoaded) return <div className="fixed inset-0 bg-gray-100 flex items-center justify-center"><Truck className="w-10 h-10 text-brand-600 animate-bounce" /></div>;
+    if (!isLoaded) return <div className="fixed inset-0 bg-[#f8f9fa] flex items-center justify-center"><Truck className="w-10 h-10 text-brand-600 animate-bounce" /></div>;
 
     return (
-        <div className="w-full h-full z-0 pointer-events-auto">
-            <GoogleMap
-                mapContainerStyle={containerStyle}
-                center={undefined}
-                zoom={undefined}
-                onLoad={onLoad}
-                onUnmount={onUnmount}
-                onIdle={onIdle}
-                onZoomChanged={() => {
-                    if (isMapAnimatingRef.current) return;
-                    if (map) {
-                        const currentZoom = map.getZoom();
-                        if (currentZoom !== undefined && currentZoom !== zoom) {
-                            setZoom(currentZoom);
+        <div className="w-full h-full z-0 pointer-events-auto bg-[#f8f9fa] relative">
+            <div className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${mapVisible ? 'opacity-100' : 'opacity-0'}`}>
+                <GoogleMap
+                    mapContainerStyle={containerStyle}
+                    center={undefined}
+                    zoom={undefined}
+                    onLoad={onLoad}
+                    onUnmount={onUnmount}
+                    onIdle={onIdle}
+                    onZoomChanged={() => {
+                        if (isMapAnimatingRef.current) return;
+                        if (map) {
+                            const currentZoom = map.getZoom();
+                            if (currentZoom !== undefined && currentZoom !== zoom) {
+                                setZoom(currentZoom);
+                            }
                         }
-                    }
-                }}
-                onClick={(e) => {
-                    if (isMapSelecting && e.latLng) {
-                        setMapCenter(e.latLng.lat(), e.latLng.lng());
-                    }
-                }}
-                onDragStart={() => {
-                    setIsPanning(true);
-                }}
-                onDragEnd={() => setIsPanning(false)}
-                options={{
-                    isFractionalZoomEnabled: true,
-                    mapId: "DEMO_MAP_ID",
-                    disableDefaultUI: true,
-                    gestureHandling: 'greedy' // Enables one-finger panning on mobile
-                }}
-            >
-                {userLocation && !pickupCoords && !isMapSelecting && (
-                    <React.Fragment key="pickup-user-loc">
-                        <OverlayView position={userLocation} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
-                            <div className="w-6 h-6 bg-emerald-500 rounded-full border-4 border-white shadow-xl -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                            </div>
-                        </OverlayView>
-                        <OverlayView position={userLocation} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
-                            <div className="absolute -translate-x-1/2 -translate-y-12 flex flex-col items-center z-[9999] pointer-events-none">
-                                <div className="bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20 whitespace-nowrap">Pickup</div>
-                                <div className="w-2 h-2 bg-emerald-600 rotate-45 -mt-1 shadow-sm"></div>
-                            </div>
-                        </OverlayView>
-                    </React.Fragment>
-                )}
-
-                {pickupCoords && (!isMapSelecting || activeInput !== 'pickup') && (
-                    <React.Fragment key="pickup-loc">
-                        <OverlayView position={pickupCoords} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
-                            <div
-                                onClick={() => {
-                                    if (orderState === 'DRAFTING' || allowMarkerClick) {
-                                        setActiveInput('pickup');
-                                        setIsMapSelecting(true);
-                                        setMapCenter(pickupCoords.lat, pickupCoords.lng);
-                                    }
-                                }}
-                                className="w-6 h-6 bg-emerald-500 rounded-full border-4 border-white shadow-xl -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform flex items-center justify-center"
-                            >
-                                <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                            </div>
-                        </OverlayView>
-                        <OverlayView position={pickupCoords} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
-                            <div className="absolute -translate-x-1/2 -translate-y-12 flex flex-col items-center z-[9999] pointer-events-none">
-                                <div className="bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20 whitespace-nowrap">Pickup</div>
-                                <div className="w-2 h-2 bg-emerald-600 rotate-45 -mt-1 shadow-sm"></div>
-                            </div>
-                        </OverlayView>
-                    </React.Fragment>
-                )}
-
-                {dropoffCoords && (!isMapSelecting || activeInput !== 'dropoff') && (
-                    <>
-                        <OverlayView
-                            position={dropoffCoords}
-                            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                        >
-                            <div
-                                onClick={() => {
-                                    if (orderState === 'DRAFTING' || allowMarkerClick) {
-                                        setActiveInput('dropoff');
-                                        setIsMapSelecting(true);
-                                        setMapCenter(dropoffCoords.lat, dropoffCoords.lng);
-                                    }
-                                }}
-                                className="w-6 h-6 bg-red-500 rounded-full border-4 border-white shadow-xl -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform flex items-center justify-center"
-                            >
-                                <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                            </div>
-                        </OverlayView>
-                        <OverlayView
-                            position={dropoffCoords}
-                            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                        >
-                            <div className="absolute -translate-x-1/2 -translate-y-12 flex flex-col items-center z-[9998] pointer-events-none">
-                                <div className="bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20 whitespace-nowrap">
-                                    Drop-Off
+                    }}
+                    onClick={(e) => {
+                        if (isMapSelecting && e.latLng) {
+                            setMapCenter(e.latLng.lat(), e.latLng.lng());
+                        }
+                    }}
+                    onDragStart={() => {
+                        setIsPanning(true);
+                    }}
+                    onDragEnd={() => setIsPanning(false)}
+                    options={{
+                        isFractionalZoomEnabled: true,
+                        mapId: "DEMO_MAP_ID",
+                        disableDefaultUI: true,
+                        gestureHandling: 'greedy' // Enables one-finger panning on mobile
+                    }}
+                >
+                    {userLocation && !pickupCoords && !isMapSelecting && (
+                        <React.Fragment key="pickup-user-loc">
+                            <OverlayView position={userLocation} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+                                <div className="w-6 h-6 bg-emerald-500 rounded-full border-4 border-white shadow-xl -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+                                    <div className="w-1.5 h-1.5 bg-white rounded-full" />
                                 </div>
-                                <div className="w-2 h-2 bg-red-600 rotate-45 -mt-1 shadow-sm"></div>
-                            </div>
-                        </OverlayView>
-                    </>
-                )}
+                            </OverlayView>
+                            <OverlayView position={userLocation} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+                                <div className="absolute -translate-x-1/2 -translate-y-12 flex flex-col items-center z-[9999] pointer-events-none">
+                                    <div className="bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20 whitespace-nowrap">Pickup</div>
+                                    <div className="w-2 h-2 bg-emerald-600 rotate-45 -mt-1 shadow-sm"></div>
+                                </div>
+                            </OverlayView>
+                        </React.Fragment>
+                    )}
 
-                {/* Waypoint Markers — last waypoint is always red (Final Destination) */}
-                {waypointCoords.map((coords, idx) => {
-                    const isLast = idx === waypointCoords.length - 1 && !dropoffCoords;
-                    const dotColor = isLast ? 'bg-red-500' : ['bg-orange-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-teal-500'][idx % 5];
-                    const labelBg = isLast ? 'bg-red-600' : 'bg-purple-600';
-                    const labelText = isLast ? 'Final Drop-off' : `Stop ${idx + 1}`;
-                    return (
-                        (!isMapSelecting || activeInput !== `waypoint-${idx}`) && (
-                            <React.Fragment key={`wp-${idx}`}>
-                                <OverlayView
-                                    position={coords}
-                                    mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                    {pickupCoords && (!isMapSelecting || activeInput !== 'pickup') && (
+                        <React.Fragment key="pickup-loc">
+                            <OverlayView position={pickupCoords} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+                                <div
+                                    onClick={() => {
+                                        if (orderState === 'DRAFTING' || allowMarkerClick) {
+                                            setActiveInput('pickup');
+                                            setIsMapSelecting(true);
+                                            setMapCenter(pickupCoords.lat, pickupCoords.lng);
+                                        }
+                                    }}
+                                    className="w-6 h-6 bg-emerald-500 rounded-full border-4 border-white shadow-xl -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform flex items-center justify-center"
                                 >
-                                    <div
-                                        onClick={() => {
-                                            if (orderState === 'DRAFTING' || allowMarkerClick) {
-                                                setActiveInput(`waypoint-${idx}`);
-                                                setIsMapSelecting(true);
-                                                setMapCenter(coords.lat, coords.lng);
-                                            }
-                                        }}
-                                        className={`${isLast ? 'w-6 h-6' : 'w-5 h-5'} ${dotColor} rounded-full border-4 border-white shadow-xl -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform flex items-center justify-center`}
+                                    <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                                </div>
+                            </OverlayView>
+                            <OverlayView position={pickupCoords} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+                                <div className="absolute -translate-x-1/2 -translate-y-12 flex flex-col items-center z-[9999] pointer-events-none">
+                                    <div className="bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20 whitespace-nowrap">Pickup</div>
+                                    <div className="w-2 h-2 bg-emerald-600 rotate-45 -mt-1 shadow-sm"></div>
+                                </div>
+                            </OverlayView>
+                        </React.Fragment>
+                    )}
+
+                    {dropoffCoords && (!isMapSelecting || activeInput !== 'dropoff') && (
+                        <>
+                            <OverlayView
+                                position={dropoffCoords}
+                                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                            >
+                                <div
+                                    onClick={() => {
+                                        if (orderState === 'DRAFTING' || allowMarkerClick) {
+                                            setActiveInput('dropoff');
+                                            setIsMapSelecting(true);
+                                            setMapCenter(dropoffCoords.lat, dropoffCoords.lng);
+                                        }
+                                    }}
+                                    className="w-6 h-6 bg-red-500 rounded-full border-4 border-white shadow-xl -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform flex items-center justify-center"
+                                >
+                                    <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                                </div>
+                            </OverlayView>
+                            <OverlayView
+                                position={dropoffCoords}
+                                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                            >
+                                <div className="absolute -translate-x-1/2 -translate-y-12 flex flex-col items-center z-[9998] pointer-events-none">
+                                    <div className="bg-red-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20 whitespace-nowrap">
+                                        Drop-Off
+                                    </div>
+                                    <div className="w-2 h-2 bg-red-600 rotate-45 -mt-1 shadow-sm"></div>
+                                </div>
+                            </OverlayView>
+                        </>
+                    )}
+
+                    {/* Waypoint Markers — last waypoint is always red (Final Destination) */}
+                    {waypointCoords.map((coords, idx) => {
+                        const isLast = idx === waypointCoords.length - 1 && !dropoffCoords;
+                        const dotColor = isLast ? 'bg-red-500' : ['bg-orange-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-teal-500'][idx % 5];
+                        const labelBg = isLast ? 'bg-red-600' : 'bg-purple-600';
+                        const labelText = isLast ? 'Final Drop-off' : `Stop ${idx + 1}`;
+                        return (
+                            (!isMapSelecting || activeInput !== `waypoint-${idx}`) && (
+                                <React.Fragment key={`wp-${idx}`}>
+                                    <OverlayView
+                                        position={coords}
+                                        mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
                                     >
-                                        <div className={`${isLast ? 'w-1.5 h-1.5' : 'w-1 h-1'} bg-white rounded-full`} />
-                                    </div>
-                                </OverlayView>
-                                <OverlayView
-                                    position={coords}
-                                    mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                                >
-                                    <div className="absolute -translate-x-1/2 -translate-y-12 flex flex-col items-center z-[9997] pointer-events-none">
-                                        <div className={`${labelBg} text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20 whitespace-nowrap`}>
-                                            {labelText}
+                                        <div
+                                            onClick={() => {
+                                                if (orderState === 'DRAFTING' || allowMarkerClick) {
+                                                    setActiveInput(`waypoint-${idx}`);
+                                                    setIsMapSelecting(true);
+                                                    setMapCenter(coords.lat, coords.lng);
+                                                }
+                                            }}
+                                            className={`${isLast ? 'w-6 h-6' : 'w-5 h-5'} ${dotColor} rounded-full border-4 border-white shadow-xl -translate-x-1/2 -translate-y-1/2 cursor-pointer hover:scale-110 transition-transform flex items-center justify-center`}
+                                        >
+                                            <div className={`${isLast ? 'w-1.5 h-1.5' : 'w-1 h-1'} bg-white rounded-full`} />
                                         </div>
-                                        <div className={`w-2 h-2 ${labelBg} rotate-45 -mt-1 shadow-sm`}></div>
-                                    </div>
-                                </OverlayView>
-                            </React.Fragment>
-                        )
-                    );
-                })}
+                                    </OverlayView>
+                                    <OverlayView
+                                        position={coords}
+                                        mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                                    >
+                                        <div className="absolute -translate-x-1/2 -translate-y-12 flex flex-col items-center z-[9997] pointer-events-none">
+                                            <div className={`${labelBg} text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/20 whitespace-nowrap`}>
+                                                {labelText}
+                                            </div>
+                                            <div className={`w-2 h-2 ${labelBg} rotate-45 -mt-1 shadow-sm`}></div>
+                                        </div>
+                                    </OverlayView>
+                                </React.Fragment>
+                            )
+                        );
+                    })}
 
-                {driverCoords && (
-                    <>
-                        <OverlayView
-                            position={driverCoords}
-                            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                        >
-                            <VehicleIcon
-                                type={driverVehicleType}
-                                bearing={driverBearing}
-                                color="brand"
-                                isDriver={true}
-                            />
-                        </OverlayView>
-                        {driverLabel && (
+                    {driverCoords && (
+                        <>
                             <OverlayView
                                 position={driverCoords}
                                 mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
                             >
-                                <div className="absolute -translate-x-1/2 -translate-y-20 flex flex-col items-center z-[9999] cursor-default" style={{ minWidth: '120px' }}>
-                                    <div className="bg-brand-600 px-4 py-2 rounded-2xl shadow-xl text-xs font-black text-white whitespace-nowrap border border-brand-500 flex items-center gap-2">
-                                        <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
-                                        </span>
-                                        <span>{driverLabel}</span>
-                                    </div>
-                                    <div className="w-2 h-2 bg-brand-600 rotate-45 -mt-1 shadow-sm"></div>
-                                </div>
+                                <VehicleIcon
+                                    type={driverVehicleType}
+                                    bearing={driverBearing}
+                                    color="brand"
+                                    isDriver={true}
+                                />
                             </OverlayView>
-                        )}
+                            {driverLabel && (
+                                <OverlayView
+                                    position={driverCoords}
+                                    mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                                >
+                                    <div className="absolute -translate-x-1/2 -translate-y-20 flex flex-col items-center z-[9999] cursor-default" style={{ minWidth: '120px' }}>
+                                        <div className="bg-brand-600 px-4 py-2 rounded-2xl shadow-xl text-xs font-black text-white whitespace-nowrap border border-brand-500 flex items-center gap-2">
+                                            <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+                                            </span>
+                                            <span>{driverLabel}</span>
+                                        </div>
+                                        <div className="w-2 h-2 bg-brand-600 rotate-45 -mt-1 shadow-sm"></div>
+                                    </div>
+                                </OverlayView>
+                            )}
+                        </>
+                    )}
+
+                    {(orderState === 'IDLE' || orderState === 'DRAFTING' || orderState === 'MATCHING') && nearbyVehicles.map(vehicle => (
+                        <React.Fragment key={vehicle.id}>
+                            <OverlayView
+                                position={vehicle.position}
+                                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                            >
+                                <VehicleIcon
+                                    type={vehicle.type}
+                                    bearing={vehicle.bearing}
+                                    color="blue"
+                                />
+                            </OverlayView>
+                        </React.Fragment>
+                    ))}
+
+                    {/* Shadow outline for depth */}
+                    <Polyline
+                        path={decodedPath}
+                        options={{
+                            strokeColor: '#1e3a5f',
+                            strokeOpacity: 0.25,
+                            strokeWeight: 8,
+                            geodesic: true,
+                            zIndex: 99,
+                            visible: decodedPath.length > 0
+                        }}
+                    />
+                    {/* Main route polyline — 5px industry standard */}
+                    <Polyline
+                        path={decodedPath}
+                        options={{
+                            strokeColor: '#4285F4',
+                            strokeOpacity: 1,
+                            strokeWeight: 5,
+                            geodesic: true,
+                            zIndex: 100,
+                            visible: decodedPath.length > 0
+                        }}
+                    />
+                </GoogleMap>
+
+                {isMapSelecting && (
+                    <>
+                        {/* Top Hint */}
+                        <div className="absolute top-24 left-0 right-0 flex justify-center z-10 pointer-events-none">
+                            <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl border border-white/50 flex items-center space-x-3 animate-in slide-in-from-top-4 duration-500">
+                                <div className="w-8 h-8 bg-brand-50 rounded-xl flex items-center justify-center">
+                                    <GripVertical className="w-4 h-4 text-brand-600" />
+                                </div>
+                                <p className="text-sm font-black text-gray-900">Drag map to move pin</p>
+                            </div>
+                        </div>
+
+                        {/* Cancel Button */}
+                        <div className="absolute top-24 left-6 z-10">
+                            <button
+                                onClick={() => setIsMapSelecting(false)}
+                                className="w-12 h-12 bg-white rounded-2xl shadow-2xl flex items-center justify-center text-gray-900 hover:bg-gray-50 active:scale-95 transition-all border border-gray-100"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+                            <div className={`mb-20 transition-all duration-300 ease-out transform ${isPanning ? '-translate-y-6 scale-110' : 'translate-y-0 scale-100'}`}>
+                                {/* Label */}
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-6 whitespace-nowrap animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <div className="bg-gray-900/95 text-white text-[11px] font-black px-4 py-2 rounded-2xl uppercase tracking-widest shadow-2xl border border-white/20 flex items-center space-x-2">
+                                        <div className={`w-2 h-2 rounded-full animate-pulse ${activeInput === 'pickup' ? 'bg-green-500' : activeInput === 'dropoff' ? 'bg-red-500' : 'bg-brand-500'}`}></div>
+                                        <span>Set {activeInput === 'pickup' ? 'Pickup' : activeInput === 'dropoff' ? 'Dropoff' : `Stop ${parseInt(activeInput?.split('-')[1] || '0') + 1}`}</span>
+                                    </div>
+                                    <div className="w-3 h-3 bg-gray-900/95 rotate-45 mx-auto -mt-1.5 border-r border-b border-white/20"></div>
+                                </div>
+
+                                {/* Pin */}
+                                <div className="relative flex flex-col items-center">
+                                    <div className={`w-14 h-14 rounded-[2rem] border-[6px] border-white shadow-2xl flex items-center justify-center transition-all duration-500 ${activeInput === 'pickup' ? 'bg-green-600' : 'bg-red-600'} ${!isPanning ? 'ring-4 ring-white/30' : ''}`}>
+                                        {activeInput === 'pickup' ? (
+                                            <MapPin className="w-6 h-6 text-white" />
+                                        ) : (
+                                            <Navigation className="w-6 h-6 text-white" />
+                                        )}
+                                    </div>
+                                    <div className={`w-1.5 h-12 -mt-1 shadow-2xl transition-colors duration-500 rounded-full ${activeInput === 'pickup' ? 'bg-green-600' : 'bg-red-600'}`}></div>
+                                </div>
+                            </div>
+
+                            {/* Shadow */}
+                            <div className={`absolute w-8 h-2.5 bg-black/30 rounded-full blur-[4px] transition-all duration-500 ${isPanning ? 'scale-150 opacity-10 translate-y-4' : 'scale-100 opacity-40 translate-y-0'}`} style={{ marginTop: '48px' }}></div>
+                        </div>
                     </>
                 )}
 
-                {(orderState === 'IDLE' || orderState === 'DRAFTING' || orderState === 'MATCHING') && nearbyVehicles.map(vehicle => (
-                    <React.Fragment key={vehicle.id}>
-                        <OverlayView
-                            position={vehicle.position}
-                            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                        >
-                            <VehicleIcon
-                                type={vehicle.type}
-                                bearing={vehicle.bearing}
-                                color="blue"
-                            />
-                        </OverlayView>
-                    </React.Fragment>
-                ))}
-
-                {/* Shadow outline for depth */}
-                <Polyline
-                    path={decodedPath}
-                    options={{
-                        strokeColor: '#1e3a5f',
-                        strokeOpacity: 0.25,
-                        strokeWeight: 8,
-                        geodesic: true,
-                        zIndex: 99,
-                        visible: decodedPath.length > 0
-                    }}
-                />
-                {/* Main route polyline — 5px industry standard */}
-                <Polyline
-                    path={decodedPath}
-                    options={{
-                        strokeColor: '#4285F4',
-                        strokeOpacity: 1,
-                        strokeWeight: 5,
-                        geodesic: true,
-                        zIndex: 100,
-                        visible: decodedPath.length > 0
-                    }}
-                />
-            </GoogleMap>
-
-            {isMapSelecting && (
-                <>
-                    {/* Top Hint */}
-                    <div className="absolute top-24 left-0 right-0 flex justify-center z-10 pointer-events-none">
-                        <div className="bg-white/90 px-6 py-3 rounded-2xl shadow-2xl border border-white/50 flex items-center space-x-3 animate-in slide-in-from-top-4 duration-500">
-                            <div className="w-8 h-8 bg-brand-50 rounded-xl flex items-center justify-center">
-                                <GripVertical className="w-4 h-4 text-brand-600" />
-                            </div>
-                            <p className="text-sm font-black text-gray-900">Drag map to move pin</p>
-                        </div>
-                    </div>
-
-                    {/* Cancel Button */}
-                    <div className="absolute top-24 left-6 z-10">
-                        <button
-                            onClick={() => setIsMapSelecting(false)}
-                            className="w-12 h-12 bg-white rounded-2xl shadow-2xl flex items-center justify-center text-gray-900 hover:bg-gray-50 active:scale-95 transition-all border border-gray-100"
-                        >
-                            <X className="w-6 h-6" />
-                        </button>
-                    </div>
-
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
-                        <div className={`mb-20 transition-all duration-300 ease-out transform ${isPanning ? '-translate-y-6 scale-110' : 'translate-y-0 scale-100'}`}>
-                            {/* Label */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-6 whitespace-nowrap animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <div className="bg-gray-900/95 text-white text-[11px] font-black px-4 py-2 rounded-2xl uppercase tracking-widest shadow-2xl border border-white/20 flex items-center space-x-2">
-                                    <div className={`w-2 h-2 rounded-full animate-pulse ${activeInput === 'pickup' ? 'bg-green-500' : activeInput === 'dropoff' ? 'bg-red-500' : 'bg-brand-500'}`}></div>
-                                    <span>Set {activeInput === 'pickup' ? 'Pickup' : activeInput === 'dropoff' ? 'Dropoff' : `Stop ${parseInt(activeInput?.split('-')[1] || '0') + 1}`}</span>
-                                </div>
-                                <div className="w-3 h-3 bg-gray-900/95 rotate-45 mx-auto -mt-1.5 border-r border-b border-white/20"></div>
-                            </div>
-
-                            {/* Pin */}
-                            <div className="relative flex flex-col items-center">
-                                <div className={`w-14 h-14 rounded-[2rem] border-[6px] border-white shadow-2xl flex items-center justify-center transition-all duration-500 ${activeInput === 'pickup' ? 'bg-green-600' : 'bg-red-600'} ${!isPanning ? 'ring-4 ring-white/30' : ''}`}>
-                                    {activeInput === 'pickup' ? (
-                                        <MapPin className="w-6 h-6 text-white" />
-                                    ) : (
-                                        <Navigation className="w-6 h-6 text-white" />
-                                    )}
-                                </div>
-                                <div className={`w-1.5 h-12 -mt-1 shadow-2xl transition-colors duration-500 rounded-full ${activeInput === 'pickup' ? 'bg-green-600' : 'bg-red-600'}`}></div>
-                            </div>
-                        </div>
-
-                        {/* Shadow */}
-                        <div className={`absolute w-8 h-2.5 bg-black/30 rounded-full blur-[4px] transition-all duration-500 ${isPanning ? 'scale-150 opacity-10 translate-y-4' : 'scale-100 opacity-40 translate-y-0'}`} style={{ marginTop: '48px' }}></div>
-                    </div>
-                </>
+            </div>
+            {!mapVisible && (
+                <div className="absolute inset-0 flex items-center justify-center bg-[#f8f9fa] z-10 pointer-events-none">
+                    <Truck className="w-10 h-10 text-brand-600 animate-bounce mb-3" />
+                </div>
             )}
-
-
         </div>
     );
 };
